@@ -34,6 +34,7 @@ const promotionSchema = z.object({
   content: z.string().min(1, "El contenido es obligatorio"),
   imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
   storeId: z.string().min(1, "Debes seleccionar una tienda"),
+  cityId: z.string().min(1, "El código postal es obligatorio"),
   isActive: z.boolean(),
 });
 
@@ -55,6 +56,7 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
       content: promotion?.content || "",
       imageUrl: promotion?.imageUrl || "",
       storeId: promotion?.storeId || "",
+      cityId: promotion?.cityId || "",
       isActive: promotion?.isActive ?? true,
     },
   });
@@ -92,36 +94,55 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-4 max-h-[70vh] overflow-y-auto p-1"
       >
-        <FormField
-          control={form.control}
-          name="storeId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tienda Asociada</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={storesLoading}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una tienda" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {storesLoading ? (
-                    <div className="flex items-center justify-center p-4">
-                      <Loader text="Cargando tiendas..." />
-                    </div>
-                  ) : (
-                    stores.map((store) => (
-                      <SelectItem key={store.id} value={store.id}>
-                        {store.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+            control={form.control}
+            name="storeId"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Tienda Asociada</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={storesLoading}>
+                    <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una tienda" />
+                    </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                    {storesLoading ? (
+                        <div className="flex items-center justify-center p-4">
+                        <Loader text="Cargando tiendas..." />
+                        </div>
+                    ) : (
+                        stores.map((store) => (
+                        <SelectItem key={store.id} value={store.id}>
+                            {store.name}
+                        </SelectItem>
+                        ))
+                    )}
+                    </SelectContent>
+                </Select>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+             <FormField
+                control={form.control}
+                name="cityId"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Ciudad (Código Postal)</FormLabel>
+                    <FormControl>
+                        <Input placeholder="Ej: 1010" {...field} />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                        Este es el código postal para segmentar la promoción.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+        </div>
+        
         <FormField
           control={form.control}
           name="title"

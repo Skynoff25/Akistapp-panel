@@ -18,6 +18,7 @@ const promotionSchema = z.object({
   content: z.string().min(1, "El contenido es obligatorio"),
   imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
   storeId: z.string().min(1, "Debes seleccionar una tienda"),
+  cityId: z.string().min(1, "El código postal es obligatorio"),
   isActive: z.boolean(),
 });
 
@@ -27,6 +28,7 @@ export async function createPromotion(formData: FormData) {
     content: formData.get("content"),
     imageUrl: formData.get("imageUrl"),
     storeId: formData.get("storeId"),
+    cityId: formData.get("cityId"),
     isActive: formData.get("isActive") === "true",
   };
 
@@ -38,7 +40,7 @@ export async function createPromotion(formData: FormData) {
     };
   }
   
-  const { storeId, ...promotionData } = validatedFields.data;
+  const { storeId, cityId, ...promotionData } = validatedFields.data;
 
   try {
     const storeRef = doc(db, "Stores", storeId);
@@ -53,7 +55,7 @@ export async function createPromotion(formData: FormData) {
       ...promotionData,
       storeId: storeId,
       storeName: storeData.name,
-      cityId: storeData.zipcode || "", // Fallback to empty string
+      cityId: cityId,
       type: "promotion",
       createdAt: Date.now(),
       imageUrl: promotionData.imageUrl || `https://picsum.photos/seed/${promotionData.title}/600/300`,
@@ -72,6 +74,7 @@ export async function updatePromotion(id: string, formData: FormData) {
     content: formData.get("content"),
     imageUrl: formData.get("imageUrl"),
     storeId: formData.get("storeId"),
+    cityId: formData.get("cityId"),
     isActive: formData.get("isActive") === "true",
   };
   
@@ -83,7 +86,7 @@ export async function updatePromotion(id: string, formData: FormData) {
     };
   }
   
-  const { storeId, ...promotionData } = validatedFields.data;
+  const { storeId, cityId, ...promotionData } = validatedFields.data;
 
   try {
     const storeRef = doc(db, "Stores", storeId);
@@ -99,7 +102,7 @@ export async function updatePromotion(id: string, formData: FormData) {
        ...promotionData,
        storeId: storeId,
        storeName: storeData.name,
-       cityId: storeData.zipcode || "", // Fallback to empty string
+       cityId: cityId,
        imageUrl: promotionData.imageUrl || `https://picsum.photos/seed/${promotionData.title}/600/300`,
     });
 

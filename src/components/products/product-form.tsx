@@ -15,7 +15,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { createProduct } from "@/app/dashboard/products/actions";
+import { createProduct, updateProduct } from "@/app/dashboard/products/actions";
+import type { Product } from "@/lib/types";
+import { useEffect } from "react";
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -29,10 +31,11 @@ const productSchema = z.object({
 type ProductFormValues = z.infer<typeof productSchema>;
 
 interface ProductFormProps {
+  product?: Product | null;
   onSuccess: () => void;
 }
 
-export function ProductForm({ onSuccess }: ProductFormProps) {
+export function ProductForm({ product, onSuccess }: ProductFormProps) {
   const { toast } = useToast();
 
   const form = useForm<ProductFormValues>({
@@ -47,6 +50,29 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (product) {
+      form.reset({
+        name: product.name,
+        brand: product.brand,
+        description: product.description,
+        category: product.category,
+        image: product.image,
+        tags: product.tags?.join(", ") || "",
+      });
+    } else {
+      form.reset({
+        name: "",
+        brand: "",
+        description: "",
+        category: "",
+        image: "",
+        tags: "",
+      });
+    }
+  }, [product, form]);
+
+
   const onSubmit = async (data: ProductFormValues) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
@@ -56,16 +82,22 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
     });
 
     form.clearErrors();
-    const result = await createProduct(formData);
+    
+    const action = product ? updateProduct.bind(null, product.id) : createProduct;
+    const result = await action(formData);
     
     if (result?.errors) {
-        if (result.errors._form) {
-          form.setError("root.serverError", { message: result.errors._form.join(", ") });
-        }
-    } else {
+        Object.entries(result.errors).forEach(([key, value]) => {
+            if (key === '_form') {
+                 form.setError("root.serverError", { message: (value as string[]).join(", ") });
+            } else {
+                 form.setError(key as keyof ProductFormValues, { message: (value as string[]).join(", ") });
+            }
+        });
+    } else if (result?.message) {
         toast({
-            title: "Producto Creado",
-            description: `El producto "${data.name}" ha sido creado exitosamente.`,
+            title: product ? "Producto Actualizado" : "Producto Creado",
+            description: result.message,
         });
         onSuccess();
     }
@@ -160,7 +192,7 @@ export function ProductForm({ onSuccess }: ProductFormProps) {
         )}
 
         <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : "Guardar Producto"}
+          {form.formState.isSubmitting ? "Guardando..." : (product ? "Guardar Cambios" : "Guardar Producto")}
         </Button>
       </form>
     </Form>

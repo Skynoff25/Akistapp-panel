@@ -19,6 +19,8 @@ export interface Store {
   allowReservations: boolean;
   featured: boolean;
   createdAt: number;
+  allowPickup: boolean;
+  allowDelivery: boolean;
 }
 
 export interface Product {

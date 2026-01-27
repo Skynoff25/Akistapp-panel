@@ -15,6 +15,8 @@ const storeSchema = z.object({
     longitude: z.coerce.number(),
     imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
     subscriptionPlan: z.enum(['BASIC', 'STANDARD', 'PREMIUM']),
+    allowPickup: z.enum(['true', 'false']).transform(v => v === 'true'),
+    allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
 });
 
 function getPlanDetails(plan: 'BASIC' | 'STANDARD' | 'PREMIUM') {
@@ -39,6 +41,8 @@ export async function createStore(formData: FormData) {
         longitude: formData.get("longitude") as string,
         imageUrl: formData.get("imageUrl") as string,
         subscriptionPlan: formData.get("subscriptionPlan") as 'BASIC' | 'STANDARD' | 'PREMIUM',
+        allowPickup: formData.get("allowPickup") as string,
+        allowDelivery: formData.get("allowDelivery") as string,
     };
 
     const validatedFields = storeSchema.safeParse(values);
@@ -50,10 +54,16 @@ export async function createStore(formData: FormData) {
     }
 
     const planDetails = getPlanDetails(validatedFields.data.subscriptionPlan);
+    const storeData = { ...validatedFields.data };
+
+    if (storeData.subscriptionPlan === 'BASIC') {
+        storeData.allowPickup = false;
+        storeData.allowDelivery = false;
+    }
 
     try {
         await addDoc(collection(db, "Stores"), {
-            ...validatedFields.data,
+            ...storeData,
             ...planDetails,
             isActive: true,
             isOpen: true, // Por defecto la tienda está abierta
@@ -78,6 +88,8 @@ export async function updateStore(id: string, formData: FormData) {
         longitude: formData.get("longitude") as string,
         imageUrl: formData.get("imageUrl") as string,
         subscriptionPlan: formData.get("subscriptionPlan") as 'BASIC' | 'STANDARD' | 'PREMIUM',
+        allowPickup: formData.get("allowPickup") as string,
+        allowDelivery: formData.get("allowDelivery") as string,
     };
 
     const validatedFields = storeSchema.safeParse(values);
@@ -89,11 +101,17 @@ export async function updateStore(id: string, formData: FormData) {
     }
     
     const planDetails = getPlanDetails(validatedFields.data.subscriptionPlan);
+    const storeData = { ...validatedFields.data };
+
+    if (storeData.subscriptionPlan === 'BASIC') {
+        storeData.allowPickup = false;
+        storeData.allowDelivery = false;
+    }
     
     try {
         const storeRef = doc(db, "Stores", id);
         await updateDoc(storeRef, {
-            ...validatedFields.data,
+            ...storeData,
             ...planDetails,
             imageUrl: validatedFields.data.imageUrl || `https://picsum.photos/seed/${validatedFields.data.name}/100/100`
         });

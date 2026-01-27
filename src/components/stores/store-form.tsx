@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,6 +21,7 @@ import { useEffect } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card } from "../ui/card";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 
 const storeSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -31,6 +33,8 @@ const storeSchema = z.object({
   longitude: z.coerce.number(),
   imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
   subscriptionPlan: z.enum(['BASIC', 'STANDARD', 'PREMIUM']),
+  allowPickup: z.boolean().default(false),
+  allowDelivery: z.boolean().default(false),
 });
 
 type StoreFormValues = z.infer<typeof storeSchema>;
@@ -41,7 +45,7 @@ interface StoreFormProps {
 }
 
 const planOptions: { value: SubscriptionPlan, title: string, price: string, features: string[] }[] = [
-    { value: 'BASIC', title: 'Vitrina Digital', price: '$5/mes', features: ['20 Productos', 'Sin Reservas', 'No Destacado'] },
+    { value: 'BASIC', title: 'Vitrina Digital', price: '$5/mes', features: ['20 Productos', 'Sin Reservas', 'No Destacado', 'Sin Envíos/Retiros'] },
     { value: 'STANDARD', title: 'Venta Activa', price: '$15/mes', features: ['200 Productos', 'Permite Reservas', 'No Destacado'] },
     { value: 'PREMIUM', title: 'Supermercado', price: '$50/mes', features: ['10,000 Productos', 'Permite Reservas', 'Destacado'] },
 ];
@@ -60,6 +64,8 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
       longitude: store?.longitude || 0.0,
       imageUrl: store?.imageUrl || "",
       subscriptionPlan: store?.subscriptionPlan || 'BASIC',
+      allowPickup: store?.allowPickup || false,
+      allowDelivery: store?.allowDelivery || false,
     },
   });
 
@@ -74,8 +80,20 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
         longitude: store?.longitude || 0.0,
         imageUrl: store?.imageUrl || "",
         subscriptionPlan: store?.subscriptionPlan || 'BASIC',
+        allowPickup: store?.allowPickup || false,
+        allowDelivery: store?.allowDelivery || false,
     });
   }, [store, form]);
+
+  const selectedPlan = form.watch("subscriptionPlan");
+  const isBasicPlan = selectedPlan === 'BASIC';
+
+  useEffect(() => {
+    if (isBasicPlan) {
+      form.setValue('allowPickup', false);
+      form.setValue('allowDelivery', false);
+    }
+  }, [isBasicPlan, form]);
 
 
   const onSubmit = async (data: StoreFormValues) => {
@@ -247,6 +265,39 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="allowPickup"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Permitir Retiro en Tienda</FormLabel>
+                <FormDescription>Los clientes podrán realizar pedidos para recoger en el local.</FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isBasicPlan} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="allowDelivery"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Permitir Despacho a Domicilio</FormLabel>
+                <FormDescription>Tu tienda podrá recibir pedidos para enviar a domicilio.</FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isBasicPlan} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Guardando..." : "Guardar Tienda"}
         </Button>

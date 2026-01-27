@@ -1,5 +1,4 @@
-
-'use client';
+"use client";
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
@@ -234,7 +233,7 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
                   </Badge>
                 </TableCell>
                  <TableCell className="text-right">
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
                                 <span className="sr-only">Abrir menu</span>

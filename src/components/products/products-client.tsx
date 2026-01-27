@@ -134,7 +134,7 @@ export default function ProductsClient({ isAdmin }: ProductsClientProps) {
                 <TableCell className="text-sm text-muted-foreground truncate max-w-xs">{product.description}</TableCell>
                 {isAdmin && (
                     <TableCell className="text-right">
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="h-8 w-8 p-0">
                                     <span className="sr-only">Abrir menu</span>

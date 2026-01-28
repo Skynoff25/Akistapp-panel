@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteField } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Store } from '@/lib/types';
 
@@ -38,7 +38,7 @@ export async function updateMyStore(storeId: string, formData: FormData) {
     }
     
     const store = storeSnap.data() as Store;
-    const { ...dataToUpdate } = validatedFields.data;
+    const dataToUpdate: { [key: string]: any } = { ...validatedFields.data };
 
     // Server-side guard to ensure BASIC plan cannot have these options enabled.
     if (store.subscriptionPlan === 'BASIC') {
@@ -51,19 +51,20 @@ export async function updateMyStore(storeId: string, formData: FormData) {
             dataToUpdate.deliveryFee = 0;
         }
     } else {
-        dataToUpdate.deliveryType = undefined;
+        // When delivery is disabled, remove the type field and reset fee.
+        dataToUpdate.deliveryType = deleteField();
         dataToUpdate.deliveryFee = 0;
     }
     
-    await updateDoc(storeRef, {
-        ...dataToUpdate,
-        imageUrl: validatedFields.data.imageUrl || `https://picsum.photos/seed/${storeId}/100/100`
-    });
+    dataToUpdate.imageUrl = dataToUpdate.imageUrl || `https://picsum.photos/seed/${storeId}/100/100`;
+
+    await updateDoc(storeRef, dataToUpdate);
 
     revalidatePath(`/store/${storeId}/my-store`);
     revalidatePath(`/store/${storeId}`); // revalidate dashboard
     return { message: "Tu tienda ha sido actualizada." };
   } catch (e) {
+    console.error("Error updating store:", e);
     return { message: "No se pudo actualizar la tienda." };
   }
 }

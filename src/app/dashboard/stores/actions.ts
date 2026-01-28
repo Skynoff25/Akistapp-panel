@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, deleteField } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 
 const storeSchema = z.object({
@@ -57,36 +57,39 @@ export async function createStore(formData: FormData) {
         };
     }
 
-    const planDetails = getPlanDetails(validatedFields.data.subscriptionPlan);
-    let storeData = { ...validatedFields.data };
+    const dataFromForm = validatedFields.data;
+    const planDetails = getPlanDetails(dataFromForm.subscriptionPlan);
 
-    if (storeData.subscriptionPlan === 'BASIC') {
-        storeData.allowPickup = false;
-        storeData.allowDelivery = false;
+    const storePayload: any = {
+        ...dataFromForm,
+        ...planDetails,
+        isActive: true,
+        isOpen: true,
+        createdAt: Date.now(),
+        imageUrl: dataFromForm.imageUrl || `https://picsum.photos/seed/${dataFromForm.name}/100/100`,
+    };
+
+    if (storePayload.subscriptionPlan === 'BASIC') {
+        storePayload.allowPickup = false;
+        storePayload.allowDelivery = false;
     }
 
-    if (storeData.allowDelivery) {
-        if (storeData.deliveryType === 'AGREEMENT') {
-            storeData.deliveryFee = 0;
+    if (storePayload.allowDelivery) {
+        if (storePayload.deliveryType === 'AGREEMENT') {
+            storePayload.deliveryFee = 0;
         }
     } else {
-        storeData.deliveryType = undefined;
-        storeData.deliveryFee = 0;
+        delete storePayload.deliveryType;
+        storePayload.deliveryFee = 0;
     }
 
 
     try {
-        await addDoc(collection(db, "Stores"), {
-            ...storeData,
-            ...planDetails,
-            isActive: true,
-            isOpen: true, // Por defecto la tienda está abierta
-            createdAt: Date.now(),
-            imageUrl: validatedFields.data.imageUrl || `https://picsum.photos/seed/${validatedFields.data.name}/100/100`
-        });
+        await addDoc(collection(db, "Stores"), storePayload);
         revalidatePath("/dashboard/stores");
         return { message: "Tienda creada exitosamente." };
     } catch (e) {
+        console.error("Error creating store:", e);
         return { message: "No se pudo crear la tienda." };
     }
 }
@@ -117,32 +120,33 @@ export async function updateStore(id: string, formData: FormData) {
     }
     
     const planDetails = getPlanDetails(validatedFields.data.subscriptionPlan);
-    let storeData = { ...validatedFields.data };
+    const dataToUpdate: { [key: string]: any } = { ...validatedFields.data };
 
-    if (storeData.subscriptionPlan === 'BASIC') {
-        storeData.allowPickup = false;
-        storeData.allowDelivery = false;
+    if (dataToUpdate.subscriptionPlan === 'BASIC') {
+        dataToUpdate.allowPickup = false;
+        dataToUpdate.allowDelivery = false;
     }
     
-    if (storeData.allowDelivery) {
-        if (storeData.deliveryType === 'AGREEMENT') {
-            storeData.deliveryFee = 0;
+    if (dataToUpdate.allowDelivery) {
+        if (dataToUpdate.deliveryType === 'AGREEMENT') {
+            dataToUpdate.deliveryFee = 0;
         }
     } else {
-        storeData.deliveryType = undefined;
-        storeData.deliveryFee = 0;
+        dataToUpdate.deliveryType = deleteField();
+        dataToUpdate.deliveryFee = 0;
     }
 
     try {
         const storeRef = doc(db, "Stores", id);
         await updateDoc(storeRef, {
-            ...storeData,
+            ...dataToUpdate,
             ...planDetails,
             imageUrl: validatedFields.data.imageUrl || `https://picsum.photos/seed/${validatedFields.data.name}/100/100`
         });
         revalidatePath("/dashboard/stores");
         return { message: "Tienda actualizada exitosamente." };
     } catch (e) {
+        console.error("Error updating store:", e);
         return { message: "No se pudo actualizar la tienda." };
     }
 }

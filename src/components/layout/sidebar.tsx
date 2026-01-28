@@ -13,7 +13,6 @@ import {
     Package, 
     Users, 
     LogOut,
-    Palette,
     Megaphone
 } from 'lucide-react';
 
@@ -70,9 +69,14 @@ export default function Sidebar() {
   return (
     <aside className="w-64 flex-shrink-0 border-r bg-card p-4 hidden md:flex flex-col">
       <div className="flex items-center gap-2 mb-8 px-2">
-        <div className="bg-primary p-2 rounded-lg">
-            <Palette className="h-6 w-6 text-primary-foreground" />
-        </div>
+        <svg
+            width="40"
+            height="40"
+            viewBox="0 0 100 100"
+            xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="100" height="100" rx="25" fill="hsl(var(--primary))" />
+            <path d="M30 70 L30 40 L50 55 L70 40 L70 70" stroke="hsl(var(--primary-foreground))" fill="none" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
         <h1 className="text-xl font-bold">AkistApp</h1>
       </div>
       <nav className="flex-grow space-y-1">

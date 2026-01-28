@@ -82,6 +82,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: { order: Order | null
                     <div className="grid grid-cols-2 gap-4">
                         <div><span className="font-semibold">Cliente:</span> {order.userName || 'N/A'}</div>
                         <div><span className="font-semibold">Email:</span> {order.userEmail || 'N/A'}</div>
+                        <div><span className="font-semibold">Teléfono:</span> {order.userPhoneNumber || 'N/A'}</div>
                         <div><span className="font-semibold">Método:</span> {order.deliveryMethod === 'PICKUP' ? 'Recoger en tienda' : 'Envío a domicilio'}</div>
                         <div><span className="font-semibold">Estado:</span> <span className="font-medium text-primary">{statusTranslations[order.status]}</span></div>
                     </div>

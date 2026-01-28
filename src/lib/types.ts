@@ -81,6 +81,8 @@ export interface AppUser {
   name: string;
   rol: 'admin' | 'store_manager' | 'store_employee' | 'customer';
   storeId?: string;
+  phoneNumber?: string;
+  nationalId?: string;
 }
 
 export interface CartItemSnapshot {
@@ -109,6 +111,7 @@ export interface Order {
     // Campos denormalizados del usuario para fácil acceso
     userName?: string;
     userEmail?: string;
+    userPhoneNumber?: string;
 }
 
 export interface Promotion {

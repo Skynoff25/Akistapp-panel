@@ -126,3 +126,18 @@ export interface Promotion {
   isActive: boolean;
   createdAt: number;
 }
+
+export type ReportStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'DISMISSED';
+
+export interface Report {
+  id: string;
+  reportedBy: string; // UID of the reporter
+  reportedUser?: { id: string; name: string; email: string };
+  reportedStore?: { id: string; name: string };
+  reason: string;
+  comments: string;
+  status: ReportStatus;
+  createdAt: number;
+  // Context
+  orderId?: string;
+}

@@ -44,6 +44,8 @@ import { es } from 'date-fns/locale';
 import Image from "next/image";
 import { updateOrderStatus } from "@/app/store/[storeId]/orders/actions";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
+import { ReportUserDialog } from "../reports/report-user-dialog";
 
 interface OrdersClientProps {
   storeId: string;
@@ -66,8 +68,10 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 
-function OrderDetailsDialog({ order, open, onOpenChange }: { order: Order | null; open: boolean; onOpenChange: (open: boolean) => void; }) {
+function OrderDetailsDialog({ order, open, onOpenChange, onReportSuccess }: { order: Order | null; open: boolean; onOpenChange: (open: boolean) => void; onReportSuccess: () => void; }) {
     if (!order) return null;
+    const { appUser } = useAuth();
+    const [isReportDialogOpen, setReportDialogOpen] = useState(false);
     
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,6 +123,23 @@ function OrderDetailsDialog({ order, open, onOpenChange }: { order: Order | null
                         <div className="text-lg font-bold"><span className="font-semibold">Total:</span> ${(order.totalAmount + order.shippingCost).toFixed(2)}</div>
                     </div>
                 </div>
+                 <DialogFooter>
+                    <Button variant="outline" onClick={() => setReportDialogOpen(true)}>
+                        Denunciar Usuario
+                    </Button>
+                </DialogFooter>
+                {appUser && (
+                     <ReportUserDialog
+                        isOpen={isReportDialogOpen}
+                        onOpenChange={setReportDialogOpen}
+                        order={order}
+                        reporterId={appUser.id}
+                        onSuccess={() => {
+                            setReportDialogOpen(false);
+                            onReportSuccess();
+                        }}
+                    />
+                )}
             </DialogContent>
         </Dialog>
     );
@@ -171,11 +192,19 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   ]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setDetailsOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order);
     setDetailsOpen(true);
   }
+  
+  const handleReportSuccess = () => {
+    toast({
+        title: "Denuncia Enviada",
+        description: "Tu denuncia ha sido enviada al administrador para su revisión.",
+    });
+  };
 
   if (loading) return <Loader className="h-[50vh]" text="Cargando pedidos..." />;
   if (error)
@@ -236,7 +265,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
         </Table>
       </div>
 
-      <OrderDetailsDialog order={selectedOrder} open={isDetailsOpen} onOpenChange={setDetailsOpen} />
+      <OrderDetailsDialog order={selectedOrder} open={isDetailsOpen} onOpenChange={setDetailsOpen} onReportSuccess={handleReportSuccess} />
     </>
   );
 }

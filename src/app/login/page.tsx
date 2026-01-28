@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { AppUser } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,12 +23,34 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "Inicio de Sesión Exitoso",
-        description: "¡Bienvenido de nuevo!",
-      });
-      // The AuthProvider will handle the redirect
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userDocRef = doc(db, 'Users', userCredential.user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const appUser = userDocSnap.data() as AppUser;
+        if (appUser.rol === 'customer') {
+          await signOut(auth);
+          toast({
+            variant: "destructive",
+            title: "Acceso Denegado",
+            description: "Los clientes no tienen acceso a este panel de administración.",
+          });
+        } else {
+          toast({
+            title: "Inicio de Sesión Exitoso",
+            description: "¡Bienvenido de nuevo!",
+          });
+          // The AuthProvider will handle the redirect
+        }
+      } else {
+        await signOut(auth);
+        toast({
+          variant: 'destructive',
+          title: 'Error de Cuenta',
+          description: 'No se encontró la información de tu cuenta. Contacta a soporte.',
+        });
+      }
     } catch (error: any) {
       console.error(error);
       toast({

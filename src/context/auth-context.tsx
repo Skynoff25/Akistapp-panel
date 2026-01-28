@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth, areFirebaseCredentialsSet, db } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import Loader from '@/components/ui/loader';
@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!areFirebaseCredentialsSet) {
@@ -56,7 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userDocSnap.exists()) {
           setAppUser({ id: userDocSnap.id, ...userDocSnap.data() } as AppUser);
         } else {
+          // If the user exists in Auth but not in Firestore, sign them out.
           setAppUser(null);
+          await signOut(auth);
         }
       } else {
         setAppUser(null);
@@ -70,31 +74,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (loading || !areFirebaseCredentialsSet) return;
     
     const isAuthPage = pathname === '/login';
+
+    // If not logged in and not on login page, redirect to login
+    if (!user) {
+      if (!isAuthPage) {
+        router.push('/login');
+      }
+      return;
+    }
+
+    // If user is logged in, but we don't have their role info yet, wait.
+    if (!appUser) {
+      return;
+    }
+
+    // Handle customer role - they are not allowed in the admin panel
+    if (appUser.rol === 'customer') {
+      signOut(auth);
+      toast({
+        variant: 'destructive',
+        title: 'Acceso Denegado',
+        description: 'Los clientes no tienen acceso a este panel de administración.',
+      });
+      return;
+    }
+    
+    // Handle redirection for valid users (admin, store_manager, store_employee)
     const isStorePanel = pathname.startsWith('/store');
     const isAdminPanel = pathname.startsWith('/dashboard');
 
-    if (!user && !isAuthPage) {
-        router.push('/login');
-    } else if (user && isAuthPage) {
-        if (appUser?.rol === 'admin') {
+    if (isAuthPage) {
+        if (appUser.rol === 'admin') {
             router.push('/dashboard');
-        } else if ((appUser?.rol === 'store_manager' || appUser?.rol === 'store_employee') && appUser.storeId) {
+        } else if ((appUser.rol === 'store_manager' || appUser.rol === 'store_employee') && appUser.storeId) {
             router.push(`/store/${appUser.storeId}`);
-        } else {
-            // Clientes u otros roles sin panel asignado
-            router.push('/login'); // O una página de "acceso denegado"
         }
-    } else if (user && appUser) {
+    } else { // User is on an internal page, ensure they are on the correct one
         if (appUser.rol === 'admin' && !isAdminPanel) {
              router.push('/dashboard');
         } else if ((appUser.rol === 'store_manager' || appUser.rol === 'store_employee') && !isStorePanel) {
             if (appUser.storeId) {
                 router.push(`/store/${appUser.storeId}`);
+            } else {
+                // Store staff without a storeId should be logged out
+                signOut(auth);
+                toast({ variant: 'destructive', title: 'Error de Cuenta', description: 'No tienes una tienda asignada.' });
             }
         }
     }
 
-  }, [user, appUser, loading, pathname, router]);
+  }, [user, appUser, loading, pathname, router, toast]);
 
   const isAuthPage = pathname === '/login';
 

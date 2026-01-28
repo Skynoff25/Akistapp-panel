@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn } from 'lucide-react';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -43,14 +44,12 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm mx-4">
         <CardHeader className="text-center">
             <div className="flex justify-center items-center mb-4">
-                <svg
-                    width="56"
-                    height="56"
-                    viewBox="0 0 100 100"
-                    xmlns="http://www.w3.org/2000/svg">
-                    <rect x="0" y="0" width="100" height="100" rx="25" fill="hsl(var(--primary))" />
-                    <path d="M30 70 L30 40 L50 55 L70 40 L70 70" stroke="hsl(var(--primary-foreground))" fill="none" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <Image
+                    src="/logo.png"
+                    alt="AkistApp Logo"
+                    width={56}
+                    height={56}
+                />
             </div>
           <CardTitle className="text-2xl font-bold">AkistApp Admin</CardTitle>
           <CardDescription>Introduce tus credenciales para acceder al panel</CardDescription>

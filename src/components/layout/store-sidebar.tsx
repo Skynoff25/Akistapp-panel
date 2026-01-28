@@ -74,7 +74,7 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
             width={40}
             height={40}
         />
-        <h1 className="text-lg font-bold truncate">{loading ? "Cargando..." : store?.name}</h1>
+        <h1 className="text-lg font-bold">{loading ? "Cargando..." : store?.name}</h1>
       </div>
       <nav className="flex-grow space-y-1">
         {navItems.map((item) => {

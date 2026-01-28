@@ -22,6 +22,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card } from "../ui/card";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "../ui/label";
 
 const storeSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -35,6 +36,8 @@ const storeSchema = z.object({
   subscriptionPlan: z.enum(['BASIC', 'STANDARD', 'PREMIUM']),
   allowPickup: z.boolean().default(false),
   allowDelivery: z.boolean().default(false),
+  deliveryType: z.enum(['FIXED', 'AGREEMENT']).default('AGREEMENT'),
+  deliveryFee: z.coerce.number().min(0).default(0),
 });
 
 type StoreFormValues = z.infer<typeof storeSchema>;
@@ -66,6 +69,8 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
       subscriptionPlan: store?.subscriptionPlan || 'BASIC',
       allowPickup: store?.allowPickup || false,
       allowDelivery: store?.allowDelivery || false,
+      deliveryType: store?.deliveryType || 'AGREEMENT',
+      deliveryFee: store?.deliveryFee || 0,
     },
   });
 
@@ -82,11 +87,16 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
         subscriptionPlan: store?.subscriptionPlan || 'BASIC',
         allowPickup: store?.allowPickup || false,
         allowDelivery: store?.allowDelivery || false,
+        deliveryType: store?.deliveryType || 'AGREEMENT',
+        deliveryFee: store?.deliveryFee || 0,
     });
   }, [store, form]);
 
   const selectedPlan = form.watch("subscriptionPlan");
   const isBasicPlan = selectedPlan === 'BASIC';
+  const allowDelivery = form.watch("allowDelivery");
+  const deliveryType = form.watch("deliveryType");
+
 
   useEffect(() => {
     if (isBasicPlan) {
@@ -297,6 +307,52 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
             </FormItem>
           )}
         />
+
+         {allowDelivery && !isBasicPlan && (
+            <div className="space-y-4 rounded-lg border p-4">
+                <h4 className="font-medium text-sm">Configuración de Despacho</h4>
+                <FormField
+                    control={form.control}
+                    name="deliveryType"
+                    render={({ field }) => (
+                        <FormItem className="space-y-3">
+                        <FormLabel>Tipo de Tarifa</FormLabel>
+                        <FormControl>
+                            <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
+                                <FormItem className="flex items-center space-x-2">
+                                    <FormControl><RadioGroupItem value="AGREEMENT" id="admin-agreement" /></FormControl>
+                                    <Label htmlFor="admin-agreement" className="font-normal">A Convenir</Label>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-2">
+                                    <FormControl><RadioGroupItem value="FIXED" id="admin-fixed" /></FormControl>
+                                    <Label htmlFor="admin-fixed" className="font-normal">Tarifa Fija</Label>
+                                </FormItem>
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                {deliveryType === 'FIXED' && (
+                    <FormField
+                        control={form.control}
+                        name="deliveryFee"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Monto de Tarifa Fija</FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                                        <Input type="number" step="0.01" placeholder="5.00" className="pl-7" {...field} />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+            </div>
+        )}
 
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Guardando..." : "Guardar Tienda"}

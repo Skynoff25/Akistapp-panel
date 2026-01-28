@@ -17,6 +17,8 @@ const storeSchema = z.object({
     subscriptionPlan: z.enum(['BASIC', 'STANDARD', 'PREMIUM']),
     allowPickup: z.enum(['true', 'false']).transform(v => v === 'true'),
     allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
+    deliveryType: z.enum(['FIXED', 'AGREEMENT']).optional(),
+    deliveryFee: z.coerce.number().min(0).optional(),
 });
 
 function getPlanDetails(plan: 'BASIC' | 'STANDARD' | 'PREMIUM') {
@@ -43,6 +45,8 @@ export async function createStore(formData: FormData) {
         subscriptionPlan: formData.get("subscriptionPlan") as 'BASIC' | 'STANDARD' | 'PREMIUM',
         allowPickup: formData.get("allowPickup") as string,
         allowDelivery: formData.get("allowDelivery") as string,
+        deliveryType: formData.get("deliveryType") as 'FIXED' | 'AGREEMENT' | undefined,
+        deliveryFee: formData.get("deliveryFee") as string | undefined,
     };
 
     const validatedFields = storeSchema.safeParse(values);
@@ -54,12 +58,22 @@ export async function createStore(formData: FormData) {
     }
 
     const planDetails = getPlanDetails(validatedFields.data.subscriptionPlan);
-    const storeData = { ...validatedFields.data };
+    let storeData = { ...validatedFields.data };
 
     if (storeData.subscriptionPlan === 'BASIC') {
         storeData.allowPickup = false;
         storeData.allowDelivery = false;
     }
+
+    if (storeData.allowDelivery) {
+        if (storeData.deliveryType === 'AGREEMENT') {
+            storeData.deliveryFee = 0;
+        }
+    } else {
+        storeData.deliveryType = undefined;
+        storeData.deliveryFee = 0;
+    }
+
 
     try {
         await addDoc(collection(db, "Stores"), {
@@ -90,6 +104,8 @@ export async function updateStore(id: string, formData: FormData) {
         subscriptionPlan: formData.get("subscriptionPlan") as 'BASIC' | 'STANDARD' | 'PREMIUM',
         allowPickup: formData.get("allowPickup") as string,
         allowDelivery: formData.get("allowDelivery") as string,
+        deliveryType: formData.get("deliveryType") as 'FIXED' | 'AGREEMENT' | undefined,
+        deliveryFee: formData.get("deliveryFee") as string | undefined,
     };
 
     const validatedFields = storeSchema.safeParse(values);
@@ -101,13 +117,22 @@ export async function updateStore(id: string, formData: FormData) {
     }
     
     const planDetails = getPlanDetails(validatedFields.data.subscriptionPlan);
-    const storeData = { ...validatedFields.data };
+    let storeData = { ...validatedFields.data };
 
     if (storeData.subscriptionPlan === 'BASIC') {
         storeData.allowPickup = false;
         storeData.allowDelivery = false;
     }
     
+    if (storeData.allowDelivery) {
+        if (storeData.deliveryType === 'AGREEMENT') {
+            storeData.deliveryFee = 0;
+        }
+    } else {
+        storeData.deliveryType = undefined;
+        storeData.deliveryFee = 0;
+    }
+
     try {
         const storeRef = doc(db, "Stores", id);
         await updateDoc(storeRef, {

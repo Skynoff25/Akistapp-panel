@@ -21,6 +21,8 @@ export interface Store {
   createdAt: number;
   allowPickup: boolean;
   allowDelivery: boolean;
+  deliveryType?: 'FIXED' | 'AGREEMENT';
+  deliveryFee?: number;
 }
 
 export interface Product {

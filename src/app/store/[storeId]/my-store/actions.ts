@@ -12,6 +12,8 @@ const updateMyStoreSchema = z.object({
   isOpen: z.enum(['true', 'false']).transform(v => v === 'true'),
   allowPickup: z.enum(['true', 'false']).transform(v => v === 'true'),
   allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
+  deliveryType: z.enum(['FIXED', 'AGREEMENT']).optional(),
+  deliveryFee: z.coerce.number().min(0, "La tarifa debe ser positiva.").optional(),
 });
 
 export async function updateMyStore(storeId: string, formData: FormData) {
@@ -42,6 +44,15 @@ export async function updateMyStore(storeId: string, formData: FormData) {
     if (store.subscriptionPlan === 'BASIC') {
         dataToUpdate.allowPickup = false;
         dataToUpdate.allowDelivery = false;
+    }
+
+    if (dataToUpdate.allowDelivery) {
+        if (dataToUpdate.deliveryType === 'AGREEMENT') {
+            dataToUpdate.deliveryFee = 0;
+        }
+    } else {
+        dataToUpdate.deliveryType = undefined;
+        dataToUpdate.deliveryFee = 0;
     }
     
     await updateDoc(storeRef, {

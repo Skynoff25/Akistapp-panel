@@ -29,12 +29,15 @@ import Image from "next/image";
 import { Label } from "../ui/label";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 
 const myStoreSchema = z.object({
   imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
   isOpen: z.boolean(),
   allowPickup: z.boolean(),
   allowDelivery: z.boolean(),
+  deliveryType: z.enum(['FIXED', 'AGREEMENT']).default('AGREEMENT'),
+  deliveryFee: z.coerce.number().min(0).default(0),
 });
 
 type MyStoreFormValues = z.infer<typeof myStoreSchema>;
@@ -55,13 +58,15 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
       isOpen: store?.isOpen || true,
       allowPickup: store?.allowPickup || false,
       allowDelivery: store?.allowDelivery || false,
+      deliveryType: store?.deliveryType || 'AGREEMENT',
+      deliveryFee: store?.deliveryFee || 0,
     },
   });
 
   const isBasicPlan = store?.subscriptionPlan === 'BASIC';
-  const allowPickup = form.watch('allowPickup');
   const allowDelivery = form.watch('allowDelivery');
-
+  const allowPickup = form.watch('allowPickup');
+  const deliveryType = form.watch('deliveryType');
 
   useEffect(() => {
     if (store) {
@@ -70,6 +75,8 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
         isOpen: store.isOpen,
         allowPickup: store.allowPickup,
         allowDelivery: store.allowDelivery,
+        deliveryType: store.deliveryType || 'AGREEMENT',
+        deliveryFee: store.deliveryFee || 0,
       });
     }
   }, [store, form]);
@@ -80,6 +87,13 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
     formData.append('isOpen', String(data.isOpen));
     formData.append('allowPickup', String(data.allowPickup));
     formData.append('allowDelivery', String(data.allowDelivery));
+    if (data.deliveryType) {
+      formData.append('deliveryType', data.deliveryType);
+    }
+    if (data.deliveryFee !== undefined) {
+        formData.append('deliveryFee', String(data.deliveryFee));
+    }
+
 
     const result = await updateMyStore(storeId, formData);
     
@@ -206,17 +220,85 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                                 </FormItem>
                             )}
                         />
+
                         {isBasicPlan && (
                             <p className="text-sm text-muted-foreground px-1">
                                 Tu plan Básico no incluye las opciones de retiro o despacho. Para activarlas, por favor contacta al administrador para mejorar tu plan.
                             </p>
                         )}
+
+                        {allowDelivery && !isBasicPlan && (
+                            <div className="space-y-4 rounded-lg border p-4">
+                                <h4 className="font-medium">Configuración de Despacho</h4>
+                                <FormField
+                                    control={form.control}
+                                    name="deliveryType"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-3">
+                                        <FormLabel>Tipo de Tarifa</FormLabel>
+                                        <FormControl>
+                                            <RadioGroup
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            className="flex flex-col space-y-1"
+                                            disabled={!canEdit}
+                                            >
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                <RadioGroupItem value="AGREEMENT" />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">
+                                                A Convenir con la tienda
+                                                </FormLabel>
+                                            </FormItem>
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                <RadioGroupItem value="FIXED" />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">
+                                                Tarifa Fija
+                                                </FormLabel>
+                                            </FormItem>
+                                            </RadioGroup>
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                {deliveryType === 'FIXED' && (
+                                    <FormField
+                                        control={form.control}
+                                        name="deliveryFee"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Monto de Tarifa Fija</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                                                        <Input 
+                                                            type="number" 
+                                                            step="0.01" 
+                                                            placeholder="5.00" 
+                                                            className="pl-7"
+                                                            disabled={!canEdit}
+                                                            {...field} 
+                                                        />
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                            </div>
+                        )}
+
                         {!allowPickup && !allowDelivery && !isBasicPlan && (
                             <Alert variant="destructive">
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>¡Atención!</AlertTitle>
                                 <AlertDescription>
-                                    Al tener ambas opciones desactivadas, los clientes no podrán realizar pedidos en tu tienda.
+                                    Al tener ambas opciones de retiro y despacho desactivadas, los clientes no podrán realizar pedidos en tu tienda.
                                 </AlertDescription>
                             </Alert>
                         )}

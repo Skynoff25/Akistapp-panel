@@ -3,12 +3,15 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
+import type { Store } from '@/lib/types';
 
 const updateMyStoreSchema = z.object({
   imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
   isOpen: z.enum(['true', 'false']).transform(v => v === 'true'),
+  allowPickup: z.enum(['true', 'false']).transform(v => v === 'true'),
+  allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
 });
 
 export async function updateMyStore(storeId: string, formData: FormData) {
@@ -26,8 +29,23 @@ export async function updateMyStore(storeId: string, formData: FormData) {
 
   try {
     const storeRef = doc(db, "Stores", storeId);
+    const storeSnap = await getDoc(storeRef);
+
+    if (!storeSnap.exists()) {
+        return { message: "La tienda no existe." };
+    }
+    
+    const store = storeSnap.data() as Store;
+    const { ...dataToUpdate } = validatedFields.data;
+
+    // Server-side guard to ensure BASIC plan cannot have these options enabled.
+    if (store.subscriptionPlan === 'BASIC') {
+        dataToUpdate.allowPickup = false;
+        dataToUpdate.allowDelivery = false;
+    }
+    
     await updateDoc(storeRef, {
-        ...validatedFields.data,
+        ...dataToUpdate,
         imageUrl: validatedFields.data.imageUrl || `https://picsum.photos/seed/${storeId}/100/100`
     });
 

@@ -27,10 +27,14 @@ import { updateMyStore } from "@/app/store/[storeId]/my-store/actions";
 import { Switch } from "../ui/switch";
 import Image from "next/image";
 import { Label } from "../ui/label";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 const myStoreSchema = z.object({
   imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
   isOpen: z.boolean(),
+  allowPickup: z.boolean(),
+  allowDelivery: z.boolean(),
 });
 
 type MyStoreFormValues = z.infer<typeof myStoreSchema>;
@@ -49,14 +53,23 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
     defaultValues: {
       imageUrl: store?.imageUrl || "",
       isOpen: store?.isOpen || true,
+      allowPickup: store?.allowPickup || false,
+      allowDelivery: store?.allowDelivery || false,
     },
   });
+
+  const isBasicPlan = store?.subscriptionPlan === 'BASIC';
+  const allowPickup = form.watch('allowPickup');
+  const allowDelivery = form.watch('allowDelivery');
+
 
   useEffect(() => {
     if (store) {
       form.reset({
         imageUrl: store.imageUrl || "",
         isOpen: store.isOpen,
+        allowPickup: store.allowPickup,
+        allowDelivery: store.allowDelivery,
       });
     }
   }, [store, form]);
@@ -65,6 +78,8 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
     const formData = new FormData();
     formData.append('imageUrl', data.imageUrl || '');
     formData.append('isOpen', String(data.isOpen));
+    formData.append('allowPickup', String(data.allowPickup));
+    formData.append('allowDelivery', String(data.allowDelivery));
 
     const result = await updateMyStore(storeId, formData);
     
@@ -112,7 +127,7 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle>Configuración</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Configuración de Pedidos y Visibilidad</CardTitle></CardHeader>
                     <CardContent className="space-y-6">
                         <FormField
                             control={form.control}
@@ -153,6 +168,58 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="allowPickup"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Permitir Retiro en Tienda</FormLabel>
+                                    <FormDescription>Los clientes podrán realizar pedidos para recoger en el local.</FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    disabled={!canEdit || isBasicPlan}
+                                    />
+                                </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="allowDelivery"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Permitir Despacho a Domicilio</FormLabel>
+                                    <FormDescription>Tu tienda podrá recibir pedidos para enviar a domicilio.</FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    disabled={!canEdit || isBasicPlan}
+                                    />
+                                </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        {isBasicPlan && (
+                            <p className="text-sm text-muted-foreground px-1">
+                                Tu plan Básico no incluye las opciones de retiro o despacho. Para activarlas, por favor contacta al administrador para mejorar tu plan.
+                            </p>
+                        )}
+                        {!allowPickup && !allowDelivery && !isBasicPlan && (
+                            <Alert variant="destructive">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>¡Atención!</AlertTitle>
+                                <AlertDescription>
+                                    Al tener ambas opciones desactivadas, los clientes no podrán realizar pedidos en tu tienda.
+                                </AlertDescription>
+                            </Alert>
+                        )}
                     </CardContent>
                 </Card>
                 
@@ -183,6 +250,10 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                      <div className="space-y-1">
                         <Label className="text-sm text-muted-foreground">Permite reservas</Label>
                         <p className="font-semibold">{store.allowReservations ? "Sí" : "No"}</p>
+                    </div>
+                     <div className="space-y-1">
+                        <Label className="text-sm text-muted-foreground">Retiro / Despacho</Label>
+                        <p className="font-semibold">{store.allowPickup || store.allowDelivery ? "Sí" : "No"}</p>
                     </div>
                     <p className="text-sm text-muted-foreground pt-2">Para cambiar de plan, contacta con el soporte.</p>
                 </CardContent>

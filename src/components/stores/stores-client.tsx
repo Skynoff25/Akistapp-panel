@@ -113,8 +113,8 @@ export default function StoresClient() {
               <TableRow key={store.id}>
                 <TableCell>
                   <Image
-                    src={store.imageUrl || `https://picsum.photos/seed/${store.id}/40/40`}
-                    alt={store.name}
+                    src={store.imageUrl ? store.imageUrl : `https://picsum.photos/seed/${store.id}/40/40`}
+                    alt={store.name || 'Logo de la tienda'}
                     width={40}
                     height={40}
                     data-ai-hint="store logo"

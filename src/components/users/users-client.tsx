@@ -68,7 +68,7 @@ export default function UsersClient() {
               <TableRow key={user.id}>
                 <TableCell>
                     <Avatar>
-                        <AvatarImage src={user.photoUrl || undefined} alt={user.name || ''} />
+                        <AvatarImage src={user.photoUrl ? user.photoUrl : undefined} alt={user.name || user.email || 'Avatar'} />
                         <AvatarFallback>{getInitials(user.name || user.email)}</AvatarFallback>
                     </Avatar>
                 </TableCell>

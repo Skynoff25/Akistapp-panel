@@ -107,7 +107,7 @@ function OrderDetailsDialog({ order, open, onOpenChange, onReportSuccess }: { or
                             {order.items.map(item => (
                                 <TableRow key={item.productId}>
                                     <TableCell className="flex items-center gap-2">
-                                        <Image src={item.image || `https://picsum.photos/seed/${item.productId}/40/40`} alt={item.productName} width={40} height={40} className="rounded-md object-cover" />
+                                        <Image src={item.image ? item.image : `https://picsum.photos/seed/${item.productId}/40/40`} alt={item.productName || 'Imagen del producto'} width={40} height={40} className="rounded-md object-cover" />
                                         {item.productName}
                                     </TableCell>
                                     <TableCell className="text-center">{item.quantity}</TableCell>

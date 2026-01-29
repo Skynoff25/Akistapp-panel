@@ -43,8 +43,8 @@ export default function StorePromotionsClient({ storeId }: StorePromotionsClient
             <Card key={promo.id} className="overflow-hidden">
               <div className="relative">
                 <Image
-                  src={promo.imageUrl || `https://picsum.photos/seed/${promo.id}/600/300`}
-                  alt={promo.title}
+                  src={promo.imageUrl ? promo.imageUrl : `https://picsum.photos/seed/${promo.id}/600/300`}
+                  alt={promo.title || 'Imagen de la promoción'}
                   width={600}
                   height={300}
                   className="w-full h-40 object-cover"

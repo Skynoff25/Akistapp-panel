@@ -43,6 +43,7 @@ import {
 import { deleteStore } from '@/app/dashboard/stores/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
+import { getImageUrl } from '@/lib/utils';
 
 
 export default function StoresClient() {
@@ -113,7 +114,7 @@ export default function StoresClient() {
               <TableRow key={store.id}>
                 <TableCell>
                   <Image
-                    src={store.imageUrl ? store.imageUrl : `https://picsum.photos/seed/${store.id}/40/40`}
+                    src={getImageUrl(store.imageUrl, store.id, 40, 40)}
                     alt={store.name || 'Logo de la tienda'}
                     width={40}
                     height={40}

@@ -42,6 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "../ui/badge";
 import { PromotionForm } from "./promotion-form";
 import { deletePromotion } from "@/app/dashboard/promotions/actions";
+import { getImageUrl } from "@/lib/utils";
 
 export default function PromotionsClient() {
   const { data: promotions, loading, error, refetch } = useFirestoreQuery<Promotion>("Promotions");
@@ -124,7 +125,7 @@ export default function PromotionsClient() {
                 <TableRow key={promo.id}>
                   <TableCell>
                     <Image
-                      src={promo.imageUrl ? promo.imageUrl : `https://picsum.photos/seed/${promo.id}/80/40`}
+                      src={getImageUrl(promo.imageUrl, promo.id, 80, 40)}
                       alt={promo.title || 'Imagen de la promoción'}
                       width={80}
                       height={40}

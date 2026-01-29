@@ -8,6 +8,7 @@ import { PageHeader } from "../ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Image from "next/image";
 import { Badge } from "../ui/badge";
+import { getImageUrl } from "@/lib/utils";
 
 interface StorePromotionsClientProps {
   storeId: string;
@@ -43,7 +44,7 @@ export default function StorePromotionsClient({ storeId }: StorePromotionsClient
             <Card key={promo.id} className="overflow-hidden">
               <div className="relative">
                 <Image
-                  src={promo.imageUrl ? promo.imageUrl : `https://picsum.photos/seed/${promo.id}/600/300`}
+                  src={getImageUrl(promo.imageUrl, promo.id, 600, 300)}
                   alt={promo.title || 'Imagen de la promoción'}
                   width={600}
                   height={300}

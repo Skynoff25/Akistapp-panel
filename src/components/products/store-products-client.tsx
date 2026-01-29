@@ -37,6 +37,7 @@ import { StoreProductForm } from './store-product-form';
 import { useAuth } from '@/context/auth-context';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { where } from 'firebase/firestore';
+import { getImageUrl } from '@/lib/utils';
 
 interface StoreProductsClientProps {
   storeId: string;
@@ -120,7 +121,7 @@ function AddProductDialog({
                         ) : filteredProducts.map(p => (
                             <TableRow key={p.id}>
                                 <TableCell className="font-medium flex items-center gap-2">
-                                     <Image src={p.image ? p.image : `https://picsum.photos/seed/${p.id}/40/40`} alt={p.name || 'Imagen del producto'} width={40} height={40} className="rounded-md object-cover"/>
+                                     <Image src={getImageUrl(p.image, p.id, 40, 40)} alt={p.name || 'Imagen del producto'} width={40} height={40} className="rounded-md object-cover"/>
                                      {p.name}
                                 </TableCell>
                                 <TableCell>{p.category}</TableCell>
@@ -212,7 +213,7 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
               <TableRow key={product.id}>
                 <TableCell>
                   <Image
-                    src={product.storeSpecificImage || product.globalImage || `https://picsum.photos/seed/${product.productId}/64/64`}
+                    src={getImageUrl(product.storeSpecificImage || product.globalImage, product.productId)}
                     alt={product.name || 'Imagen del producto'}
                     width={64}
                     height={64}
@@ -297,5 +298,3 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
     </>
   );
 }
-
-    

@@ -41,6 +41,7 @@ import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { ProductForm } from './product-form';
 import { useToast } from '@/hooks/use-toast';
 import { deleteProduct } from '@/app/dashboard/products/actions';
+import { getImageUrl } from '@/lib/utils';
 
 interface ProductsClientProps {
   isAdmin: boolean;
@@ -120,7 +121,7 @@ export default function ProductsClient({ isAdmin }: ProductsClientProps) {
               <TableRow key={product.id}>
                 <TableCell>
                   <Image
-                    src={product.image ? product.image : `https://picsum.photos/seed/${product.id}/64/64`}
+                    src={getImageUrl(product.image, product.id)}
                     alt={product.name || 'Imagen del producto'}
                     width={64}
                     height={64}

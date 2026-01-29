@@ -113,7 +113,7 @@ export default function StoresClient() {
               <TableRow key={store.id}>
                 <TableCell>
                   <Image
-                    src={store.imageUrl}
+                    src={store.imageUrl || `https://picsum.photos/seed/${store.id}/40/40`}
                     alt={store.name}
                     width={40}
                     height={40}

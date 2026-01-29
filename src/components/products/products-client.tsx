@@ -120,7 +120,7 @@ export default function ProductsClient({ isAdmin }: ProductsClientProps) {
               <TableRow key={product.id}>
                 <TableCell>
                   <Image
-                    src={product.image}
+                    src={product.image || `https://picsum.photos/seed/${product.id}/64/64`}
                     alt={product.name}
                     width={64}
                     height={64}

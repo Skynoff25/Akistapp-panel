@@ -124,7 +124,7 @@ export default function PromotionsClient() {
                 <TableRow key={promo.id}>
                   <TableCell>
                     <Image
-                      src={promo.imageUrl}
+                      src={promo.imageUrl || `https://picsum.photos/seed/${promo.id}/80/40`}
                       alt={promo.title}
                       width={80}
                       height={40}

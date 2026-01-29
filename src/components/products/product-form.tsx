@@ -58,7 +58,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         description: product.description,
         category: product.category,
         image: product.image,
-        tags: product.tags?.join(", ") || "",
+        tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
       });
     } else {
       form.reset({

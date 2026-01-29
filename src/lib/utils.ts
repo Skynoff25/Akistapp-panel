@@ -11,9 +11,9 @@ export function getImageUrl(
   width = 64,
   height = 64
 ): string {
-  if (url && url.trim() !== "") {
+  if (typeof url === 'string' && url.trim().startsWith('http')) {
     return url;
   }
-  const safeSeed = seed || "placeholder";
+  const safeSeed = String(seed || "placeholder");
   return `https://picsum.photos/seed/${safeSeed}/${width}/${height}`;
 }

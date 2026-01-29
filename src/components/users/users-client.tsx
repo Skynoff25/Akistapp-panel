@@ -19,15 +19,19 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserForm } from './user-form';
+import { getImageUrl } from '@/lib/utils';
 
 
-const getInitials = (name: string) => {
-    if (!name) return '??';
-    const names = name.split(' ');
-    if (names.length > 1) {
+const getInitials = (name?: string | null) => {
+    if (!name || name.trim() === '') return '??';
+    const names = name.trim().split(' ').filter(n => n);
+    if (names.length > 1 && names[names.length-1]) {
         return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
-    return name.substring(0, 2).toUpperCase();
+    if (names.length === 1 && names[0]) {
+        return names[0].substring(0, 2).toUpperCase();
+    }
+    return '??';
 }
 
 
@@ -68,7 +72,7 @@ export default function UsersClient() {
               <TableRow key={user.id}>
                 <TableCell>
                     <Avatar>
-                        <AvatarImage src={user.photoUrl ? user.photoUrl : undefined} alt={user.name || user.email || 'Avatar'} />
+                        <AvatarImage src={getImageUrl(user.photoUrl, user.id, 40, 40)} alt={user.name || user.email || 'Avatar'} />
                         <AvatarFallback>{getInitials(user.name || user.email)}</AvatarFallback>
                     </Avatar>
                 </TableCell>

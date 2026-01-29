@@ -131,7 +131,7 @@ export default function StoresClient() {
                 </TableCell>
                 <TableCell>{store.phone}</TableCell>
                 <TableCell className="text-right">
-                    <DropdownMenu modal={false}>
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
                                 <span className="sr-only">Abrir menu</span>

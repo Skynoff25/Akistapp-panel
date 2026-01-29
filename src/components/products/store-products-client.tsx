@@ -242,12 +242,12 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(product)}>
+                            <DropdownMenuItem onSelect={() => handleEdit(product)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Gestionar</span>
                             </DropdownMenuItem>
                             {canManageProducts && (
-                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(product)}>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDelete(product)}>
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     <span>Eliminar</span>
                                 </DropdownMenuItem>

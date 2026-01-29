@@ -149,13 +149,13 @@ export default function PromotionsClient() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(promo)}>
+                        <DropdownMenuItem onSelect={() => handleEdit(promo)}>
                           <Edit className="mr-2 h-4 w-4" />
                           <span>Editar</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => handleDelete(promo)}
+                          onSelect={() => handleDelete(promo)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           <span>Eliminar</span>

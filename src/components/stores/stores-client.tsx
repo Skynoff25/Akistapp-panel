@@ -70,11 +70,13 @@ export default function StoresClient() {
   
   const confirmDelete = async () => {
     if (selectedStore) {
-        await deleteStore(selectedStore.id);
-        toast({
-            title: "Tienda Eliminada",
-            description: `La tienda "${selectedStore.name}" ha sido eliminada.`,
-        });
+      await deleteStore(selectedStore.id);
+      toast({
+        title: "Tienda Eliminada",
+        description: `La tienda "${selectedStore.name}" ha sido eliminada.`,
+      });
+      setAlertOpen(false);
+      setSelectedStore(null);
     }
   };
 
@@ -139,11 +141,11 @@ export default function StoresClient() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(store)}>
+                            <DropdownMenuItem onSelect={() => handleEdit(store)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Editar</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(store)}>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDelete(store)}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 <span>Borrar</span>
                             </DropdownMenuItem>

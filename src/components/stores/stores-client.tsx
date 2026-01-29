@@ -69,15 +69,16 @@ export default function StoresClient() {
   };
   
   const confirmDelete = async () => {
-    if (selectedStore) {
-      await deleteStore(selectedStore.id);
-      toast({
-        title: "Tienda Eliminada",
-        description: `La tienda "${selectedStore.name}" ha sido eliminada.`,
-      });
-      setAlertOpen(false);
-      setSelectedStore(null);
-    }
+    if (!selectedStore) return;
+    const result = await deleteStore(selectedStore.id);
+     if (result.message) {
+        toast({
+            title: "Tienda Eliminada",
+            description: result.message,
+        });
+     }
+    setAlertOpen(false);
+    setSelectedStore(null);
   };
 
 
@@ -133,7 +134,7 @@ export default function StoresClient() {
                 </TableCell>
                 <TableCell>{store.phone}</TableCell>
                 <TableCell className="text-right">
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
                                 <span className="sr-only">Abrir menu</span>

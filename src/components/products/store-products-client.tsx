@@ -120,7 +120,7 @@ function AddProductDialog({
                         ) : filteredProducts.map(p => (
                             <TableRow key={p.id}>
                                 <TableCell className="font-medium flex items-center gap-2">
-                                     <Image src={p.image} alt={p.name} width={40} height={40} className="rounded-md object-cover"/>
+                                     <Image src={p.image || `https://picsum.photos/seed/${p.id}/40/40`} alt={p.name} width={40} height={40} className="rounded-md object-cover"/>
                                      {p.name}
                                 </TableCell>
                                 <TableCell>{p.category}</TableCell>

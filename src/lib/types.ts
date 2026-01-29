@@ -14,7 +14,7 @@ export interface Store {
   imageUrl: string;
   subscriptionPlan: SubscriptionPlan;
   isActive: boolean;
-  isOpen: boolean; // nuevo campo
+  isOpen: boolean;
   maxProducts: number;
   allowReservations: boolean;
   featured: boolean;
@@ -23,6 +23,13 @@ export interface Store {
   allowDelivery: boolean;
   deliveryType?: 'FIXED' | 'AGREEMENT';
   deliveryFee?: number;
+
+  // Reputation and status
+  rating: number;
+  ratingCount: number;
+  isVerified: boolean;
+  isBlocked: boolean;
+  blockedReason?: string;
 }
 
 export interface Product {
@@ -83,6 +90,20 @@ export interface AppUser {
   storeId?: string;
   phoneNumber?: string;
   nationalId?: string;
+
+  // Verification status
+  emailVerified: boolean;
+  isPhoneVerified: boolean;
+  isIdentityVerified: boolean;
+
+  // Reputation and status
+  rating: number;
+  ratingCount: number;
+  isBlocked: boolean;
+  blockedReason?: string;
+
+  // For notifications
+  fcmTokens: string[];
 }
 
 export interface CartItemSnapshot {

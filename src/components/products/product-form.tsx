@@ -53,11 +53,11 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
   useEffect(() => {
     if (product) {
       form.reset({
-        name: product.name,
-        brand: product.brand,
-        description: product.description,
-        category: product.category,
-        image: product.image,
+        name: product.name ?? "",
+        brand: product.brand ?? "",
+        description: product.description ?? "",
+        category: product.category ?? "",
+        image: product.image ?? "",
         tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
       });
     } else {

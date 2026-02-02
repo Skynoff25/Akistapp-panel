@@ -28,6 +28,12 @@ import type { Promotion, Store } from "@/lib/types";
 import { createPromotion, updatePromotion } from "@/app/dashboard/promotions/actions";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
 import Loader from "../ui/loader";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "../ui/calendar";
 
 const promotionSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
@@ -36,6 +42,9 @@ const promotionSchema = z.object({
   storeId: z.string().min(1, "Debes seleccionar una tienda"),
   cityId: z.string().min(1, "El código postal es obligatorio"),
   isActive: z.boolean(),
+  expiresAt: z.date({
+    required_error: "La fecha de caducidad es obligatoria.",
+  }),
 });
 
 type PromotionFormValues = z.infer<typeof promotionSchema>;
@@ -58,14 +67,21 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
       storeId: promotion?.storeId || "",
       cityId: promotion?.cityId || "",
       isActive: promotion?.isActive ?? true,
+      expiresAt: promotion?.expiresAt ? new Date(promotion.expiresAt) : undefined,
     },
   });
 
   const onSubmit = async (data: PromotionFormValues) => {
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, String(value));
-    });
+    formData.append('title', data.title);
+    formData.append('content', data.content);
+    formData.append('imageUrl', data.imageUrl || '');
+    formData.append('storeId', data.storeId);
+    formData.append('cityId', data.cityId);
+    formData.append('isActive', String(data.isActive));
+    if (data.expiresAt) {
+      formData.append('expiresAt', data.expiresAt.toISOString());
+    }
 
     const action = promotion ? updatePromotion.bind(null, promotion.id) : createPromotion;
     const result = await action(formData);
@@ -165,6 +181,47 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
               <FormControl>
                 <Textarea placeholder="Aprovecha nuestros descuentos..." {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+         <FormField
+          control={form.control}
+          name="expiresAt"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Fecha de Caducidad</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP", { locale: es })
+                      ) : (
+                        <span>Selecciona una fecha</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date < new Date(new Date().setHours(0,0,0,0))
+                    }
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
               <FormMessage />
             </FormItem>
           )}

@@ -43,6 +43,8 @@ import { Badge } from "../ui/badge";
 import { PromotionForm } from "./promotion-form";
 import { deletePromotion } from "@/app/dashboard/promotions/actions";
 import { getImageUrl } from "@/lib/utils";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 export default function PromotionsClient() {
   const { data: promotions, loading, error, refetch } = useFirestoreQuery<Promotion>("Promotions");
@@ -110,61 +112,68 @@ export default function PromotionsClient() {
               <TableHead>Tienda</TableHead>
               <TableHead>Ciudad (Zip)</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Caducidad</TableHead>
               <TableHead className="text-right w-[80px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {promotions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No se encontraron promociones.
                 </TableCell>
               </TableRow>
             ) : (
-              promotions.map((promo) => (
-                <TableRow key={promo.id}>
-                  <TableCell>
-                    <Image
-                      src={getImageUrl(promo.imageUrl, promo.id, 80, 40)}
-                      alt={promo.title || 'Imagen de la promoción'}
-                      width={80}
-                      height={40}
-                      className="rounded-md object-cover"
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{promo.title}</TableCell>
-                  <TableCell>{promo.storeName}</TableCell>
-                  <TableCell>{promo.cityId}</TableCell>
-                  <TableCell>
-                    <Badge variant={promo.isActive ? "default" : "outline"}>
-                      {promo.isActive ? "Activa" : "Inactiva"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Abrir menú</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => handleEdit(promo)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          <span>Editar</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onSelect={() => handleDelete(promo)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>Eliminar</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
+              promotions.map((promo) => {
+                const isExpired = promo.expiresAt && new Date() > new Date(promo.expiresAt);
+                return (
+                  <TableRow key={promo.id}>
+                    <TableCell>
+                      <Image
+                        src={getImageUrl(promo.imageUrl, promo.id, 80, 40)}
+                        alt={promo.title || 'Imagen de la promoción'}
+                        width={80}
+                        height={40}
+                        className="rounded-md object-cover"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{promo.title}</TableCell>
+                    <TableCell>{promo.storeName}</TableCell>
+                    <TableCell>{promo.cityId}</TableCell>
+                    <TableCell>
+                      <Badge variant={promo.isActive && !isExpired ? "default" : "outline"}>
+                        {promo.isActive && !isExpired ? "Activa" : (isExpired ? "Expirada" : "Inactiva")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {promo.expiresAt ? format(new Date(promo.expiresAt), "dd/MM/yy", { locale: es }) : 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => handleEdit(promo)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            <span>Editar</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() => handleDelete(promo)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Eliminar</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>

@@ -147,6 +147,7 @@ export interface Promotion {
   type: string;
   isActive: boolean;
   createdAt: number;
+  expiresAt: number;
 }
 
 export type ReportStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'DISMISSED';

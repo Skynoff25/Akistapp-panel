@@ -20,6 +20,7 @@ const promotionSchema = z.object({
   storeId: z.string().min(1, "Debes seleccionar una tienda"),
   cityId: z.string().min(1, "El código postal es obligatorio"),
   isActive: z.boolean(),
+  expiresAt: z.string().min(1, "La fecha de caducidad es obligatoria"),
 });
 
 export async function createPromotion(formData: FormData) {
@@ -30,6 +31,7 @@ export async function createPromotion(formData: FormData) {
     storeId: formData.get("storeId"),
     cityId: formData.get("cityId"),
     isActive: formData.get("isActive") === "true",
+    expiresAt: formData.get("expiresAt"),
   };
 
   const validatedFields = promotionSchema.safeParse(values);
@@ -40,7 +42,7 @@ export async function createPromotion(formData: FormData) {
     };
   }
   
-  const { storeId, cityId, ...promotionData } = validatedFields.data;
+  const { storeId, cityId, expiresAt, ...promotionData } = validatedFields.data;
 
   try {
     const storeRef = doc(db, "Stores", storeId);
@@ -58,6 +60,7 @@ export async function createPromotion(formData: FormData) {
       cityId: cityId,
       type: "promotion",
       createdAt: Date.now(),
+      expiresAt: new Date(expiresAt).getTime(),
       imageUrl: promotionData.imageUrl || `https://picsum.photos/seed/${promotionData.title}/600/300`,
     });
 
@@ -76,6 +79,7 @@ export async function updatePromotion(id: string, formData: FormData) {
     storeId: formData.get("storeId"),
     cityId: formData.get("cityId"),
     isActive: formData.get("isActive") === "true",
+    expiresAt: formData.get("expiresAt"),
   };
   
   const validatedFields = promotionSchema.safeParse(values);
@@ -86,7 +90,7 @@ export async function updatePromotion(id: string, formData: FormData) {
     };
   }
   
-  const { storeId, cityId, ...promotionData } = validatedFields.data;
+  const { storeId, cityId, expiresAt, ...promotionData } = validatedFields.data;
 
   try {
     const storeRef = doc(db, "Stores", storeId);
@@ -103,6 +107,7 @@ export async function updatePromotion(id: string, formData: FormData) {
        storeId: storeId,
        storeName: storeData.name,
        cityId: cityId,
+       expiresAt: new Date(expiresAt).getTime(),
        imageUrl: promotionData.imageUrl || `https://picsum.photos/seed/${promotionData.title}/600/300`,
     });
 

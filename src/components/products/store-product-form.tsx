@@ -60,9 +60,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     }
     formData.append('currentStock', String(data.currentStock));
     formData.append('isAvailable', String(data.isAvailable));
-    if (data.storeSpecificImage) {
-        formData.append('storeSpecificImage', data.storeSpecificImage);
-    }
+    formData.append('storeSpecificImage', data.storeSpecificImage || '');
     
     const result = await updateStoreProduct(storeId, product.id, formData);
     

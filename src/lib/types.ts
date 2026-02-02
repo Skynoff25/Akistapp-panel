@@ -109,6 +109,7 @@ export interface AppUser {
 }
 
 export interface CartItemSnapshot {
+    inventoryId: string; // ID del documento en la colección 'Inventory'
     productId: string;
     productName: string;
     quantity: number;
@@ -117,21 +118,25 @@ export interface CartItemSnapshot {
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';
+export type OrderType = 'ONLINE' | 'IN_STORE';
 
 export interface Order {
     id: string;
-    userId: string;
+    userId: string; // Puede ser un ID genérico para ventas en tienda
     storeId: string;
     storeName: string;
     items: CartItemSnapshot[];
     totalAmount: number;
     shippingCost: number;
-    deliveryMethod: 'PICKUP' | 'DELIVERY';
-    deliveryAddress: string;
-    comments: string;
     status: OrderStatus;
     createdAt: number;
-    // Campos denormalizados del usuario para fácil acceso
+    type: OrderType;
+    inventoryDeducted?: boolean;
+
+    // --- Campos Opcionales (principalmente para pedidos ONLINE) ---
+    deliveryMethod?: 'PICKUP' | 'DELIVERY';
+    deliveryAddress?: string;
+    comments?: string;
     userName?: string;
     userEmail?: string;
     userPhoneNumber?: string;

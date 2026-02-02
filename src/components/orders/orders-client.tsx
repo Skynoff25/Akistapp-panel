@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye } from "lucide-react";
+import { MoreHorizontal, Eye, Edit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +47,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { ReportUserDialog } from "../reports/report-user-dialog";
 import { getImageUrl } from "@/lib/utils";
+import { EditOrderDialog } from "./edit-order-dialog";
 
 interface OrdersClientProps {
   storeId: string;
@@ -169,7 +170,7 @@ function UpdateStatusSelect({ storeId, orderId, currentStatus, onUpdate }: { sto
 
     return (
         <div className="flex items-center gap-2">
-            <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
+            <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)} disabled={currentStatus === 'DELIVERED' || currentStatus === 'CANCELLED'}>
                 <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Cambiar estado" />
                 </SelectTrigger>
@@ -193,12 +194,18 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   ]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setDetailsOpen] = useState(false);
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order);
     setDetailsOpen(true);
   }
+
+  const handleEdit = (order: Order) => {
+    setSelectedOrder(order);
+    setEditDialogOpen(true);
+  };
   
   const handleReportSuccess = () => {
     toast({
@@ -254,10 +261,26 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
                     <UpdateStatusSelect storeId={storeId} orderId={order.id} currentStatus={order.status} onUpdate={refetch} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleViewDetails(order)}>
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">Ver Detalles</span>
-                    </Button>
+                    <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menú</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => handleViewDetails(order)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                <span>Ver Detalles</span>
+                            </DropdownMenuItem>
+                            {order.status === 'PENDING' && (
+                                <DropdownMenuItem onSelect={() => handleEdit(order)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    <span>Editar Pedido</span>
+                                </DropdownMenuItem>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -267,6 +290,18 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
       </div>
 
       <OrderDetailsDialog order={selectedOrder} open={isDetailsOpen} onOpenChange={setDetailsOpen} onReportSuccess={handleReportSuccess} />
+      {selectedOrder && (
+        <EditOrderDialog 
+            order={selectedOrder}
+            storeId={storeId}
+            open={isEditDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onSuccess={() => {
+                setEditDialogOpen(false);
+                refetch();
+            }}
+        />
+      )}
     </>
   );
 }

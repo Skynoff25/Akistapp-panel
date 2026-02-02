@@ -14,6 +14,7 @@ import {
   updateDoc,
   deleteDoc,
   getCountFromServer,
+  deleteField,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Product, Store, StoreProduct } from '@/lib/types';
@@ -97,6 +98,7 @@ export async function addProductToStore(formData: FormData) {
 
 const updateStoreProductSchema = z.object({
   price: z.coerce.number().min(0, 'El precio no puede ser negativo.'),
+  promotionalPrice: z.coerce.number().min(0, "El precio debe ser positivo").optional().nullable(),
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.'),
   isAvailable: z.enum(['true', 'false']).transform(v => v === 'true'),
   storeSpecificImage: z.string().url().optional().or(z.literal('')),
@@ -104,7 +106,13 @@ const updateStoreProductSchema = z.object({
 
 
 export async function updateStoreProduct(storeId: string, inventoryId: string, formData: FormData) {
-    const values = Object.fromEntries(formData.entries());
+    const values = {
+      price: formData.get('price'),
+      promotionalPrice: formData.get('promotionalPrice'),
+      currentStock: formData.get('currentStock'),
+      isAvailable: formData.get('isAvailable'),
+      storeSpecificImage: formData.get('storeSpecificImage'),
+    };
     const validatedFields = updateStoreProductSchema.safeParse(values);
 
     if (!validatedFields.success) {
@@ -113,11 +121,23 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
 
     try {
         const productRef = doc(db, `Inventory`, inventoryId);
-        await updateDoc(productRef, validatedFields.data);
+        const { promotionalPrice, ...data } = validatedFields.data;
+        
+        const updateData: any = {...data};
+
+        if (promotionalPrice && promotionalPrice > 0) {
+            updateData.promotionalPrice = promotionalPrice;
+        } else {
+            updateData.promotionalPrice = deleteField();
+        }
+
+        await updateDoc(productRef, updateData);
 
         revalidatePath(`/store/${storeId}/my-products`);
+        revalidatePath(`/store/${storeId}`);
         return { message: 'Producto actualizado.' };
     } catch(e) {
+        console.error(e);
         return { errors: { _form: ['No se pudo actualizar el producto.'] } };
     }
 }

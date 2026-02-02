@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Package, DollarSign, Store as StoreIcon, Loader2 } from 'lucide-react';
 import Loader from '@/components/ui/loader';
 import { where } from 'firebase/firestore';
+import { PromotionalCarousel } from '@/components/products/promotional-carousel';
 
 function StatCard({ title, value, icon: Icon, loading }: { title: string, value: string | number, icon: React.ElementType, loading: boolean }) {
   return (
@@ -71,6 +72,8 @@ export default function StoreDashboardPage() {
             loading={productsLoading} 
         />
       </div>
+
+      <PromotionalCarousel products={storeProducts} />
 
        <div className="mt-8">
         <Card>

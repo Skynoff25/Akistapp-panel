@@ -222,7 +222,16 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
                   />
                 </TableCell>
                 <TableCell className="font-medium">{product.name}</TableCell>
-                <TableCell>${product.price.toFixed(2)}</TableCell>
+                <TableCell>
+                  {product.promotionalPrice && product.promotionalPrice > 0 ? (
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-semibold text-destructive">${product.promotionalPrice.toFixed(2)}</span>
+                      <span className="text-xs text-muted-foreground line-through">${product.price.toFixed(2)}</span>
+                    </div>
+                  ) : (
+                    `$${product.price.toFixed(2)}`
+                  )}
+                </TableCell>
                 <TableCell>
                     <Badge variant={product.currentStock > 0 ? 'outline' : 'destructive'}>
                         {product.currentStock} en stock

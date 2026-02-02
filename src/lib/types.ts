@@ -48,6 +48,7 @@ export interface StoreProduct {
     storeId: string;
     productId: string;
     price: number;
+    promotionalPrice?: number;
     isAvailable: boolean;
     currentStock: number;
     storeSpecificImage?: string;

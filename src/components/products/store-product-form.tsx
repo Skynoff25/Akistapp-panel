@@ -22,6 +22,7 @@ import { useAuth } from "@/context/auth-context";
 
 const storeProductSchema = z.object({
   price: z.coerce.number().min(0, "El precio no puede ser negativo."),
+  promotionalPrice: z.coerce.number().min(0, "El precio promocional no puede ser negativo.").optional().nullable(),
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.'),
   isAvailable: z.boolean(),
   storeSpecificImage: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
@@ -44,6 +45,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     resolver: zodResolver(storeProductSchema),
     defaultValues: {
       price: product.price || 0,
+      promotionalPrice: product.promotionalPrice || null,
       currentStock: product.currentStock || 0,
       isAvailable: product.isAvailable,
       storeSpecificImage: product.storeSpecificImage || "",
@@ -53,6 +55,9 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   const onSubmit = async (data: StoreProductFormValues) => {
     const formData = new FormData();
     formData.append('price', String(data.price));
+    if (data.promotionalPrice) {
+      formData.append('promotionalPrice', String(data.promotionalPrice));
+    }
     formData.append('currentStock', String(data.currentStock));
     formData.append('isAvailable', String(data.isAvailable));
     if (data.storeSpecificImage) {
@@ -107,6 +112,34 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             )}
             />
              <FormField
+              control={form.control}
+              name="promotionalPrice"
+              render={({ field }) => (
+                  <FormItem>
+                  <FormLabel>Precio Promocional</FormLabel>
+                  <FormControl>
+                      <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                          <Input 
+                              type="number" 
+                              step="0.01" 
+                              placeholder="14.99" 
+                              className="pl-7"
+                              disabled={!canEditPrice}
+                              {...field}
+                              value={field.value ?? ''}
+                              onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
+                          />
+                      </div>
+                  </FormControl>
+                  <FormDescription className="text-xs">Opcional. Dejar en blanco para quitar.</FormDescription>
+                  <FormMessage />
+                  </FormItem>
+              )}
+            />
+        </div>
+        
+        <FormField
             control={form.control}
             name="currentStock"
             render={({ field }) => (
@@ -124,7 +157,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                 </FormItem>
             )}
             />
-        </div>
         
         <FormField
           control={form.control}
@@ -133,7 +165,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             <FormItem>
               <FormLabel>URL de Imagen Personalizada (Opcional)</FormLabel>
               <FormControl>
-                <Input placeholder="https://ejemplo.com/mi-foto.png" {...field} />
+                <Input placeholder="https://ejemplo.com/mi-foto.png" {...field} value={field.value ?? ''} />
               </FormControl>
               <FormDescription>
                 Si se deja en blanco, se usará la imagen global del producto.

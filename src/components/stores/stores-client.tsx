@@ -131,6 +131,11 @@ export default function StoresClient() {
                   <Badge variant={store.subscriptionPlan === 'PREMIUM' ? 'default' : 'secondary'}>
                     {store.subscriptionPlan}
                   </Badge>
+                  {store.sponsoredKeywords && store.sponsoredKeywords.length > 0 && (
+                    <Badge variant="outline" className="ml-2">
+                        Patrocinado
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>{store.phone}</TableCell>
                 <TableCell className="text-right">

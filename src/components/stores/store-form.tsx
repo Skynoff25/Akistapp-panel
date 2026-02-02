@@ -38,6 +38,7 @@ const storeSchema = z.object({
   allowDelivery: z.boolean().default(false),
   deliveryType: z.enum(['FIXED', 'AGREEMENT']).default('AGREEMENT'),
   deliveryFee: z.coerce.number().min(0).default(0),
+  sponsoredKeywords: z.string().optional(),
 });
 
 type StoreFormValues = z.infer<typeof storeSchema>;
@@ -71,6 +72,7 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
       allowDelivery: store?.allowDelivery || false,
       deliveryType: store?.deliveryType || 'AGREEMENT',
       deliveryFee: store?.deliveryFee || 0,
+      sponsoredKeywords: store?.sponsoredKeywords?.join(', ') || '',
     },
   });
 
@@ -89,6 +91,7 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
         allowDelivery: store?.allowDelivery || false,
         deliveryType: store?.deliveryType || 'AGREEMENT',
         deliveryFee: store?.deliveryFee || 0,
+        sponsoredKeywords: store?.sponsoredKeywords?.join(', ') || '',
     });
   }, [store, form]);
 
@@ -109,7 +112,9 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
   const onSubmit = async (data: StoreFormValues) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      formData.append(key, String(value));
+      if (value !== undefined) {
+        formData.append(key, String(value));
+      }
     });
 
     const action = store ? updateStore.bind(null, store.id) : createStore;
@@ -271,6 +276,23 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
               <FormControl>
                 <Input placeholder="https://example.com/logo.png" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="sponsoredKeywords"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Palabras Clave Patrocinadas ("Top Search")</FormLabel>
+              <FormControl>
+                <Input placeholder="batería, caucho, aceite" {...field} />
+              </FormControl>
+              <FormDescription>
+                Palabras separadas por comas. La tienda aparecerá primero en las búsquedas de estas palabras.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

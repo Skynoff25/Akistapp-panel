@@ -23,6 +23,7 @@ export interface Store {
   allowDelivery: boolean;
   deliveryType?: 'FIXED' | 'AGREEMENT';
   deliveryFee?: number;
+  sponsoredKeywords?: string[];
 
   // Reputation and status
   rating: number;

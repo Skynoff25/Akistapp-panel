@@ -19,6 +19,7 @@ const storeSchema = z.object({
     allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
     deliveryType: z.enum(['FIXED', 'AGREEMENT']).optional(),
     deliveryFee: z.coerce.number().min(0).optional(),
+    sponsoredKeywords: z.string().optional(),
 });
 
 function getPlanDetails(plan: 'BASIC' | 'STANDARD' | 'PREMIUM') {
@@ -47,6 +48,7 @@ export async function createStore(formData: FormData) {
         allowDelivery: formData.get("allowDelivery") as string,
         deliveryType: formData.get("deliveryType") as 'FIXED' | 'AGREEMENT' | undefined,
         deliveryFee: formData.get("deliveryFee") as string | undefined,
+        sponsoredKeywords: formData.get("sponsoredKeywords") as string | undefined,
     };
 
     const validatedFields = storeSchema.safeParse(values);
@@ -67,6 +69,9 @@ export async function createStore(formData: FormData) {
         isOpen: true,
         createdAt: Date.now(),
         imageUrl: dataFromForm.imageUrl || `https://picsum.photos/seed/${dataFromForm.name}/100/100`,
+        sponsoredKeywords: dataFromForm.sponsoredKeywords
+            ? dataFromForm.sponsoredKeywords.split(',').map(kw => kw.trim().toLowerCase()).filter(kw => kw)
+            : [],
     };
 
     if (storePayload.subscriptionPlan === 'BASIC') {
@@ -109,6 +114,7 @@ export async function updateStore(id: string, formData: FormData) {
         allowDelivery: formData.get("allowDelivery") as string,
         deliveryType: formData.get("deliveryType") as 'FIXED' | 'AGREEMENT' | undefined,
         deliveryFee: formData.get("deliveryFee") as string | undefined,
+        sponsoredKeywords: formData.get("sponsoredKeywords") as string | undefined,
     };
 
     const validatedFields = storeSchema.safeParse(values);
@@ -121,6 +127,10 @@ export async function updateStore(id: string, formData: FormData) {
     
     const planDetails = getPlanDetails(validatedFields.data.subscriptionPlan);
     const dataToUpdate: { [key: string]: any } = { ...validatedFields.data };
+    
+    dataToUpdate.sponsoredKeywords = validatedFields.data.sponsoredKeywords
+        ? validatedFields.data.sponsoredKeywords.split(',').map(kw => kw.trim().toLowerCase()).filter(kw => kw)
+        : [];
 
     if (dataToUpdate.subscriptionPlan === 'BASIC') {
         dataToUpdate.allowPickup = false;

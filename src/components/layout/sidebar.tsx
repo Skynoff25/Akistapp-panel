@@ -70,27 +70,30 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 flex-shrink-0 border-r bg-card p-4 hidden md:flex flex-col">
-      <div className="flex items-center gap-2 mb-8 px-2">
-        <Image
-            src="/logo.png"
-            alt="AkistApp Logo"
-            width={40}
-            height={40}
-        />
-        <h1 className="text-xl font-bold">AkistApp</h1>
-      </div>
-      <nav className="flex-grow space-y-1">
-        {navItems.map((item) => (
-          <NavItem key={item.href} {...item} />
-        ))}
-      </nav>
-      <div className="mt-auto">
+    <aside className="w-64 flex-shrink-0 border-r bg-card p-4 hidden md:flex flex-col h-screen">
+      <div className="flex-shrink-0">
+        <div className="flex items-center gap-2 mb-8 px-2">
+          <Image
+              src="/logo.png"
+              alt="AkistApp Logo"
+              width={40}
+              height={40}
+          />
+          <h1 className="text-xl font-bold">AkistApp</h1>
+        </div>
         <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           Cerrar sesión
         </Button>
       </div>
+      
+      <div className="my-4 border-t border-border"></div>
+
+      <nav className="flex-grow space-y-1 overflow-y-auto">
+        {navItems.map((item) => (
+          <NavItem key={item.href} {...item} />
+        ))}
+      </nav>
     </aside>
   );
 }

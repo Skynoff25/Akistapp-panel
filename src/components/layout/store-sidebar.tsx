@@ -58,25 +58,34 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
     };
 
   return (
-    <aside className="w-64 flex-shrink-0 border-r bg-card p-4 hidden md:flex flex-col">
+    <aside className="w-64 flex-shrink-0 border-r bg-card p-4 hidden md:flex flex-col h-screen">
+      <div className="flex-shrink-0">
         {appUser?.rol === 'admin' && (
-             <Link href="/dashboard" passHref className='mb-4'>
+             <Link href="/dashboard" passHref className='mb-2'>
                 <Button variant="ghost" className="w-full justify-start">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Volver al Panel Admin
                 </Button>
             </Link>
         )}
-      <div className="flex items-center gap-2 mb-8 px-2">
-        <Image
-            src="/logo.png"
-            alt="AkistApp Logo"
-            width={40}
-            height={40}
-        />
-        <h1 className="text-lg font-bold">{loading ? "Cargando..." : store?.name}</h1>
+        <div className="flex items-center gap-2 mb-8 px-2">
+          <Image
+              src="/logo.png"
+              alt="AkistApp Logo"
+              width={40}
+              height={40}
+          />
+          <h1 className="text-lg font-bold">{loading ? "Cargando..." : store?.name}</h1>
+        </div>
+        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Cerrar sesión
+        </Button>
       </div>
-      <nav className="flex-grow space-y-1">
+
+      <div className="my-4 border-t border-border"></div>
+
+      <nav className="flex-grow space-y-1 overflow-y-auto">
         {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href) && (item.href !== `/store/${storeId}` || pathname === `/store/${storeId}`);
             return (
@@ -95,12 +104,6 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
             )
         })}
       </nav>
-      <div className="mt-auto">
-        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Cerrar sesión
-        </Button>
-      </div>
     </aside>
   );
 }

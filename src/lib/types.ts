@@ -53,6 +53,9 @@ export interface StoreProduct {
     isAvailable: boolean;
     currentStock: number;
     storeSpecificImage?: string;
+    // New Finance Fields
+    costPriceUsd?: number;
+    casheaEligible?: boolean;
     // Combinamos la info del producto global para facilitar la visualización
     name: string;
     brand: string;

@@ -26,6 +26,8 @@ const storeProductSchema = z.object({
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.'),
   isAvailable: z.boolean(),
   storeSpecificImage: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.'),
+  casheaEligible: z.boolean(),
 });
 
 type StoreProductFormValues = z.infer<typeof storeProductSchema>;
@@ -49,6 +51,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       currentStock: product.currentStock || 0,
       isAvailable: product.isAvailable,
       storeSpecificImage: product.storeSpecificImage || "",
+      costPriceUsd: product.costPriceUsd || 0,
+      casheaEligible: product.casheaEligible || false,
     },
   });
 
@@ -61,6 +65,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     formData.append('currentStock', String(data.currentStock));
     formData.append('isAvailable', String(data.isAvailable));
     formData.append('storeSpecificImage', data.storeSpecificImage || '');
+    formData.append('costPriceUsd', String(data.costPriceUsd));
+    formData.append('casheaEligible', String(data.casheaEligible));
     
     const result = await updateStoreProduct(storeId, product.id, formData);
     
@@ -136,6 +142,30 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
               )}
             />
         </div>
+
+        <FormField
+          control={form.control}
+          name="costPriceUsd"
+          render={({ field }) => (
+              <FormItem>
+              <FormLabel>Costo de Reposición (USD)</FormLabel>
+              <FormControl>
+                  <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                      <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="10.50" 
+                          className="pl-7"
+                          {...field} 
+                      />
+                  </div>
+              </FormControl>
+              <FormDescription className="text-xs">El costo real para reponer este producto.</FormDescription>
+              <FormMessage />
+              </FormItem>
+          )}
+          />
         
         <FormField
             control={form.control}
@@ -172,7 +202,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             </FormItem>
           )}
         />
-
+        <div className="space-y-4">
         <FormField
           control={form.control}
           name="isAvailable"
@@ -195,6 +225,30 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="casheaEligible"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">
+                  Elegible para Financiamiento (Cashea)
+                </FormLabel>
+                <FormDescription>
+                  Marcar si este producto se puede vender a través de financiamiento.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        </div>
         
         {form.formState.errors.root?.serverError && (
           <p className="text-sm font-medium text-destructive">

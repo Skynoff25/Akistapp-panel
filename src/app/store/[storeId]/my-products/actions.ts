@@ -78,6 +78,8 @@ export async function addProductToStore(formData: FormData) {
       price: 0,
       isAvailable: true,
       currentStock: 0,
+      costPriceUsd: 0,
+      casheaEligible: false,
       // Denormalize product data for easier display
       name: productData.name,
       brand: productData.brand,
@@ -102,6 +104,8 @@ const updateStoreProductSchema = z.object({
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.'),
   isAvailable: z.enum(['true', 'false']).transform(v => v === 'true'),
   storeSpecificImage: z.string().url().optional().or(z.literal('')),
+  costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.'),
+  casheaEligible: z.enum(['true', 'false']).transform(v => v === 'true'),
 });
 
 
@@ -112,6 +116,8 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
       currentStock: formData.get('currentStock'),
       isAvailable: formData.get('isAvailable'),
       storeSpecificImage: formData.get('storeSpecificImage'),
+      costPriceUsd: formData.get('costPriceUsd'),
+      casheaEligible: formData.get('casheaEligible'),
     };
     const validatedFields = updateStoreProductSchema.safeParse(values);
 
@@ -135,6 +141,7 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
 
         revalidatePath(`/store/${storeId}/my-products`);
         revalidatePath(`/store/${storeId}`);
+        revalidatePath(`/store/${storeId}/finance`);
         return { message: 'Producto actualizado.' };
     } catch(e) {
         console.error(e);

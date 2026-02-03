@@ -15,7 +15,8 @@ import {
     ArrowLeft,
     ShoppingCart,
     Megaphone,
-    Banknote
+    Banknote,
+    Scaling
 } from 'lucide-react';
 import { useDocument } from '@/hooks/use-document';
 import type { Store as StoreType } from '@/lib/types';
@@ -39,6 +40,7 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
         { href: `/store/${storeId}/orders`, label: 'Pedidos', icon: ShoppingCart },
         { href: `/store/${storeId}/promotions`, label: 'Promociones', icon: Megaphone },
         { href: `/store/${storeId}/pos`, label: 'Punto de Venta', icon: Banknote },
+        { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling },
     ];
 
     const handleLogout = async () => {

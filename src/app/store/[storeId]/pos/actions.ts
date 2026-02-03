@@ -18,6 +18,9 @@ const saleItemSchema = z.array(z.object({
 const createManualSaleSchema = z.object({
   items: z.string(),
   totalAmount: z.coerce.number().min(0),
+  userName: z.string().optional(),
+  userNationalId: z.string().optional(),
+  userPhoneNumber: z.string().optional(),
 });
 
 export async function createManualSale(storeId: string, formData: FormData) {
@@ -28,7 +31,7 @@ export async function createManualSale(storeId: string, formData: FormData) {
     return { error: "Datos de venta inválidos." };
   }
 
-  const { totalAmount } = validatedFields.data;
+  const { totalAmount, userName, userNationalId, userPhoneNumber } = validatedFields.data;
   let items: z.infer<typeof saleItemSchema>;
   try {
     items = saleItemSchema.parse(JSON.parse(validatedFields.data.items));
@@ -54,6 +57,9 @@ export async function createManualSale(storeId: string, formData: FormData) {
       createdAt: Date.now(),
       type: "IN_STORE",
       inventoryDeducted: true, // Se descuenta al momento de la venta
+      userName: userName || "Cliente en tienda",
+      userNationalId: userNationalId || "",
+      userPhoneNumber: userPhoneNumber || "",
     });
     
     // --- 2. Descontar el inventario ---

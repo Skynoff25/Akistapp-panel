@@ -140,6 +140,7 @@ export interface Order {
     userName?: string;
     userEmail?: string;
     userPhoneNumber?: string;
+    userNationalId?: string;
 }
 
 export interface Promotion {

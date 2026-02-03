@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
 import { where } from 'firebase/firestore';
 import type { StoreProduct } from '@/lib/types';
@@ -16,6 +16,15 @@ import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { createManualSale } from '@/app/store/[storeId]/pos/actions';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from '../ui/label';
 
 interface CartItem {
   inventoryId: string;
@@ -27,6 +36,67 @@ interface CartItem {
   stock: number;
 }
 
+interface CustomerInfo {
+  name: string;
+  nationalId: string;
+  phone: string;
+}
+
+function CustomerInfoDialog({ open, onOpenChange, onSave, initialData }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (data: CustomerInfo) => void;
+  initialData: CustomerInfo;
+}) {
+  const [name, setName] = useState('');
+  const [nationalId, setNationalId] = useState('');
+  const [phone, setPhone] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setName(initialData.name || '');
+      setNationalId(initialData.nationalId || '');
+      setPhone(initialData.phone || '');
+    }
+  }, [open, initialData]);
+
+  const handleSave = () => {
+      onSave({ name, nationalId, phone });
+  };
+
+  return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Información del Cliente</DialogTitle>
+                  <DialogDescription>
+                      Introduce los datos del cliente para la factura. Todos los campos son opcionales.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="name" className="text-right">Nombre</Label>
+                      <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" placeholder="Nombre completo"/>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="nationalId" className="text-right">Cédula/ID</Label>
+                      <Input id="nationalId" value={nationalId} onChange={(e) => setNationalId(e.target.value)} className="col-span-3" placeholder="V-12345678"/>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="phone" className="text-right">Teléfono</Label>
+                      <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="col-span-3" placeholder="0414-1234567"/>
+                  </div>
+              </div>
+              <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+                  <Button type="submit" onClick={handleSave}>Guardar Cliente</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+  );
+}
+
+
 export default function PosClient({ storeId }: { storeId: string }) {
   const { data: inventory, loading, error, refetch } = useFirestoreQuery<StoreProduct>('Inventory', [
     where('storeId', '==', storeId),
@@ -35,6 +105,8 @@ export default function PosClient({ storeId }: { storeId: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({ name: '', nationalId: '', phone: '' });
+  const [isCustomerDialogOpen, setCustomerDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const filteredInventory = useMemo(() => {
@@ -109,6 +181,10 @@ export default function PosClient({ storeId }: { storeId: string }) {
     const formData = new FormData();
     formData.append('items', JSON.stringify(saleItems));
     formData.append('totalAmount', String(cartTotal));
+    formData.append('userName', customerInfo.name);
+    formData.append('userNationalId', customerInfo.nationalId);
+    formData.append('userPhoneNumber', customerInfo.phone);
+
 
     const result = await createManualSale(storeId, formData);
 
@@ -117,6 +193,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
     } else {
         toast({ title: 'Éxito', description: 'Venta registrada y stock actualizado.' });
         setCart([]);
+        setCustomerInfo({ name: '', nationalId: '', phone: '' }); // Reset customer info
         refetch(); // Refresca el inventario para mostrar el nuevo stock
     }
     setIsSubmitting(false);
@@ -179,12 +256,12 @@ export default function PosClient({ storeId }: { storeId: string }) {
             </Card>
         </div>
         <div className="md:col-span-1">
-            <Card>
+            <Card className="flex flex-col h-full">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><ShoppingCart /> Carrito de Venta</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <ScrollArea className="h-[50vh] pr-4">
+                <CardContent className="flex-grow">
+                    <ScrollArea className="h-[40vh] pr-4">
                         {cart.length === 0 ? (
                             <p className="text-muted-foreground text-center py-8">El carrito está vacío.</p>
                         ) : (
@@ -208,7 +285,32 @@ export default function PosClient({ storeId }: { storeId: string }) {
                         )}
                     </ScrollArea>
                 </CardContent>
-                <CardFooter className="flex-col gap-4 !p-4">
+                 <div className="p-4 border-t">
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="text-sm font-medium">Información del Cliente</h4>
+                        {customerInfo.name && (
+                            <Button variant="link" className="p-0 h-auto text-xs" onClick={() => setCustomerInfo({ name: '', nationalId: '', phone: '' })}>
+                                Limpiar
+                            </Button>
+                        )}
+                    </div>
+                    
+                    {customerInfo.name ? (
+                        <div className="text-sm text-muted-foreground space-y-1 p-2 bg-muted/50 rounded-md">
+                            <p><span className="font-semibold text-foreground">Nombre:</span> {customerInfo.name}</p>
+                            {customerInfo.nationalId && <p><span className="font-semibold text-foreground">Cédula:</span> {customerInfo.nationalId}</p>}
+                            {customerInfo.phone && <p><span className="font-semibold text-foreground">Teléfono:</span> {customerInfo.phone}</p>}
+                            <Button variant="link" className="p-0 h-auto text-xs mt-1" onClick={() => setCustomerDialogOpen(true)}>
+                                Editar
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button variant="outline" className="w-full" onClick={() => setCustomerDialogOpen(true)}>
+                            Añadir Cliente (Opcional)
+                        </Button>
+                    )}
+                </div>
+                <CardFooter className="flex-col gap-4 !p-4 mt-auto">
                     <div className="w-full flex justify-between items-center text-lg font-bold">
                         <span>Total:</span>
                         <span>${cartTotal.toFixed(2)}</span>
@@ -220,6 +322,15 @@ export default function PosClient({ storeId }: { storeId: string }) {
             </Card>
         </div>
       </div>
+       <CustomerInfoDialog
+            open={isCustomerDialogOpen}
+            onOpenChange={setCustomerDialogOpen}
+            onSave={(data) => {
+                setCustomerInfo(data);
+                setCustomerDialogOpen(false);
+            }}
+            initialData={customerInfo}
+        />
     </>
   );
 }

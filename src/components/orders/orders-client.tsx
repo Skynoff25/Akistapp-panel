@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
 import { where } from "firebase/firestore";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Search } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +47,8 @@ import { useAuth } from "@/context/auth-context";
 import { ReportUserDialog } from "../reports/report-user-dialog";
 import { getImageUrl } from "@/lib/utils";
 import { EditOrderDialog } from "./edit-order-dialog";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 
 interface OrdersClientProps {
   storeId: string;
@@ -197,6 +198,34 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredAndSortedOrders = useMemo(() => {
+    if (!orders) return [];
+    
+    let processedOrders = [...orders];
+
+    if (statusFilter !== 'ALL') {
+        processedOrders = processedOrders.filter(order => order.status === statusFilter);
+    }
+
+    if (searchTerm.trim()) {
+        processedOrders = processedOrders.filter(order => 
+            order.userName?.toLowerCase().includes(searchTerm.toLowerCase().trim())
+        );
+    }
+
+    processedOrders.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    return processedOrders;
+  }, [orders, sortOrder, statusFilter, searchTerm]);
+
   const handleViewDetails = (order: Order) => {
     setSelectedOrder(order);
     setDetailsOpen(true);
@@ -224,6 +253,45 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
         title="Gestión de Pedidos"
         description="Administra los pedidos entrantes de tu tienda."
       />
+
+      <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 mb-4 p-4 bg-muted/50 rounded-lg">
+        <div className="relative flex-grow w-full sm:w-auto">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Buscar por nombre de cliente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-full sm:w-[300px]"
+            />
+        </div>
+        <div className="flex items-center gap-2">
+            <Label htmlFor="status-filter" className="text-sm font-medium">Estado:</Label>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                <SelectTrigger id="status-filter" className="w-[180px]">
+                    <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="ALL">Todos</SelectItem>
+                    {Object.keys(statusTranslations).map(s => (
+                        <SelectItem key={s} value={s}>{statusTranslations[s as OrderStatus]}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+        <div className="flex items-center gap-2">
+            <Label htmlFor="sort-filter" className="text-sm font-medium">Ordenar:</Label>
+            <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as any)}>
+                <SelectTrigger id="sort-filter" className="w-[180px]">
+                    <SelectValue placeholder="Ordenar por..." />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="desc">Más Recientes</SelectItem>
+                    <SelectItem value="asc">Más Antiguos</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+      </div>
+
       <div className="bg-card rounded-lg shadow-sm">
         <Table>
           <TableHeader>
@@ -238,14 +306,14 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.length === 0 ? (
+            {filteredAndSortedOrders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
-                  No se encontraron pedidos.
+                  No se encontraron pedidos con los filtros actuales.
                 </TableCell>
               </TableRow>
             ) : (
-              orders.map((order) => (
+              filteredAndSortedOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell className="font-medium">#{order.id.substring(0, 7)}</TableCell>
                   <TableCell>{format(new Date(order.createdAt), 'dd/MM/yy')}</TableCell>

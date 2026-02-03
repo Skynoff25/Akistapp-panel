@@ -44,26 +44,36 @@ export interface Product {
   tags: string[];
 }
 
+export interface ProductVariant {
+  id: string; // SKU or UUID
+  name: string; // "Large", "Red", "1L"
+  price: number;
+  stock: number;
+  sku?: string;
+}
+
 export interface StoreProduct {
     id: string;
     storeId: string;
     productId: string;
     price: number;
     promotionalPrice?: number;
+    currentStock: number; 
     isAvailable: boolean;
-    currentStock: number;
     storeSpecificImage?: string;
-    // New Finance Fields
     costPriceUsd?: number;
     casheaEligible?: boolean;
-    // Combinamos la info del producto global para facilitar la visualización
     name: string;
     brand: string;
     category: string;
     globalImage: string;
-    // Info de la tienda denormalizada para búsquedas
     storeName: string;
     storeAddress: string;
+
+    // New variation fields
+    hasVariations: boolean;
+    variants: ProductVariant[];
+    priceRange?: string | null;
 }
 
 
@@ -119,6 +129,9 @@ export interface CartItemSnapshot {
     price: number;
     image: string;
     costPriceUsd: number;
+    // New variation fields
+    variantId?: string;
+    variantName?: string;
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';

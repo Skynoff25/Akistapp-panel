@@ -17,7 +17,7 @@ import {
   deleteField,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
-import type { Product, Store, StoreProduct } from '@/lib/types';
+import type { Product, Store, StoreProduct, ProductVariant } from '@/lib/types';
 import { auth } from '@/lib/firebase';
 
 const addProductToStoreSchema = z.object({
@@ -80,14 +80,16 @@ export async function addProductToStore(formData: FormData) {
       currentStock: 0,
       costPriceUsd: 0,
       casheaEligible: false,
-      // Denormalize product data for easier display
       name: productData.name,
       brand: productData.brand,
       category: productData.category,
       globalImage: productData.image || `https://picsum.photos/seed/${productId}/400/400`,
-      // Denormalize store data for easier display
       storeName: storeData.name,
-      storeAddress: `${storeData.address}, ${storeData.city}`
+      storeAddress: `${storeData.address}, ${storeData.city}`,
+      // Initialize variation fields
+      hasVariations: false,
+      variants: [],
+      priceRange: null,
     });
 
     revalidatePath(`/store/${storeId}/my-products`);
@@ -98,27 +100,29 @@ export async function addProductToStore(formData: FormData) {
 }
 
 
+const variantSchema = z.array(z.object({
+  id: z.string(),
+  name: z.string().min(1, 'El nombre de la variante es obligatorio.'),
+  price: z.coerce.number().min(0, 'El precio de la variante no puede ser negativo.'),
+  stock: z.coerce.number().int('El stock de la variante debe ser un número entero.').min(0),
+  sku: z.string().optional(),
+}));
+
 const updateStoreProductSchema = z.object({
-  price: z.coerce.number().min(0, 'El precio no puede ser negativo.'),
+  price: z.coerce.number().min(0, 'El precio no puede ser negativo.').optional(),
   promotionalPrice: z.coerce.number().min(0, "El precio debe ser positivo").optional().nullable(),
-  currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.'),
+  currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.enum(['true', 'false']).transform(v => v === 'true'),
   storeSpecificImage: z.string().url().optional().or(z.literal('')),
-  costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.'),
+  costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.').optional(),
   casheaEligible: z.enum(['true', 'false']).transform(v => v === 'true'),
+  hasVariations: z.enum(['true', 'false']).transform(v => v === 'true'),
+  variants: z.string().optional(),
 });
 
 
 export async function updateStoreProduct(storeId: string, inventoryId: string, formData: FormData) {
-    const values = {
-      price: formData.get('price'),
-      promotionalPrice: formData.get('promotionalPrice'),
-      currentStock: formData.get('currentStock'),
-      isAvailable: formData.get('isAvailable'),
-      storeSpecificImage: formData.get('storeSpecificImage'),
-      costPriceUsd: formData.get('costPriceUsd'),
-      casheaEligible: formData.get('casheaEligible'),
-    };
+    const values = Object.fromEntries(formData.entries());
     const validatedFields = updateStoreProductSchema.safeParse(values);
 
     if (!validatedFields.success) {
@@ -127,14 +131,47 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
 
     try {
         const productRef = doc(db, `Inventory`, inventoryId);
-        const { promotionalPrice, ...data } = validatedFields.data;
+        const { promotionalPrice, variants: variantsJSON, ...data } = validatedFields.data;
         
-        const updateData: any = {...data};
+        const updateData: { [key: string]: any } = {...data};
 
-        if (promotionalPrice && promotionalPrice > 0) {
-            updateData.promotionalPrice = promotionalPrice;
+        if (updateData.hasVariations) {
+            if (!variantsJSON) {
+                return { errors: { _form: ['Se esperaban variaciones pero no se recibieron.'] } };
+            }
+            try {
+                const variants = variantSchema.parse(JSON.parse(variantsJSON));
+                if (variants.length === 0) {
+                    return { errors: { _form: ['Si un producto tiene variaciones, debe agregar al menos una.'] } };
+                }
+                
+                updateData.variants = variants;
+                updateData.currentStock = variants.reduce((acc, v) => acc + v.stock, 0);
+                
+                const prices = variants.map(v => v.price);
+                const minPrice = Math.min(...prices);
+                const maxPrice = Math.max(...prices);
+                
+                updateData.price = minPrice;
+                updateData.priceRange = minPrice === maxPrice ? `$${minPrice.toFixed(2)}` : `$${minPrice.toFixed(2)} - $${maxPrice.toFixed(2)}`;
+                updateData.promotionalPrice = deleteField();
+                
+            } catch (e) {
+                console.error(e)
+                return { errors: { _form: ['Las variaciones tienen un formato inválido.'] } };
+            }
         } else {
-            updateData.promotionalPrice = deleteField();
+             if (data.price === undefined || data.currentStock === undefined) {
+                return { errors: { _form: ['El precio y el stock base son obligatorios cuando no hay variaciones.'] } };
+            }
+            updateData.variants = [];
+            updateData.priceRange = null;
+
+            if (promotionalPrice && promotionalPrice > 0) {
+                updateData.promotionalPrice = promotionalPrice;
+            } else {
+                updateData.promotionalPrice = deleteField();
+            }
         }
 
         await updateDoc(productRef, updateData);

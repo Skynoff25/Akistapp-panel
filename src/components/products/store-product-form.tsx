@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -16,19 +16,52 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import type { StoreProduct } from "@/lib/types";
+import type { StoreProduct, ProductVariant } from "@/lib/types";
 import { updateStoreProduct } from "@/app/store/[storeId]/my-products/actions";
 import { useAuth } from "@/context/auth-context";
+import { useEffect } from "react";
+import { Label } from "../ui/label";
+import { PlusCircle, Trash2 } from "lucide-react";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "../ui/table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+
+const variantSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, "El nombre es obligatorio."),
+  price: z.coerce.number().min(0, "El precio debe ser positivo."),
+  stock: z.coerce.number().int("El stock debe ser un número entero.").min(0, "El stock no puede ser negativo."),
+  sku: z.string().optional(),
+});
 
 const storeProductSchema = z.object({
-  price: z.coerce.number().min(0, "El precio no puede ser negativo."),
+  price: z.coerce.number().min(0, "El precio no puede ser negativo.").optional(),
   promotionalPrice: z.coerce.number().min(0, "El precio promocional no puede ser negativo.").optional().nullable(),
-  currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.'),
+  currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.boolean(),
   storeSpecificImage: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
   costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.'),
   casheaEligible: z.boolean(),
+  hasVariations: z.boolean(),
+  variants: z.array(variantSchema).optional(),
+}).superRefine((data, ctx) => {
+    if (data.hasVariations) {
+        if (!data.variants || data.variants.length === 0) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["variants"],
+                message: "Debes agregar al menos una variante.",
+            });
+        }
+    } else {
+        if (typeof data.price !== 'number') {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["price"], message: "El precio es obligatorio." });
+        }
+        if (typeof data.currentStock !== 'number') {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["currentStock"], message: "El stock es obligatorio." });
+        }
+    }
 });
+
 
 type StoreProductFormValues = z.infer<typeof storeProductSchema>;
 
@@ -46,27 +79,58 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   const form = useForm<StoreProductFormValues>({
     resolver: zodResolver(storeProductSchema),
     defaultValues: {
-      price: product.price || 0,
-      promotionalPrice: product.promotionalPrice || null,
-      currentStock: product.currentStock || 0,
-      isAvailable: product.isAvailable,
-      storeSpecificImage: product.storeSpecificImage || "",
-      costPriceUsd: product.costPriceUsd || 0,
-      casheaEligible: product.casheaEligible || false,
+      price: 0,
+      promotionalPrice: null,
+      currentStock: 0,
+      isAvailable: true,
+      storeSpecificImage: "",
+      costPriceUsd: 0,
+      casheaEligible: false,
+      hasVariations: false,
+      variants: [],
     },
   });
 
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "variants",
+  });
+
+  const hasVariations = form.watch("hasVariations");
+
+  useEffect(() => {
+    if (product) {
+        form.reset({
+            price: product.price || 0,
+            promotionalPrice: product.promotionalPrice || null,
+            currentStock: product.currentStock || 0,
+            isAvailable: product.isAvailable,
+            storeSpecificImage: product.storeSpecificImage || "",
+            costPriceUsd: product.costPriceUsd || 0,
+            casheaEligible: product.casheaEligible || false,
+            hasVariations: product.hasVariations || false,
+            variants: product.variants || [],
+        });
+    }
+  }, [product, form]);
+
+
   const onSubmit = async (data: StoreProductFormValues) => {
     const formData = new FormData();
-    formData.append('price', String(data.price));
-    if (data.promotionalPrice) {
-      formData.append('promotionalPrice', String(data.promotionalPrice));
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === 'variants' && data.hasVariations) {
+        formData.append(key, JSON.stringify(value));
+      } else if (key !== 'variants' && value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+    
+    // Ensure base price/stock are sent if no variations
+    if (!data.hasVariations) {
+        formData.append('price', String(data.price));
+        formData.append('currentStock', String(data.currentStock));
     }
-    formData.append('currentStock', String(data.currentStock));
-    formData.append('isAvailable', String(data.isAvailable));
-    formData.append('storeSpecificImage', data.storeSpecificImage || '');
-    formData.append('costPriceUsd', String(data.costPriceUsd));
-    formData.append('casheaEligible', String(data.casheaEligible));
     
     const result = await updateStoreProduct(storeId, product.id, formData);
     
@@ -90,58 +154,120 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-            <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Precio</FormLabel>
-                <FormControl>
-                    <div className="relative">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
-                        <Input 
-                            type="number" 
-                            step="0.01" 
-                            placeholder="19.99" 
-                            className="pl-7"
-                            disabled={!canEditPrice}
-                            {...field} 
-                        />
+
+        <FormField
+          control={form.control}
+          name="hasVariations"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">¿Este producto tiene variaciones?</FormLabel>
+                <FormDescription>Ej: Tallas, colores, pesos, etc.</FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!canEditPrice} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        
+        {hasVariations ? (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Variantes del Producto</CardTitle>
+                    <CardDescription>Añade cada opción disponible de tu producto con su precio y stock específico.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                         {fields.map((field, index) => (
+                             <div key={field.id} className="grid grid-cols-12 gap-2 items-start border-b pb-4">
+                                <FormField
+                                    control={form.control}
+                                    name={`variants.${index}.name`}
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-4">
+                                            <FormLabel className="text-xs">Nombre</FormLabel>
+                                            <FormControl><Input placeholder="Ej: Rojo, Talla M" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                 <FormField
+                                    control={form.control}
+                                    name={`variants.${index}.price`}
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-3">
+                                            <FormLabel className="text-xs">Precio ($)</FormLabel>
+                                            <FormControl><Input type="number" step="0.01" placeholder="19.99" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`variants.${index}.stock`}
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-3">
+                                            <FormLabel className="text-xs">Stock</FormLabel>
+                                            <FormControl><Input type="number" step="1" placeholder="50" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <div className="col-span-2 flex justify-end pt-7">
+                                     <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                         ))}
+                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: 0, stock: 0 })}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Agregar Variante
+                        </Button>
+                         {form.formState.errors.variants && <FormMessage>{form.formState.errors.variants.message}</FormMessage>}
                     </div>
-                </FormControl>
-                {!canEditPrice && <FormDescription className="text-xs">Solo gerentes pueden editar.</FormDescription>}
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-             <FormField
-              control={form.control}
-              name="promotionalPrice"
-              render={({ field }) => (
-                  <FormItem>
-                  <FormLabel>Precio Promocional</FormLabel>
-                  <FormControl>
-                      <div className="relative">
-                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
-                          <Input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="14.99" 
-                              className="pl-7"
-                              disabled={!canEditPrice}
-                              {...field}
-                              value={field.value ?? ''}
-                              onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                          />
-                      </div>
-                  </FormControl>
-                  <FormDescription className="text-xs">Opcional. Dejar en blanco para quitar.</FormDescription>
-                  <FormMessage />
-                  </FormItem>
-              )}
-            />
-        </div>
+                </CardContent>
+            </Card>
+        ) : (
+            <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="price" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Precio</FormLabel>
+                        <FormControl>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                                <Input type="number" step="0.01" placeholder="19.99" className="pl-7" disabled={!canEditPrice} {...field} />
+                            </div>
+                        </FormControl>
+                        {!canEditPrice && <FormDescription className="text-xs">Solo gerentes pueden editar.</FormDescription>}
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="promotionalPrice" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Precio Promocional</FormLabel>
+                        <FormControl>
+                            <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                                <Input type="number" step="0.01" placeholder="14.99" className="pl-7" disabled={!canEditPrice} {...field} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} />
+                            </div>
+                        </FormControl>
+                        <FormDescription className="text-xs">Opcional. Dejar en blanco para quitar.</FormDescription>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                </div>
+                 <FormField control={form.control} name="currentStock" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Stock Actual</FormLabel>
+                    <FormControl><Input type="number" step="1" placeholder="100" {...field} /></FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+        )}
 
         <FormField
           control={form.control}
@@ -152,13 +278,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
               <FormControl>
                   <div className="relative">
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
-                      <Input 
-                          type="number" 
-                          step="0.01" 
-                          placeholder="10.50" 
-                          className="pl-7"
-                          {...field} 
-                      />
+                      <Input type="number" step="0.01" placeholder="10.50" className="pl-7" {...field} onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))} />
                   </div>
               </FormControl>
               <FormDescription className="text-xs">El costo real para reponer este producto.</FormDescription>
@@ -166,25 +286,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
               </FormItem>
           )}
           />
-        
-        <FormField
-            control={form.control}
-            name="currentStock"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Stock Actual</FormLabel>
-                <FormControl>
-                     <Input 
-                        type="number" 
-                        step="1" 
-                        placeholder="100" 
-                        {...field} 
-                    />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
         
         <FormField
           control={form.control}

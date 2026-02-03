@@ -8,7 +8,7 @@ import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart } from 'lucide-react';
@@ -34,6 +34,7 @@ interface CartItem {
   quantity: number;
   image: string;
   stock: number;
+  costPriceUsd: number;
 }
 
 interface CustomerInfo {
@@ -108,6 +109,9 @@ export default function PosClient({ storeId }: { storeId: string }) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({ name: '', nationalId: '', phone: '' });
   const [isCustomerDialogOpen, setCustomerDialogOpen] = useState(false);
   const { toast } = useToast();
+  
+  const [tasaOficial, setTasaOficial] = useState(36.5);
+  const [tasaParalela, setTasaParalela] = useState(40);
 
   const filteredInventory = useMemo(() => {
     if (!inventory) return [];
@@ -140,6 +144,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
           quantity: 1,
           image: getImageUrl(product.storeSpecificImage || product.globalImage, product.productId, 40, 40),
           stock: product.currentStock,
+          costPriceUsd: product.costPriceUsd || 0,
         },
       ];
     });
@@ -168,6 +173,10 @@ export default function PosClient({ storeId }: { storeId: string }) {
         toast({ variant: 'destructive', title: 'El carrito está vacío' });
         return;
     }
+     if (tasaOficial <= 0 || tasaParalela <= 0) {
+        toast({ variant: 'destructive', title: 'Tasas inválidas', description: 'Por favor, introduce tasas de cambio válidas para el día.' });
+        return;
+    }
     setIsSubmitting(true);
     const saleItems = cart.map(item => ({
         inventoryId: item.inventoryId,
@@ -176,6 +185,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
         quantity: item.quantity,
         price: item.price,
         image: item.image,
+        costPriceUsd: item.costPriceUsd,
     }));
     
     const formData = new FormData();
@@ -184,6 +194,8 @@ export default function PosClient({ storeId }: { storeId: string }) {
     formData.append('userName', customerInfo.name);
     formData.append('userNationalId', customerInfo.nationalId);
     formData.append('userPhoneNumber', customerInfo.phone);
+    formData.append('tasaOficial', String(tasaOficial));
+    formData.append('tasaParalela', String(tasaParalela));
 
 
     const result = await createManualSale(storeId, formData);
@@ -206,6 +218,24 @@ export default function PosClient({ storeId }: { storeId: string }) {
   return (
     <>
       <PageHeader title="Punto de Venta" description="Registra ventas manuales en tu tienda." />
+      
+      <Card className="mb-8">
+        <CardHeader>
+            <CardTitle>Configuración de Tasas del Día</CardTitle>
+            <CardDescription>Introduce las tasas de cambio para registrar las ventas de hoy. Estos valores son cruciales para el análisis financiero.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <Label htmlFor="tasa-oficial-pos">Tasa Oficial (BCV)</Label>
+                <Input id="tasa-oficial-pos" type="number" value={tasaOficial} onChange={e => setTasaOficial(parseFloat(e.target.value) || 0)} placeholder="36.50"/>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="tasa-paralela-pos">Tasa de Reposición (Paralelo)</Label>
+                <Input id="tasa-paralela-pos" type="number" value={tasaParalela} onChange={e => setTasaParalela(parseFloat(e.target.value) || 0)} placeholder="40.00"/>
+            </div>
+        </CardContent>
+      </Card>
+      
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2">
             <Card>

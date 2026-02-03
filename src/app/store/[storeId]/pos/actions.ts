@@ -13,6 +13,7 @@ const saleItemSchema = z.array(z.object({
     quantity: z.number().int().min(1),
     price: z.number().min(0),
     image: z.string(),
+    costPriceUsd: z.number().min(0),
 }));
 
 const createManualSaleSchema = z.object({
@@ -21,6 +22,8 @@ const createManualSaleSchema = z.object({
   userName: z.string().optional(),
   userNationalId: z.string().optional(),
   userPhoneNumber: z.string().optional(),
+  tasaOficial: z.coerce.number().gt(0, "La tasa oficial debe ser mayor a cero."),
+  tasaParalela: z.coerce.number().gt(0, "La tasa paralela debe ser mayor a cero."),
 });
 
 export async function createManualSale(storeId: string, formData: FormData) {
@@ -31,7 +34,7 @@ export async function createManualSale(storeId: string, formData: FormData) {
     return { error: "Datos de venta inválidos." };
   }
 
-  const { totalAmount, userName, userNationalId, userPhoneNumber } = validatedFields.data;
+  const { totalAmount, userName, userNationalId, userPhoneNumber, tasaOficial, tasaParalela } = validatedFields.data;
   let items: z.infer<typeof saleItemSchema>;
   try {
     items = saleItemSchema.parse(JSON.parse(validatedFields.data.items));
@@ -60,6 +63,8 @@ export async function createManualSale(storeId: string, formData: FormData) {
       userName: userName || "Cliente en tienda",
       userNationalId: userNationalId || "",
       userPhoneNumber: userPhoneNumber || "",
+      tasaOficial,
+      tasaParalela,
     });
     
     // --- 2. Descontar el inventario ---
@@ -92,6 +97,7 @@ export async function createManualSale(storeId: string, formData: FormData) {
 
     revalidatePath(`/store/${storeId}/my-products`);
     revalidatePath(`/store/${storeId}/pos`);
+    revalidatePath(`/store/${storeId}/finance`);
     return { message: "Venta registrada exitosamente." };
 
   } catch (e: any) {

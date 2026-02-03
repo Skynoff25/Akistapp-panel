@@ -118,6 +118,7 @@ export interface CartItemSnapshot {
     quantity: number;
     price: number;
     image: string;
+    costPriceUsd: number;
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';
@@ -135,6 +136,10 @@ export interface Order {
     createdAt: number;
     type: OrderType;
     inventoryDeducted?: boolean;
+
+    // --- Exchange rates at time of sale ---
+    tasaOficial?: number;
+    tasaParalela?: number;
 
     // --- Campos Opcionales (principalmente para pedidos ONLINE) ---
     deliveryMethod?: 'PICKUP' | 'DELIVERY';

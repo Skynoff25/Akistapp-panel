@@ -16,6 +16,8 @@ import { cn, getImageUrl } from '@/lib/utils';
 import Image from 'next/image';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { Badge } from '../ui/badge';
+import { SalesAnalysis } from './sales-analysis';
 
 const CASHEA_COMMISSION = 0.07;
 
@@ -99,12 +101,16 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
     <TooltipProvider>
       <PageHeader title="Finanzas Reales (Profit Sincerity)" description="Calcula tu ganancia real neta en USD considerando la brecha cambiaria." />
       
+      <div className="mb-8">
+        <SalesAnalysis storeId={storeId} />
+      </div>
+
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-3 space-y-8">
              <Card>
                 <CardHeader>
                     <CardTitle>Configuración de Tasas del Día</CardTitle>
-                    <CardDescription>Introduce las tasas de cambio para calcular la rentabilidad.</CardDescription>
+                    <CardDescription>Introduce las tasas de cambio para calcular la rentabilidad de tus productos actuales.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -125,7 +131,8 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
         <div className="lg:col-span-3">
              <Card>
                 <CardHeader>
-                    <CardTitle>Tabla de Análisis de Rentabilidad</CardTitle>
+                    <CardTitle>Tabla de Análisis de Rentabilidad de Inventario</CardTitle>
+                    <CardDescription>Análisis de rentabilidad basado en tu inventario actual y las tasas del día.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">

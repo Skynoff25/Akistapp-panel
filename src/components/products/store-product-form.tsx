@@ -132,6 +132,10 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         formData.append('currentStock', String(data.currentStock));
     }
     
+    if (data.storeSpecificImage === '') {
+      formData.append('storeSpecificImage', '');
+    }
+    
     const result = await updateStoreProduct(storeId, product.id, formData);
     
     if (result?.errors) {
@@ -153,7 +157,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[70vh] overflow-y-auto p-1">
 
         <FormField
           control={form.control}

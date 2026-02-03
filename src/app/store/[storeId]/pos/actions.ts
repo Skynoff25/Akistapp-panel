@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/firebase";
 import { collection, doc, writeBatch, getDocs, query, where, documentId } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
-import type { CartItemSnapshot, StoreProduct } from "@/lib/types";
+import type { CartItemSnapshot, StoreProduct, ProductVariant } from "@/lib/types";
 
 const saleItemSchema = z.array(z.object({
     inventoryId: z.string(),
@@ -14,6 +14,8 @@ const saleItemSchema = z.array(z.object({
     price: z.number().min(0),
     image: z.string(),
     costPriceUsd: z.number().min(0),
+    variantId: z.string().optional(),
+    variantName: z.string().optional(),
 }));
 
 const createManualSaleSchema = z.object({
@@ -68,28 +70,51 @@ export async function createManualSale(storeId: string, formData: FormData) {
     });
     
     // --- 2. Descontar el inventario ---
-    const inventoryIds = items.map(item => item.inventoryId);
+    const inventoryIds = [...new Set(items.map(item => item.inventoryId))];
     if (inventoryIds.length > 0) {
       const inventoryQuery = query(collection(db, 'Inventory'), where(documentId(), 'in', inventoryIds));
       const inventorySnap = await getDocs(inventoryQuery);
       
-      if (inventorySnap.docs.length !== inventoryIds.length) {
-        throw new Error("Algunos productos del carrito ya no existen en el inventario.");
-      }
-
       const inventoryMap = new Map(inventorySnap.docs.map(doc => [doc.id, doc.data() as StoreProduct]));
       
       for (const item of items) {
         const invDocData = inventoryMap.get(item.inventoryId);
-        if (!invDocData) throw new Error(`Producto ${item.productName} no encontrado.`);
+        if (!invDocData) throw new Error(`Producto ${item.productName} no encontrado en el inventario.`);
 
-        if (invDocData.currentStock < item.quantity) {
-          throw new Error(`Stock insuficiente para ${item.productName}. Disponible: ${invDocData.currentStock}, Solicitado: ${item.quantity}`);
-        }
-        
         const invDocRef = doc(db, "Inventory", item.inventoryId);
-        const newStock = invDocData.currentStock - item.quantity;
-        batch.update(invDocRef, { currentStock: newStock });
+
+        if (item.variantId) {
+            // Producto con variaciones
+            const variantIndex = invDocData.variants.findIndex(v => v.id === item.variantId);
+            if (variantIndex === -1) {
+                throw new Error(`Variante "${item.variantName}" para el producto "${item.productName}" no encontrada.`);
+            }
+
+            const updatedVariants = [...invDocData.variants];
+            const variantToUpdate = { ...updatedVariants[variantIndex] };
+
+            if (variantToUpdate.stock < item.quantity) {
+                throw new Error(`Stock insuficiente para ${item.productName} (${variantToUpdate.name}). Disponible: ${variantToUpdate.stock}, Solicitado: ${item.quantity}`);
+            }
+
+            variantToUpdate.stock -= item.quantity;
+            updatedVariants[variantIndex] = variantToUpdate;
+
+            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
+
+            batch.update(invDocRef, {
+                variants: updatedVariants,
+                currentStock: newTotalStock
+            });
+
+        } else {
+            // Producto sin variaciones
+            if (invDocData.currentStock < item.quantity) {
+              throw new Error(`Stock insuficiente para ${item.productName}. Disponible: ${invDocData.currentStock}, Solicitado: ${item.quantity}`);
+            }
+            const newStock = invDocData.currentStock - item.quantity;
+            batch.update(invDocRef, { currentStock: newStock });
+        }
       }
     }
 

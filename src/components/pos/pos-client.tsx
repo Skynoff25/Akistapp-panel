@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
 import { where } from 'firebase/firestore';
-import type { StoreProduct } from '@/lib/types';
+import type { StoreProduct, ProductVariant } from '@/lib/types';
 import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
@@ -27,14 +27,17 @@ import {
 import { Label } from '../ui/label';
 
 interface CartItem {
-  inventoryId: string;
+  cartItemId: string; // Unique key for cart: e.g., 'prod1' or 'prod1-variant2'
+  inventoryId: string; // The ID of the document in the 'Inventory' collection
   productId: string;
-  name: string;
+  name: string; // e.g., 'T-Shirt (Red, L)'
   price: number;
   quantity: number;
   image: string;
   stock: number;
   costPriceUsd: number;
+  variantId?: string;
+  variantName?: string;
 }
 
 interface CustomerInfo {
@@ -42,6 +45,51 @@ interface CustomerInfo {
   nationalId: string;
   phone: string;
 }
+
+function SelectVariantDialog({
+  product,
+  open,
+  onOpenChange,
+  onSelectVariant,
+}: {
+  product: StoreProduct | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectVariant: (variant: ProductVariant) => void;
+}) {
+  if (!product) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Seleccionar Opción para {product.name}</DialogTitle>
+          <DialogDescription>
+            Elige una de las variantes disponibles para agregar al carrito.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-2 max-h-[50vh] overflow-y-auto">
+          {(product.variants || []).map((variant) => (
+            <Button
+              key={variant.id}
+              variant="outline"
+              className="w-full justify-between h-auto py-3"
+              disabled={variant.stock <= 0}
+              onClick={() => onSelectVariant(variant)}
+            >
+              <div className="text-left">
+                <p className="font-semibold">{variant.name}</p>
+                <p className="text-sm text-muted-foreground">{variant.stock} en stock</p>
+              </div>
+              <p className="text-lg font-bold">${variant.price.toFixed(2)}</p>
+            </Button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function CustomerInfoDialog({ open, onOpenChange, onSave, initialData }: {
   open: boolean;
@@ -112,6 +160,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
   
   const [tasaOficial, setTasaOficial] = useState(36.5);
   const [tasaParalela, setTasaParalela] = useState(40);
+  const [variantSelectionProduct, setVariantSelectionProduct] = useState<StoreProduct | null>(null);
 
   const filteredInventory = useMemo(() => {
     if (!inventory) return [];
@@ -122,14 +171,15 @@ export default function PosClient({ storeId }: { storeId: string }) {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   }, [cart]);
 
-  const addToCart = (product: StoreProduct) => {
+  const addBaseProductToCart = (product: StoreProduct) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.inventoryId === product.id);
+      const cartItemId = product.id;
+      const existingItem = prevCart.find(item => item.cartItemId === cartItemId);
       if (existingItem) {
         if (existingItem.quantity < product.currentStock) {
-            return prevCart.map(item =>
-                item.inventoryId === product.id ? { ...item, quantity: item.quantity + 1 } : item
-            );
+          return prevCart.map(item =>
+            item.cartItemId === cartItemId ? { ...item, quantity: item.quantity + 1 } : item
+          );
         }
         toast({ variant: 'destructive', title: 'Stock insuficiente' });
         return prevCart;
@@ -137,6 +187,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
       return [
         ...prevCart,
         {
+          cartItemId: product.id,
           inventoryId: product.id,
           productId: product.productId,
           name: product.name,
@@ -150,20 +201,63 @@ export default function PosClient({ storeId }: { storeId: string }) {
     });
   };
 
-  const updateQuantity = (inventoryId: string, newQuantity: number) => {
+  const addVariantToCart = (product: StoreProduct, variant: ProductVariant) => {
     setCart(prevCart => {
-      const itemToUpdate = prevCart.find(item => item.inventoryId === inventoryId);
+      const cartItemId = `${product.id}-${variant.id}`;
+      const existingItem = prevCart.find(item => item.cartItemId === cartItemId);
+      if (existingItem) {
+        if (existingItem.quantity < variant.stock) {
+          return prevCart.map(item =>
+            item.cartItemId === cartItemId ? { ...item, quantity: item.quantity + 1 } : item
+          );
+        }
+        toast({ variant: 'destructive', title: 'Stock insuficiente para esta variante' });
+        return prevCart;
+      }
+      return [
+        ...prevCart,
+        {
+          cartItemId: cartItemId,
+          inventoryId: product.id,
+          productId: product.productId,
+          name: `${product.name} (${variant.name})`,
+          price: variant.price,
+          quantity: 1,
+          image: getImageUrl(product.storeSpecificImage || product.globalImage, product.productId, 40, 40),
+          stock: variant.stock,
+          costPriceUsd: product.costPriceUsd || 0,
+          variantId: variant.id,
+          variantName: variant.name,
+        },
+      ];
+    });
+  };
+
+  const handleProductClick = (product: StoreProduct) => {
+    if (product.hasVariations && product.variants?.length > 0) {
+        setVariantSelectionProduct(product);
+    } else if (!product.hasVariations) {
+        addBaseProductToCart(product);
+    } else {
+        toast({ variant: 'destructive', title: 'Producto sin opciones', description: 'Este producto está marcado con variaciones pero no tiene ninguna configurada.' });
+    }
+  };
+
+
+  const updateQuantity = (cartItemId: string, newQuantity: number) => {
+    setCart(prevCart => {
+      const itemToUpdate = prevCart.find(item => item.cartItemId === cartItemId);
       if (!itemToUpdate) return prevCart;
 
       if (newQuantity <= 0) {
-        return prevCart.filter(item => item.inventoryId !== inventoryId);
+        return prevCart.filter(item => item.cartItemId !== cartItemId);
       }
       if (newQuantity > itemToUpdate.stock) {
         toast({ variant: 'destructive', title: 'Stock insuficiente' });
         return prevCart;
       }
       return prevCart.map(item =>
-        item.inventoryId === inventoryId ? { ...item, quantity: newQuantity } : item
+        item.cartItemId === cartItemId ? { ...item, quantity: newQuantity } : item
       );
     });
   };
@@ -186,6 +280,8 @@ export default function PosClient({ storeId }: { storeId: string }) {
         price: item.price,
         image: item.image,
         costPriceUsd: item.costPriceUsd,
+        variantId: item.variantId,
+        variantName: item.variantName,
     }));
     
     const formData = new FormData();
@@ -270,11 +366,11 @@ export default function PosClient({ storeId }: { storeId: string }) {
                                             {p.name}
                                         </TableCell>
                                         <TableCell>{p.currentStock}</TableCell>
-                                        <TableCell>${(p.promotionalPrice || p.price).toFixed(2)}</TableCell>
+                                        <TableCell>{p.priceRange ? p.priceRange : `$${(p.promotionalPrice || p.price).toFixed(2)}`}</TableCell>
                                         <TableCell className="text-right">
-                                            <Button size="sm" onClick={() => addToCart(p)} disabled={p.currentStock <= 0}>
+                                            <Button size="sm" onClick={() => handleProductClick(p)} disabled={p.currentStock <= 0}>
                                                 <PlusCircle className="mr-2 h-4 w-4" />
-                                                Añadir
+                                                {p.hasVariations ? 'Opciones' : 'Añadir'}
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -297,15 +393,15 @@ export default function PosClient({ storeId }: { storeId: string }) {
                         ) : (
                             <div className="space-y-4">
                                 {cart.map(item => (
-                                    <div key={item.inventoryId} className="flex items-start gap-3">
+                                    <div key={item.cartItemId} className="flex items-start gap-3">
                                         <Image src={item.image} alt={item.name} width={48} height={48} className="rounded-md" />
                                         <div className="flex-grow">
                                             <p className="font-medium text-sm leading-tight">{item.name}</p>
                                             <p className="text-xs text-muted-foreground">${item.price.toFixed(2)}</p>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.inventoryId, item.quantity - 1)}><MinusCircle className="h-4 w-4" /></Button>
-                                                <Input type="number" value={item.quantity} onChange={e => updateQuantity(item.inventoryId, parseInt(e.target.value) || 0)} className="h-8 w-14 text-center p-1" />
-                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.inventoryId, item.quantity + 1)}><PlusCircle className="h-4 w-4" /></Button>
+                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}><MinusCircle className="h-4 w-4" /></Button>
+                                                <Input type="number" value={item.quantity} onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value) || 0)} className="h-8 w-14 text-center p-1" />
+                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}><PlusCircle className="h-4 w-4" /></Button>
                                             </div>
                                         </div>
                                         <p className="font-semibold text-sm">${(item.price * item.quantity).toFixed(2)}</p>
@@ -360,6 +456,17 @@ export default function PosClient({ storeId }: { storeId: string }) {
                 setCustomerDialogOpen(false);
             }}
             initialData={customerInfo}
+        />
+        <SelectVariantDialog
+            product={variantSelectionProduct}
+            open={!!variantSelectionProduct}
+            onOpenChange={() => setVariantSelectionProduct(null)}
+            onSelectVariant={(variant) => {
+                if(variantSelectionProduct) {
+                    addVariantToCart(variantSelectionProduct, variant);
+                }
+                setVariantSelectionProduct(null);
+            }}
         />
     </>
   );

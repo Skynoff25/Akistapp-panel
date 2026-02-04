@@ -24,6 +24,7 @@ import { Label } from "../ui/label";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "../ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Textarea } from "../ui/textarea";
 
 const variantSchema = z.object({
   id: z.string(),
@@ -39,6 +40,8 @@ const storeProductSchema = z.object({
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.boolean(),
   storeSpecificImage: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  description: z.string().optional(),
+  disclaimer: z.string().optional(),
   costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.'),
   casheaEligible: z.boolean(),
   hasVariations: z.boolean(),
@@ -84,6 +87,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       currentStock: 0,
       isAvailable: true,
       storeSpecificImage: "",
+      description: "",
+      disclaimer: "",
       costPriceUsd: 0,
       casheaEligible: false,
       hasVariations: false,
@@ -106,6 +111,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             currentStock: product.currentStock || 0,
             isAvailable: product.isAvailable,
             storeSpecificImage: product.storeSpecificImage || "",
+            description: product.description || "",
+            disclaimer: product.disclaimer || "",
             costPriceUsd: product.costPriceUsd || 0,
             casheaEligible: product.casheaEligible || false,
             hasVariations: product.hasVariations || false,
@@ -272,6 +279,57 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                 )} />
             </div>
         )}
+        
+        <FormField
+          control={form.control}
+          name="storeSpecificImage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>URL de Imagen Personalizada (Opcional)</FormLabel>
+              <FormControl>
+                <Input placeholder="https://ejemplo.com/mi-foto.png" {...field} value={field.value ?? ''} />
+              </FormControl>
+              <FormDescription>
+                Si se deja en blanco, se usará la imagen global del producto.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descripción Personalizada (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Describe detalles específicos de este producto en tu tienda..." {...field} value={field.value ?? ''} />
+              </FormControl>
+              <FormDescription>
+                Esta descripción se mostrará en la página de tu producto. Si se deja en blanco, se usará la descripción global.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="disclaimer"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Aviso Legal / Descargo de Responsabilidad (Opcional)</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Ej: La garantía es directamente con el fabricante." {...field} value={field.value ?? ''} />
+              </FormControl>
+              <FormDescription>
+                Información importante que el cliente debe saber antes de comprar. Se mostrará debajo de la descripción.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -290,23 +348,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
               </FormItem>
           )}
           />
-        
-        <FormField
-          control={form.control}
-          name="storeSpecificImage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>URL de Imagen Personalizada (Opcional)</FormLabel>
-              <FormControl>
-                <Input placeholder="https://ejemplo.com/mi-foto.png" {...field} value={field.value ?? ''} />
-              </FormControl>
-              <FormDescription>
-                Si se deja en blanco, se usará la imagen global del producto.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
         <div className="space-y-4">
         <FormField
           control={form.control}

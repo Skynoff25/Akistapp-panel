@@ -61,6 +61,8 @@ export interface StoreProduct {
     currentStock: number; 
     isAvailable: boolean;
     storeSpecificImage?: string;
+    description?: string;
+    disclaimer?: string;
     costPriceUsd?: number;
     casheaEligible?: boolean;
     name: string;

@@ -24,6 +24,8 @@ export interface Store {
   deliveryType?: 'FIXED' | 'AGREEMENT';
   deliveryFee?: number;
   sponsoredKeywords?: string[];
+  hasPos?: boolean;
+  hasFinanceModule?: boolean;
 
   // Reputation and status
   rating: number;

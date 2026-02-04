@@ -39,6 +39,8 @@ const storeSchema = z.object({
   deliveryType: z.enum(['FIXED', 'AGREEMENT']).default('AGREEMENT'),
   deliveryFee: z.coerce.number().min(0).default(0),
   sponsoredKeywords: z.string().optional(),
+  hasPos: z.boolean().default(false),
+  hasFinanceModule: z.boolean().default(false),
 });
 
 type StoreFormValues = z.infer<typeof storeSchema>;
@@ -73,6 +75,8 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
       deliveryType: store?.deliveryType || 'AGREEMENT',
       deliveryFee: store?.deliveryFee || 0,
       sponsoredKeywords: store?.sponsoredKeywords?.join(', ') || '',
+      hasPos: store?.hasPos || false,
+      hasFinanceModule: store?.hasFinanceModule || false,
     },
   });
 
@@ -92,6 +96,8 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
         deliveryType: store?.deliveryType || 'AGREEMENT',
         deliveryFee: store?.deliveryFee || 0,
         sponsoredKeywords: store?.sponsoredKeywords?.join(', ') || '',
+        hasPos: store?.hasPos || false,
+        hasFinanceModule: store?.hasFinanceModule || false,
     });
   }, [store, form]);
 
@@ -375,6 +381,41 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
                 )}
             </div>
         )}
+        
+        <div className="space-y-4">
+            <h3 className="text-md font-medium text-foreground">Módulos Adicionales</h3>
+            <FormField
+                control={form.control}
+                name="hasPos"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                    <FormLabel className="text-base">Punto de Venta (POS)</FormLabel>
+                    <FormDescription>Habilita el módulo para registrar ventas en tienda.</FormDescription>
+                    </div>
+                    <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={form.control}
+                name="hasFinanceModule"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                    <FormLabel className="text-base">Módulo de Finanzas</FormLabel>
+                    <FormDescription>Habilita el módulo "Finanzas Reales" para esta tienda.</FormDescription>
+                    </div>
+                    <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+        </div>
+
 
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Guardando..." : "Guardar Tienda"}

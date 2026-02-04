@@ -20,6 +20,8 @@ const storeSchema = z.object({
     deliveryType: z.enum(['FIXED', 'AGREEMENT']).optional(),
     deliveryFee: z.coerce.number().min(0).optional(),
     sponsoredKeywords: z.string().optional(),
+    hasPos: z.enum(['true', 'false']).transform(v => v === 'true'),
+    hasFinanceModule: z.enum(['true', 'false']).transform(v => v === 'true'),
 });
 
 function getPlanDetails(plan: 'BASIC' | 'STANDARD' | 'PREMIUM') {
@@ -49,6 +51,8 @@ export async function createStore(formData: FormData) {
         deliveryType: formData.get("deliveryType") as 'FIXED' | 'AGREEMENT' | undefined,
         deliveryFee: formData.get("deliveryFee") as string | undefined,
         sponsoredKeywords: formData.get("sponsoredKeywords") as string | undefined,
+        hasPos: formData.get("hasPos") as string,
+        hasFinanceModule: formData.get("hasFinanceModule") as string,
     };
 
     const validatedFields = storeSchema.safeParse(values);
@@ -115,6 +119,8 @@ export async function updateStore(id: string, formData: FormData) {
         deliveryType: formData.get("deliveryType") as 'FIXED' | 'AGREEMENT' | undefined,
         deliveryFee: formData.get("deliveryFee") as string | undefined,
         sponsoredKeywords: formData.get("sponsoredKeywords") as string | undefined,
+        hasPos: formData.get("hasPos") as string,
+        hasFinanceModule: formData.get("hasFinanceModule") as string,
     };
 
     const validatedFields = storeSchema.safeParse(values);

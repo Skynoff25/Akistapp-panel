@@ -34,13 +34,13 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
     const pathname = usePathname();
 
     const navItems = [
-        { href: `/store/${storeId}`, label: 'Dashboard', icon: LayoutDashboard },
-        { href: `/store/${storeId}/my-store`, label: 'Mi Tienda', icon: Store },
-        { href: `/store/${storeId}/my-products`, label: 'Mis Productos', icon: Package },
-        { href: `/store/${storeId}/orders`, label: 'Pedidos', icon: ShoppingCart },
-        { href: `/store/${storeId}/promotions`, label: 'Promociones', icon: Megaphone },
-        { href: `/store/${storeId}/pos`, label: 'Punto de Venta', icon: Banknote },
-        { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling },
+        { href: `/store/${storeId}`, label: 'Dashboard', icon: LayoutDashboard, enabled: true },
+        { href: `/store/${storeId}/my-store`, label: 'Mi Tienda', icon: Store, enabled: true },
+        { href: `/store/${storeId}/my-products`, label: 'Mis Productos', icon: Package, enabled: true },
+        { href: `/store/${storeId}/orders`, label: 'Pedidos', icon: ShoppingCart, enabled: true },
+        { href: `/store/${storeId}/promotions`, label: 'Promociones', icon: Megaphone, enabled: true },
+        { href: `/store/${storeId}/pos`, label: 'Punto de Venta', icon: Banknote, enabled: store?.hasPos ?? false },
+        { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling, enabled: store?.hasFinanceModule ?? false },
     ];
 
     const handleLogout = async () => {
@@ -91,6 +91,7 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
 
       <nav className="flex-grow space-y-1 overflow-y-auto">
         {navItems.map((item) => {
+            if (!item.enabled) return null;
             const isActive = pathname.startsWith(item.href) && (item.href !== `/store/${storeId}` || pathname === `/store/${storeId}`);
             return (
                 <Link key={item.href} href={item.href} passHref>

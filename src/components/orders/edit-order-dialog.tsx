@@ -35,7 +35,7 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
 
   useEffect(() => {
     if (order) {
-      setItems(order.items);
+      setItems(JSON.parse(JSON.stringify(order.items))); // Deep copy
     }
   }, [order]);
 
@@ -46,14 +46,18 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
   const handleQuantityChange = (uniqueId: string, quantity: number) => {
     const newQuantity = Math.max(0, quantity); // No permitir cantidades negativas
     setItems(currentItems =>
-      currentItems.map(item =>
-        (item.inventoryId + (item.variantId || '')) === uniqueId ? { ...item, quantity: newQuantity } : item
-      )
+      currentItems.map(item => {
+        const itemUniqueId = item.variantId ? `${item.inventoryId}-${item.variantId}` : item.inventoryId;
+        return itemUniqueId === uniqueId ? { ...item, quantity: newQuantity } : item;
+      })
     );
   };
 
   const handleRemoveItem = (uniqueId: string) => {
-    setItems(currentItems => currentItems.filter(item => (item.inventoryId + (item.variantId || '')) !== uniqueId));
+    setItems(currentItems => currentItems.filter(item => {
+        const itemUniqueId = item.variantId ? `${item.inventoryId}-${item.variantId}` : item.inventoryId;
+        return itemUniqueId !== uniqueId;
+    }));
   };
   
   const handleSubmit = async () => {
@@ -96,7 +100,7 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
                 </TableHeader>
                 <TableBody>
                     {items.map(item => {
-                      const uniqueId = item.inventoryId + (item.variantId || '');
+                      const uniqueId = item.variantId ? `${item.inventoryId}-${item.variantId}` : item.inventoryId;
                       return (
                         <TableRow key={uniqueId}>
                             <TableCell className="flex items-center gap-2">

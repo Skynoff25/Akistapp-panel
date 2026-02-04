@@ -107,8 +107,10 @@ function OrderDetailsDialog({ order, open, onOpenChange, onReportSuccess }: { or
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {order.items.map(item => (
-                                <TableRow key={item.inventoryId + (item.variantId || '')}>
+                            {order.items.map(item => {
+                                const uniqueKey = item.variantId ? `${item.inventoryId}-${item.variantId}` : item.inventoryId;
+                                return (
+                                <TableRow key={uniqueKey}>
                                     <TableCell className="flex items-center gap-2">
                                         <Image src={getImageUrl(item.image, item.productId, 40, 40)} alt={item.productName || 'Imagen del producto'} width={40} height={40} className="rounded-md object-cover" />
                                         <div>
@@ -120,7 +122,7 @@ function OrderDetailsDialog({ order, open, onOpenChange, onReportSuccess }: { or
                                     <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">${(item.price * item.quantity).toFixed(2)}</TableCell>
                                 </TableRow>
-                            ))}
+                            )})}
                         </TableBody>
                     </Table>
                     <div className="grid justify-end gap-2 text-right mt-4">

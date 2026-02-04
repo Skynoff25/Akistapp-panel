@@ -43,17 +43,17 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
     return items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   }, [items]);
 
-  const handleQuantityChange = (inventoryId: string, quantity: number) => {
+  const handleQuantityChange = (uniqueId: string, quantity: number) => {
     const newQuantity = Math.max(0, quantity); // No permitir cantidades negativas
     setItems(currentItems =>
       currentItems.map(item =>
-        item.inventoryId === inventoryId ? { ...item, quantity: newQuantity } : item
+        (item.inventoryId + (item.variantId || '')) === uniqueId ? { ...item, quantity: newQuantity } : item
       )
     );
   };
 
-  const handleRemoveItem = (inventoryId: string) => {
-    setItems(currentItems => currentItems.filter(item => item.inventoryId !== inventoryId));
+  const handleRemoveItem = (uniqueId: string) => {
+    setItems(currentItems => currentItems.filter(item => (item.inventoryId + (item.variantId || '')) !== uniqueId));
   };
   
   const handleSubmit = async () => {
@@ -95,12 +95,15 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {items.map(item => (
-                        <TableRow key={item.inventoryId}>
+                    {items.map(item => {
+                      const uniqueId = item.inventoryId + (item.variantId || '');
+                      return (
+                        <TableRow key={uniqueId}>
                             <TableCell className="flex items-center gap-2">
                                 <Image src={getImageUrl(item.image, item.productId, 40, 40)} alt={item.productName} width={40} height={40} className="rounded-md" />
                                 <div>
                                     <p className="font-medium">{item.productName}</p>
+                                    {item.variantName && <p className="text-sm text-muted-foreground">{item.variantName}</p>}
                                     <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} c/u</p>
                                 </div>
                             </TableCell>
@@ -108,7 +111,7 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
                                 <Input 
                                     type="number" 
                                     value={item.quantity}
-                                    onChange={(e) => handleQuantityChange(item.inventoryId, parseInt(e.target.value))}
+                                    onChange={(e) => handleQuantityChange(uniqueId, parseInt(e.target.value))}
                                     className="h-9 w-24 text-center"
                                     min="0"
                                 />
@@ -117,12 +120,13 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
                                 ${(item.price * item.quantity).toFixed(2)}
                             </TableCell>
                             <TableCell>
-                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveItem(item.inventoryId)}>
+                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveItem(uniqueId)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </TableCell>
                         </TableRow>
-                    ))}
+                      );
+                    })}
                 </TableBody>
             </Table>
             </ScrollArea>

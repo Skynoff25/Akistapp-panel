@@ -108,10 +108,13 @@ function OrderDetailsDialog({ order, open, onOpenChange, onReportSuccess }: { or
                         </TableHeader>
                         <TableBody>
                             {order.items.map(item => (
-                                <TableRow key={item.productId}>
+                                <TableRow key={item.inventoryId + (item.variantId || '')}>
                                     <TableCell className="flex items-center gap-2">
                                         <Image src={getImageUrl(item.image, item.productId, 40, 40)} alt={item.productName || 'Imagen del producto'} width={40} height={40} className="rounded-md object-cover" />
-                                        {item.productName}
+                                        <div>
+                                            <p className="font-medium">{item.productName}</p>
+                                            {item.variantName && <p className="text-sm text-muted-foreground">{item.variantName}</p>}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-center">{item.quantity}</TableCell>
                                     <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>

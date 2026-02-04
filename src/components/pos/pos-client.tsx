@@ -30,7 +30,8 @@ interface CartItem {
   cartItemId: string; // Unique key for cart: e.g., 'prod1' or 'prod1-variant2'
   inventoryId: string; // The ID of the document in the 'Inventory' collection
   productId: string;
-  name: string; // e.g., 'T-Shirt (Red, L)'
+  name: string; // e.g., 'T-Shirt (Red, L)' -> This is for display in POS cart.
+  productName: string; // This is the base product name 'T-Shirt'
   price: number;
   quantity: number;
   image: string;
@@ -191,6 +192,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
           inventoryId: product.id,
           productId: product.productId,
           name: product.name,
+          productName: product.name,
           price: product.promotionalPrice || product.price,
           quantity: 1,
           image: getImageUrl(product.storeSpecificImage || product.globalImage, product.productId, 40, 40),
@@ -221,6 +223,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
           inventoryId: product.id,
           productId: product.productId,
           name: `${product.name} (${variant.name})`,
+          productName: product.name,
           price: variant.price,
           quantity: 1,
           image: getImageUrl(product.storeSpecificImage || product.globalImage, product.productId, 40, 40),
@@ -275,7 +278,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
     const saleItems = cart.map(item => ({
         inventoryId: item.inventoryId,
         productId: item.productId,
-        productName: item.name,
+        productName: item.productName,
         quantity: item.quantity,
         price: item.price,
         image: item.image,

@@ -32,7 +32,7 @@ const storeSchema = z.object({
   phone: z.string().min(2, "El teléfono debe tener al menos 2 caracteres."),
   latitude: z.coerce.number(),
   longitude: z.coerce.number(),
-  imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  imageUrl: z.any().optional(),
   subscriptionPlan: z.enum(['BASIC', 'STANDARD', 'PREMIUM']),
   allowPickup: z.boolean().default(false),
   allowDelivery: z.boolean().default(false),
@@ -118,8 +118,10 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
   const onSubmit = async (data: StoreFormValues) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined) {
-        formData.append(key, String(value));
+      if (key === 'imageUrl' && value instanceof File) {
+        formData.append(key, value);
+      } else if (key !== 'imageUrl' && value !== undefined) {
+         formData.append(key, String(value));
       }
     });
 
@@ -276,11 +278,19 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
         <FormField
           control={form.control}
           name="imageUrl"
-          render={({ field }) => (
+          render={({ field: { onChange, value, ...rest } }) => (
             <FormItem>
-              <FormLabel>URL de la Imagen</FormLabel>
+              <FormLabel>Imagen</FormLabel>
               <FormControl>
-                <Input placeholder="https://example.com/logo.png" {...field} />
+                 <Input 
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        onChange(file);
+                    }}
+                    {...rest}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -12,11 +12,12 @@ import {
 } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import type { Store } from "@/lib/types";
+import { uploadImage } from "@/lib/storage";
 
 const promotionSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
   content: z.string().min(1, "El contenido es obligatorio"),
-  imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
+  imageUrl: z.any().optional(),
   storeId: z.string().min(1, "Debes seleccionar una tienda"),
   cityId: z.string().min(1, "El código postal es obligatorio"),
   isActive: z.boolean(),
@@ -42,9 +43,14 @@ export async function createPromotion(formData: FormData) {
     };
   }
   
-  const { storeId, cityId, expiresAt, ...promotionData } = validatedFields.data;
+  const { storeId, cityId, expiresAt, imageUrl, ...promotionData } = validatedFields.data;
+  let finalImageUrl = `https://picsum.photos/seed/${promotionData.title}/600/300`;
 
   try {
+    if (imageUrl instanceof File && imageUrl.size > 0) {
+        finalImageUrl = await uploadImage(imageUrl, "promotions");
+    }
+
     const storeRef = doc(db, "Stores", storeId);
     const storeSnap = await getDoc(storeRef);
 
@@ -61,7 +67,7 @@ export async function createPromotion(formData: FormData) {
       type: "promotion",
       createdAt: Date.now(),
       expiresAt: new Date(expiresAt).getTime(),
-      imageUrl: promotionData.imageUrl || `https://picsum.photos/seed/${promotionData.title}/600/300`,
+      imageUrl: finalImageUrl,
     });
 
     revalidatePath("/dashboard/promotions");
@@ -90,9 +96,20 @@ export async function updatePromotion(id: string, formData: FormData) {
     };
   }
   
-  const { storeId, cityId, expiresAt, ...promotionData } = validatedFields.data;
+  const { storeId, cityId, expiresAt, imageUrl, ...promotionData } = validatedFields.data;
 
   try {
+    const promotionRef = doc(db, "Promotions", id);
+    const docSnap = await getDoc(promotionRef);
+    if (!docSnap.exists()) {
+        return { errors: { _form: ["La promoción no existe."] } };
+    }
+
+    let finalImageUrl = docSnap.data().imageUrl;
+    if (imageUrl instanceof File && imageUrl.size > 0) {
+        finalImageUrl = await uploadImage(imageUrl, "promotions");
+    }
+
     const storeRef = doc(db, "Stores", storeId);
     const storeSnap = await getDoc(storeRef);
 
@@ -101,14 +118,13 @@ export async function updatePromotion(id: string, formData: FormData) {
     }
     const storeData = storeSnap.data() as Store;
     
-    const promotionRef = doc(db, "Promotions", id);
     await updateDoc(promotionRef, {
        ...promotionData,
        storeId: storeId,
        storeName: storeData.name,
        cityId: cityId,
        expiresAt: new Date(expiresAt).getTime(),
-       imageUrl: promotionData.imageUrl || `https://picsum.photos/seed/${promotionData.title}/600/300`,
+       imageUrl: finalImageUrl,
     });
 
     revalidatePath("/dashboard/promotions");

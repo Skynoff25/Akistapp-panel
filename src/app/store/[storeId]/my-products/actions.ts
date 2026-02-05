@@ -19,6 +19,7 @@ import {
 import { revalidatePath } from 'next/cache';
 import type { Product, Store, StoreProduct, ProductVariant } from '@/lib/types';
 import { auth } from '@/lib/firebase';
+import { uploadImage } from '@/lib/storage';
 
 const addProductToStoreSchema = z.object({
   storeId: z.string(),
@@ -115,7 +116,7 @@ const updateStoreProductSchema = z.object({
   promotionalPrice: z.coerce.number().min(0, "El precio debe ser positivo").optional().nullable(),
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.enum(['true', 'false']).transform(v => v === 'true'),
-  storeSpecificImage: z.string().url().optional().or(z.literal('')),
+  storeSpecificImage: z.any().optional(),
   description: z.string().optional(),
   disclaimer: z.string().optional(),
   costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.').optional(),
@@ -135,9 +136,23 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
 
     try {
         const productRef = doc(db, `Inventory`, inventoryId);
-        const { promotionalPrice, variants: variantsJSON, ...data } = validatedFields.data;
+        const docSnap = await getDoc(productRef);
+        if (!docSnap.exists()) {
+            return { errors: { _form: ['El producto no existe.'] } };
+        }
+
+        const { promotionalPrice, variants: variantsJSON, storeSpecificImage, ...data } = validatedFields.data;
         
         const updateData: { [key: string]: any } = {...data};
+
+        let finalImageUrl = docSnap.data().storeSpecificImage;
+        if (storeSpecificImage instanceof File && storeSpecificImage.size > 0) {
+            finalImageUrl = await uploadImage(storeSpecificImage, 'store_products');
+        } else if (storeSpecificImage === "") {
+             finalImageUrl = "";
+        }
+        updateData.storeSpecificImage = finalImageUrl;
+
 
         if (updateData.hasVariations) {
             if (!variantsJSON) {

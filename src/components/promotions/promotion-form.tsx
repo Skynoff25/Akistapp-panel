@@ -38,7 +38,7 @@ import { Calendar } from "../ui/calendar";
 const promotionSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
   content: z.string().min(1, "El contenido es obligatorio"),
-  imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal("")),
+  imageUrl: z.any().optional(),
   storeId: z.string().min(1, "Debes seleccionar una tienda"),
   cityId: z.string().min(1, "El código postal es obligatorio"),
   isActive: z.boolean(),
@@ -75,7 +75,9 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
     const formData = new FormData();
     formData.append('title', data.title);
     formData.append('content', data.content);
-    formData.append('imageUrl', data.imageUrl || '');
+    if (data.imageUrl instanceof File) {
+        formData.append('imageUrl', data.imageUrl);
+    }
     formData.append('storeId', data.storeId);
     formData.append('cityId', data.cityId);
     formData.append('isActive', String(data.isActive));
@@ -229,11 +231,19 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
         <FormField
           control={form.control}
           name="imageUrl"
-          render={({ field }) => (
+          render={({ field: { onChange, value, ...rest } }) => (
             <FormItem>
-              <FormLabel>URL de la Imagen del Banner</FormLabel>
+              <FormLabel>Imagen del Banner</FormLabel>
               <FormControl>
-                <Input placeholder="https://ejemplo.com/banner.png" {...field} />
+                <Input 
+                    type="file" 
+                    accept="image/*"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        onChange(file);
+                    }}
+                    {...rest}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

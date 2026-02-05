@@ -39,7 +39,7 @@ const storeProductSchema = z.object({
   promotionalPrice: z.coerce.number().min(0, "El precio promocional no puede ser negativo.").optional().nullable(),
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.boolean(),
-  storeSpecificImage: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  storeSpecificImage: z.any().optional(),
   description: z.string().optional(),
   disclaimer: z.string().optional(),
   costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.'),
@@ -125,21 +125,21 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   const onSubmit = async (data: StoreProductFormValues) => {
     const formData = new FormData();
 
-    Object.entries(data).forEach(([key, value]) => {
-      if (key === 'variants' && data.hasVariations) {
-        formData.append(key, JSON.stringify(value));
-      } else if (key !== 'variants' && value !== undefined && value !== null) {
-        formData.append(key, String(value));
-      }
-    });
-    
-    // Ensure base price/stock are sent if no variations
-    if (!data.hasVariations) {
-        formData.append('price', String(data.price));
-        formData.append('currentStock', String(data.currentStock));
+    for (const key in data) {
+        const typedKey = key as keyof StoreProductFormValues;
+        const value = data[typedKey];
+
+        if (typedKey === 'variants' && data.hasVariations && Array.isArray(value)) {
+            formData.append(key, JSON.stringify(value));
+        } else if (typedKey === 'storeSpecificImage' && value instanceof File) {
+            formData.append(key, value);
+        } else if (value !== undefined && value !== null && !(value instanceof File)) {
+            formData.append(key, String(value));
+        }
     }
     
-    if (data.storeSpecificImage === '') {
+    // If the image field is empty string (meaning user wants to remove it)
+    if (data.storeSpecificImage === "") {
       formData.append('storeSpecificImage', '');
     }
     
@@ -283,14 +283,22 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         <FormField
           control={form.control}
           name="storeSpecificImage"
-          render={({ field }) => (
+          render={({ field: { onChange, value, ...rest } }) => (
             <FormItem>
-              <FormLabel>URL de Imagen Personalizada (Opcional)</FormLabel>
+              <FormLabel>Imagen Personalizada (Opcional)</FormLabel>
               <FormControl>
-                <Input placeholder="https://ejemplo.com/mi-foto.png" {...field} value={field.value ?? ''} />
+                <Input 
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        onChange(file);
+                    }}
+                    {...rest}
+                />
               </FormControl>
               <FormDescription>
-                Si se deja en blanco, se usará la imagen global del producto.
+                Si se deja en blanco, se usará la imagen global del producto. Sube un archivo para reemplazar la imagen actual.
               </FormDescription>
               <FormMessage />
             </FormItem>

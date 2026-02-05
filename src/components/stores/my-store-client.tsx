@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import type { Store } from "@/lib/types";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "../ui/page-header";
 import { useDocument } from "@/hooks/use-document";
 import Loader from "../ui/loader";
@@ -33,7 +33,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { getImageUrl } from "@/lib/utils";
 
 const myStoreSchema = z.object({
-  imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  imageUrl: z.any().optional(),
   isOpen: z.boolean(),
   allowPickup: z.boolean(),
   allowDelivery: z.boolean(),
@@ -51,6 +51,7 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
   const { toast } = useToast();
   const { appUser } = useAuth();
   const { data: store, loading, error } = useDocument<Store>(`Stores/${storeId}`);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<MyStoreFormValues>({
     resolver: zodResolver(myStoreSchema),
@@ -84,7 +85,9 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
 
   const onSubmit = async (data: MyStoreFormValues) => {
     const formData = new FormData();
-    formData.append('imageUrl', data.imageUrl || '');
+    if (data.imageUrl instanceof File) {
+        formData.append('imageUrl', data.imageUrl);
+    }
     formData.append('isOpen', String(data.isOpen));
     formData.append('allowPickup', String(data.allowPickup));
     formData.append('allowDelivery', String(data.allowDelivery));
@@ -147,13 +150,27 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                         <FormField
                             control={form.control}
                             name="imageUrl"
-                            render={({ field }) => (
+                            render={({ field: { onChange, value, ...rest } }) => (
                                 <FormItem>
-                                <FormLabel>URL del Logo/Imagen</FormLabel>
+                                <FormLabel>Logo/Imagen de la Tienda</FormLabel>
                                 <FormControl>
                                     <div className="flex items-center gap-4">
-                                        <Image src={getImageUrl(field.value || store.imageUrl, store.id)} alt={store.name || 'Logo de la tienda'} width={64} height={64} className="rounded-lg object-cover" />
-                                        <Input placeholder="https://example.com/logo.png" {...field} disabled={!canEdit}/>
+                                        <Image src={imagePreview || getImageUrl(value || store.imageUrl, store.id)} alt={store.name || 'Logo de la tienda'} width={64} height={64} className="rounded-lg object-cover" />
+                                        <Input 
+                                            type="file" 
+                                            accept="image/*"
+                                            disabled={!canEdit}
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                onChange(file);
+                                                if (file) {
+                                                    setImagePreview(URL.createObjectURL(file));
+                                                } else {
+                                                    setImagePreview(null);
+                                                }
+                                            }}
+                                            {...rest}
+                                        />
                                     </div>
                                 </FormControl>
                                 <FormMessage />

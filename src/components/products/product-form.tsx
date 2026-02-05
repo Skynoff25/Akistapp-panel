@@ -24,7 +24,7 @@ const productSchema = z.object({
   brand: z.string().min(1, "La marca es obligatoria"),
   description: z.string().min(1, "La descripción es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
-  image: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  image: z.any().optional(),
   tags: z.string().optional(),
 });
 
@@ -80,6 +80,16 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
              formData.append(key, String(value));
         }
     });
+
+    if (data.image instanceof File) {
+        formData.set('image', data.image);
+    } else if (!product) {
+        formData.delete('image');
+    } else {
+        // For updates, if no new file is selected, we should not send an empty string
+        // The server action will handle keeping the old image.
+        formData.delete('image');
+    }
 
     form.clearErrors();
     
@@ -159,17 +169,25 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
           )}
         />
          <FormField
-          control={form.control}
-          name="image"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>URL de la Imagen</FormLabel>
-              <FormControl>
-                <Input placeholder="https://ejemplo.com/producto.png" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+            control={form.control}
+            name="image"
+            render={({ field: { onChange, value, ...rest } }) => (
+                <FormItem>
+                <FormLabel>Imagen del Producto</FormLabel>
+                <FormControl>
+                    <Input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            onChange(file);
+                        }}
+                        {...rest}
+                    />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
         />
         <FormField
           control={form.control}

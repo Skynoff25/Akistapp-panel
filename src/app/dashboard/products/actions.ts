@@ -4,13 +4,14 @@ import { z } from "zod";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, deleteDoc, getDoc, query, where, getCountFromServer } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
+import { uploadImage } from "@/lib/storage";
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   brand: z.string().min(1, "La marca es obligatoria"),
   description: z.string().min(1, "La descripción es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
-  image: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  image: z.any().optional(),
   tags: z.string().optional(),
 });
 
@@ -24,14 +25,19 @@ export async function createProduct(formData: FormData) {
         };
     }
     
-    const { tags, ...productData } = validatedFields.data;
+    const { image, tags, ...productData } = validatedFields.data;
+    let finalImageUrl = `https://picsum.photos/seed/${productData.name}/400/400`;
 
     try {
+        if (image instanceof File && image.size > 0) {
+            finalImageUrl = await uploadImage(image, "store_products");
+        }
+
         await addDoc(collection(db, "Products"), {
             ...productData,
             normalizedName: productData.name.toLowerCase(),
             tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-            image: productData.image || `https://picsum.photos/seed/${productData.name}/400/400`,
+            image: finalImageUrl,
         });
         revalidatePath("/dashboard/products");
         return { message: "Producto creado exitosamente." };
@@ -52,15 +58,25 @@ export async function updateProduct(id: string, formData: FormData) {
         };
     }
 
-    const { tags, ...productData } = validatedFields.data;
+    const { image, tags, ...productData } = validatedFields.data;
 
     try {
         const productRef = doc(db, "Products", id);
+        const docSnap = await getDoc(productRef);
+        if (!docSnap.exists()) {
+             return { errors: { _form: ["El producto no existe."] } };
+        }
+
+        let finalImageUrl = docSnap.data().image; // Keep old image by default
+        if (image instanceof File && image.size > 0) {
+            finalImageUrl = await uploadImage(image, "store_products");
+        }
+        
         await updateDoc(productRef, {
             ...productData,
             normalizedName: productData.name.toLowerCase(),
             tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-            image: productData.image || `https://picsum.photos/seed/${productData.name}/400/400`,
+            image: finalImageUrl,
         });
         revalidatePath("/dashboard/products");
         return { message: "Producto actualizado exitosamente." };

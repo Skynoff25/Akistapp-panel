@@ -6,9 +6,10 @@ import { db } from '@/lib/firebase';
 import { doc, updateDoc, getDoc, deleteField } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Store } from '@/lib/types';
+import { uploadImage } from '@/lib/storage';
 
 const updateMyStoreSchema = z.object({
-  imageUrl: z.string().url("Debe ser una URL válida").optional().or(z.literal('')),
+  imageUrl: z.any().optional(),
   isOpen: z.enum(['true', 'false']).transform(v => v === 'true'),
   allowPickup: z.enum(['true', 'false']).transform(v => v === 'true'),
   allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
@@ -38,7 +39,14 @@ export async function updateMyStore(storeId: string, formData: FormData) {
     }
     
     const store = storeSnap.data() as Store;
-    const dataToUpdate: { [key: string]: any } = { ...validatedFields.data };
+    const { imageUrl: imageFile, ...dataFromForm } = validatedFields.data;
+    const dataToUpdate: { [key: string]: any } = { ...dataFromForm };
+
+    let finalImageUrl = store.imageUrl;
+    if (imageFile instanceof File && imageFile.size > 0) {
+        finalImageUrl = await uploadImage(imageFile, 'store_profile');
+    }
+    dataToUpdate.imageUrl = finalImageUrl;
 
     // Server-side guard to ensure BASIC plan cannot have these options enabled.
     if (store.subscriptionPlan === 'BASIC') {
@@ -55,8 +63,6 @@ export async function updateMyStore(storeId: string, formData: FormData) {
         dataToUpdate.deliveryType = deleteField();
         dataToUpdate.deliveryFee = 0;
     }
-    
-    dataToUpdate.imageUrl = dataToUpdate.imageUrl || `https://picsum.photos/seed/${storeId}/100/100`;
 
     await updateDoc(storeRef, dataToUpdate);
 

@@ -29,13 +29,6 @@ import type { Promotion, Store } from "@/lib/types";
 import { createPromotion, updatePromotion } from "@/app/dashboard/promotions/actions";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
 import Loader from "../ui/loader";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { CalendarIcon } from "lucide-react";
-import { Calendar } from "../ui/calendar";
-import { useState } from "react";
 
 const promotionSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
@@ -44,9 +37,7 @@ const promotionSchema = z.object({
   storeId: z.string().min(1, "Debes seleccionar una tienda"),
   cityId: z.string().min(1, "El código postal es obligatorio"),
   isActive: z.boolean(),
-  expiresAt: z.date({
-    required_error: "La fecha de caducidad es obligatoria.",
-  }),
+  expiresAt: z.string().min(1, "La fecha de caducidad es obligatoria."),
 });
 
 type PromotionFormValues = z.infer<typeof promotionSchema>;
@@ -56,10 +47,22 @@ interface PromotionFormProps {
   onSuccess: () => void;
 }
 
+const formatTimestampToInputDate = (timestamp?: number) => {
+    if (!timestamp) return "";
+    try {
+        const date = new Date(timestamp);
+        // Adjust for timezone offset to get the correct YYYY-MM-DD
+        const timezoneOffset = date.getTimezoneOffset() * 60000;
+        const adjustedDate = new Date(date.getTime() - timezoneOffset);
+        return adjustedDate.toISOString().split('T')[0];
+    } catch (e) {
+        return "";
+    }
+}
+
 export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
   const { toast } = useToast();
   const { data: stores, loading: storesLoading } = useFirestoreQuery<Store>("Stores");
-  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const form = useForm<PromotionFormValues>({
     resolver: zodResolver(promotionSchema),
@@ -70,7 +73,7 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
       storeId: promotion?.storeId || "",
       cityId: promotion?.cityId || "",
       isActive: promotion?.isActive ?? true,
-      expiresAt: promotion?.expiresAt ? new Date(promotion.expiresAt) : undefined,
+      expiresAt: formatTimestampToInputDate(promotion?.expiresAt),
     },
   });
 
@@ -84,10 +87,8 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
     formData.append('storeId', data.storeId);
     formData.append('cityId', data.cityId);
     formData.append('isActive', String(data.isActive));
-    if (data.expiresAt) {
-      formData.append('expiresAt', data.expiresAt.toISOString());
-    }
-
+    formData.append('expiresAt', data.expiresAt);
+    
     const action = promotion ? updatePromotion.bind(null, promotion.id) : createPromotion;
     const result = await action(formData);
 
@@ -194,42 +195,11 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
           control={form.control}
           name="expiresAt"
           render={({ field }) => (
-            <FormItem className="flex flex-col">
+            <FormItem>
               <FormLabel>Fecha de Caducidad</FormLabel>
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, "PPP", { locale: es })
-                      ) : (
-                        <span>Selecciona una fecha</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={(date) => {
-                      field.onChange(date);
-                      setCalendarOpen(false);
-                    }}
-                    disabled={(date) =>
-                      date < new Date(new Date().setHours(0,0,0,0))
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

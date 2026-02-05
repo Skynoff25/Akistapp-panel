@@ -35,6 +35,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "../ui/calendar";
+import { useState } from "react";
 
 const promotionSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
@@ -58,6 +59,7 @@ interface PromotionFormProps {
 export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
   const { toast } = useToast();
   const { data: stores, loading: storesLoading } = useFirestoreQuery<Store>("Stores");
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const form = useForm<PromotionFormValues>({
     resolver: zodResolver(promotionSchema),
@@ -194,7 +196,7 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Fecha de Caducidad</FormLabel>
-              <Popover>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <FormControl>
                     <Button
@@ -217,7 +219,10 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
                   <Calendar
                     mode="single"
                     selected={field.value}
-                    onSelect={field.onChange}
+                    onSelect={(date) => {
+                      field.onChange(date);
+                      setCalendarOpen(false);
+                    }}
                     disabled={(date) =>
                       date < new Date(new Date().setHours(0,0,0,0))
                     }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -187,6 +188,7 @@ export default function PromotionsClient() {
             </DialogTitle>
           </DialogHeader>
           <PromotionForm
+            key={selectedPromotion?.id || 'new-promotion'}
             promotion={selectedPromotion}
             onSuccess={() => {
               setDialogOpen(false);

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -34,6 +35,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "../ui/calendar";
+import { useEffect } from "react";
 
 const promotionSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
@@ -61,15 +63,39 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
   const form = useForm<PromotionFormValues>({
     resolver: zodResolver(promotionSchema),
     defaultValues: {
-      title: promotion?.title || "",
-      content: promotion?.content || "",
-      imageUrl: promotion?.imageUrl || "",
-      storeId: promotion?.storeId || "",
-      cityId: promotion?.cityId || "",
-      isActive: promotion?.isActive ?? true,
-      expiresAt: promotion?.expiresAt ? new Date(promotion.expiresAt) : undefined,
+      title: "",
+      content: "",
+      imageUrl: "",
+      storeId: "",
+      cityId: "",
+      isActive: true,
+      expiresAt: undefined,
     },
   });
+
+  useEffect(() => {
+    if (promotion) {
+      form.reset({
+        title: promotion.title || "",
+        content: promotion.content || "",
+        imageUrl: promotion.imageUrl || "",
+        storeId: promotion.storeId || "",
+        cityId: promotion.cityId || "",
+        isActive: promotion.isActive ?? true,
+        expiresAt: promotion.expiresAt ? new Date(promotion.expiresAt) : undefined,
+      });
+    } else {
+        form.reset({
+            title: "",
+            content: "",
+            imageUrl: "",
+            storeId: "",
+            cityId: "",
+            isActive: true,
+            expiresAt: undefined,
+        });
+    }
+  }, [promotion, form]);
 
   const onSubmit = async (data: PromotionFormValues) => {
     const formData = new FormData();
@@ -119,7 +145,7 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
             render={({ field }) => (
                 <FormItem>
                 <FormLabel>Tienda Asociada</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={storesLoading}>
+                <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={storesLoading}>
                     <FormControl>
                     <SelectTrigger>
                         <SelectValue placeholder="Selecciona una tienda" />

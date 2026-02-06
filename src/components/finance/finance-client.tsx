@@ -41,11 +41,11 @@ function PriceSuggester({ tasaOficial, tasaParalela }: { tasaOficial: number; ta
                 <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="costo-usd">Costo de Reposición (USD)</Label>
-                        <Input id="costo-usd" type="number" value={costoUsd} onChange={e => setCostoUsd(parseFloat(e.target.value))} placeholder="10.00"/>
+                        <Input id="costo-usd" type="number" value={costoUsd} onChange={e => setCostoUsd(parseFloat(e.target.value) || 0)} placeholder="10.00"/>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="margen">Margen Deseado (%)</Label>
-                        <Input id="margen" type="number" value={margen} onChange={e => setMargen(parseFloat(e.target.value))} placeholder="30"/>
+                        <Input id="margen" type="number" value={margen} onChange={e => setMargen(parseFloat(e.target.value) || 0)} placeholder="30"/>
                     </div>
                 </div>
                 <Alert>

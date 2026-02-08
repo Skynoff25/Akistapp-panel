@@ -126,19 +126,27 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   const onSubmit = async (data: StoreProductFormValues) => {
     const formData = new FormData();
 
-    for (const key in data) {
-        const typedKey = key as keyof StoreProductFormValues;
-        const value = data[typedKey];
-
-        if (typedKey === 'variants' && data.hasVariations && Array.isArray(value)) {
-            formData.append(key, JSON.stringify(value));
-        } else if (typedKey === 'storeSpecificImage' && value instanceof File) {
-            formData.append(key, value);
-        } else if (value !== undefined && value !== null && !(value instanceof File)) {
-            formData.append(key, String(value));
+    // First, append all data, letting it stringify the file for now.
+    Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            if (key === 'variants') {
+                formData.append(key, JSON.stringify(value));
+            } else {
+                formData.append(key, String(value));
+            }
         }
+    });
+
+    // Now, correct the image field.
+    if (data.storeSpecificImage instanceof File) {
+        // A new file was selected. Overwrite the stringified version with the actual file.
+        formData.set('storeSpecificImage', data.storeSpecificImage);
+    } else {
+        // No new file. This is an update. We don't want to send the old URL string.
+        // Deleting the key ensures the server action keeps the old image.
+        formData.delete('storeSpecificImage');
     }
-    
+
     const result = await updateStoreProduct(storeId, product.id, formData);
     
     if (result?.errors) {

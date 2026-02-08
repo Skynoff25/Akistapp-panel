@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm, useFieldArray } from "react-hook-form";
@@ -42,7 +43,7 @@ const storeProductSchema = z.object({
   storeSpecificImage: z.any().optional(),
   description: z.string().optional(),
   disclaimer: z.string().optional(),
-  costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.'),
+  costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.').optional(),
   casheaEligible: z.boolean(),
   hasVariations: z.boolean(),
   variants: z.array(variantSchema).optional(),
@@ -136,11 +137,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         } else if (value !== undefined && value !== null && !(value instanceof File)) {
             formData.append(key, String(value));
         }
-    }
-    
-    // If the image field is empty string (meaning user wants to remove it)
-    if (data.storeSpecificImage === "") {
-      formData.append('storeSpecificImage', '');
     }
     
     const result = await updateStoreProduct(storeId, product.id, formData);

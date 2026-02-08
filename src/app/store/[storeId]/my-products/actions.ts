@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -192,6 +193,8 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
                 updateData.promotionalPrice = deleteField();
             }
         }
+        
+        updateData.costPriceUsd = data.costPriceUsd || 0;
 
         await updateDoc(productRef, updateData);
 

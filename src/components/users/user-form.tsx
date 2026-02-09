@@ -33,6 +33,14 @@ const userSchema = z.object({
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres.'),
   rol: z.enum(['admin', 'store_manager', 'store_employee', 'customer']),
   storeId: z.string().optional(),
+}).refine((data) => {
+    if ((data.rol === 'store_manager' || data.rol === 'store_employee') && !data.storeId) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Se debe seleccionar una tienda para este rol.",
+    path: ["storeId"],
 });
 
 type UserFormValues = z.infer<typeof userSchema>;

@@ -57,10 +57,12 @@ export async function createUser(formData: FormData) {
     return { message: "Usuario creado exitosamente." };
 
   } catch (e: any) {
-    console.error(e);
+    console.error("Error creating user:", e);
     let errorMessage = 'No se pudo crear el usuario.';
     if (e.code === 'auth/email-already-exists') {
         errorMessage = 'El correo electrónico ya está en uso por otra cuenta.';
+    } else if (e.message) {
+        errorMessage = `Error al crear usuario: ${e.message}`;
     }
     return {
       message: errorMessage,

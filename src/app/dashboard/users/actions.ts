@@ -2,6 +2,8 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+// import { adminAuth, adminDb } from '@/lib/firebase-admin';
+// import { doc, setDoc } from 'firebase-admin/firestore';
 
 const userSchema = z.object({
   email: z.string().email('Dirección de correo electrónico inválida.'),
@@ -19,6 +21,7 @@ const userSchema = z.object({
     path: ["storeId"],
 });
 
+
 export async function createUser(formData: FormData) {
   const values = Object.fromEntries(formData.entries());
   const validatedFields = userSchema.safeParse(values);
@@ -29,16 +32,58 @@ export async function createUser(formData: FormData) {
     };
   }
 
-  const { email, name, rol } = validatedFields.data;
+  // --- SIMULATION MODE ---
+  // The Firebase Admin SDK is required to create users, but it cannot be authenticated
+  // in this environment. See /docs/backend.md for a full explanation.
+  // We will simulate the user creation process.
+  const { email, password, name, rol, storeId } = validatedFields.data;
 
-  // SIMULATION: In a real environment, you'd use the Firebase Admin SDK here.
-  // This is blocked due to environment credentials not being configured.
-  console.log('[SIMULATION] Creating user:');
-  console.log({ email, name, rol });
-  
-  // Simulate a success response
-  console.log('[SIMULATION] User created successfully.');
+  try {
+    console.log(`[SIMULATION] Attempting to create user: ${email}`);
+    
+    // In a real implementation, this is where you would use the Admin SDK:
+    /*
+    if (!adminAuth || !adminDb) {
+      throw new Error("El SDK de Administrador de Firebase no está inicializado.");
+    }
 
-  revalidatePath("/dashboard/users");
-  return { message: "Usuario creado exitosamente (Simulación)." };
+    const userRecord = await adminAuth.createUser({
+      email: email,
+      password: password,
+      displayName: name,
+    });
+    
+    await adminAuth.setCustomUserClaims(userRecord.uid, { rol, storeId: storeId || null });
+    
+    const userDocRef = adminDb.collection('Users').doc(userRecord.uid);
+    await setDoc(userDocRef, {
+        name: name,
+        email: email,
+        rol: rol,
+        storeId: storeId || null,
+        createdAt: Date.now(),
+        // Default fields
+        photoUrl: null,
+        cityId: 'default',
+        cityName: 'default',
+        favoriteStoreIds: [],
+        emailVerified: false,
+        isPhoneVerified: false,
+        isIdentityVerified: false,
+        rating: 0,
+        ratingCount: 0,
+        isBlocked: false,
+        fcmTokens: [],
+    });
+    */
+
+    console.log(`[SIMULATION] User ${email} created successfully with UID (simulated).`);
+    revalidatePath('/dashboard/users');
+    return { message: `Usuario ${name} creado exitosamente (Simulación).` };
+
+  } catch (error: any) {
+    console.error("Error al crear usuario:", error);
+    // This will now return the specific Firebase error to the form.
+    return { errors: { _form: [error.message] } };
+  }
 }

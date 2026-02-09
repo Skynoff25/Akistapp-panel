@@ -10,21 +10,29 @@
  * 
  * For a full production deployment, the environment running this code (e.g., a serverless
  * function or VM) would need to have Application Default Credentials (ADC) configured
- * with the correct IAM permissions for your Firebase project.
+ * with the correct IAM permissions for your Firebase project. See /docs/backend.md for details.
  */
 
 // import * as admin from 'firebase-admin';
+// import { getAuth } from 'firebase-admin/auth';
+// import { getFirestore } from 'firebase-admin/firestore';
+// import { getMessaging } from 'firebase-admin/messaging';
+
+// let app;
 
 // if (!admin.apps.length) {
 //   try {
-//     admin.initializeApp({
-//       credential: admin.credential.applicationDefault(),
+//     app = admin.initializeApp({
+//       // The credential is automatically discovered by the Admin SDK
+//       // in a properly configured server environment (like Cloud Run or Cloud Functions).
 //     });
 //   } catch (error) {
-//     console.error('Firebase admin initialization error', error);
+//     console.error('Firebase admin initialization error. See /docs/backend.md for more info.', error);
 //   }
 // }
 
-// export const adminAuth = admin.auth();
-// export const adminDb = admin.firestore();
-// export const adminMessaging = admin.messaging();
+// const adminAuth = app ? getAuth(app) : null;
+// const adminDb = app ? getFirestore(app) : null;
+// const adminMessaging = app ? getMessaging(app) : null;
+
+// export { adminAuth, adminDb, adminMessaging };

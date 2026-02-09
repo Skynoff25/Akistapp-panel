@@ -2,8 +2,8 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-// import { adminAuth, adminDb } from '@/lib/firebase-admin';
-// import { doc, setDoc } from 'firebase-admin/firestore';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { setDoc, doc } from 'firebase-admin/firestore';
 
 const userSchema = z.object({
   email: z.string().email('Dirección de correo electrónico inválida.'),
@@ -32,17 +32,9 @@ export async function createUser(formData: FormData) {
     };
   }
 
-  // --- SIMULATION MODE ---
-  // The Firebase Admin SDK is required to create users, but it cannot be authenticated
-  // in this environment. See /docs/backend.md for a full explanation.
-  // We will simulate the user creation process.
   const { email, password, name, rol, storeId } = validatedFields.data;
 
   try {
-    console.log(`[SIMULATION] Attempting to create user: ${email}`);
-    
-    // In a real implementation, this is where you would use the Admin SDK:
-    /*
     if (!adminAuth || !adminDb) {
       throw new Error("El SDK de Administrador de Firebase no está inicializado.");
     }
@@ -55,7 +47,7 @@ export async function createUser(formData: FormData) {
     
     await adminAuth.setCustomUserClaims(userRecord.uid, { rol, storeId: storeId || null });
     
-    const userDocRef = adminDb.collection('Users').doc(userRecord.uid);
+    const userDocRef = doc(adminDb, 'Users', userRecord.uid);
     await setDoc(userDocRef, {
         name: name,
         email: email,
@@ -75,11 +67,9 @@ export async function createUser(formData: FormData) {
         isBlocked: false,
         fcmTokens: [],
     });
-    */
 
-    console.log(`[SIMULATION] User ${email} created successfully with UID (simulated).`);
     revalidatePath('/dashboard/users');
-    return { message: `Usuario ${name} creado exitosamente (Simulación).` };
+    return { message: `Usuario ${name} creado exitosamente.` };
 
   } catch (error: any) {
     console.error("Error al crear usuario:", error);

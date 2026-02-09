@@ -13,26 +13,26 @@
  * with the correct IAM permissions for your Firebase project. See /docs/backend.md for details.
  */
 
-// import * as admin from 'firebase-admin';
-// import { getAuth } from 'firebase-admin/auth';
-// import { getFirestore } from 'firebase-admin/firestore';
-// import { getMessaging } from 'firebase-admin/messaging';
+import * as admin from 'firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
 
-// let app;
+let app;
 
-// if (!admin.apps.length) {
-//   try {
-//     app = admin.initializeApp({
-//       // The credential is automatically discovered by the Admin SDK
-//       // in a properly configured server environment (like Cloud Run or Cloud Functions).
-//     });
-//   } catch (error) {
-//     console.error('Firebase admin initialization error. See /docs/backend.md for more info.', error);
-//   }
-// }
+if (!admin.apps.length) {
+  try {
+    app = admin.initializeApp({
+      // The credential is automatically discovered by the Admin SDK
+      // in a properly configured server environment (like Cloud Run or Cloud Functions).
+    });
+  } catch (error) {
+    console.error('Firebase admin initialization error. See /docs/backend.md for more info.', error);
+  }
+}
 
-// const adminAuth = app ? getAuth(app) : null;
-// const adminDb = app ? getFirestore(app) : null;
-// const adminMessaging = app ? getMessaging(app) : null;
+const adminAuth = app ? getAuth(app) : null;
+const adminDb = app ? getFirestore(app) : null;
+const adminMessaging = app ? getMessaging(app) : null;
 
-// export { adminAuth, adminDb, adminMessaging };
+export { adminAuth, adminDb, adminMessaging };

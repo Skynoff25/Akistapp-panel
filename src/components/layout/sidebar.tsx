@@ -14,7 +14,8 @@ import {
     Users, 
     LogOut,
     Megaphone,
-    ShieldAlert
+    ShieldAlert,
+    Bell
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -25,6 +26,7 @@ const navItems = [
   { href: '/dashboard/users', label: 'Usuarios', icon: Users },
   { href: '/dashboard/promotions', label: 'Promociones', icon: Megaphone },
   { href: '/dashboard/reports', label: 'Denuncias', icon: ShieldAlert },
+  { href: '/dashboard/notifications', label: 'Notificaciones', icon: Bell },
 ];
 
 const NavItem = ({ href, label, icon: Icon }: typeof navItems[0]) => {

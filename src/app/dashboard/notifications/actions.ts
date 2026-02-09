@@ -2,6 +2,9 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs, getDoc, doc, writeBatch, arrayRemove } from "firebase/firestore";
+import type { AppUser } from "@/lib/types";
 
 const notificationSchema = z.object({
   title: z.string().min(1, "El título es obligatorio"),
@@ -9,6 +12,94 @@ const notificationSchema = z.object({
   targetType: z.enum(['all', 'user', 'store']),
   targetValue: z.string().optional(),
 });
+
+
+/**
+ * Fetches FCM tokens based on the target audience.
+ * NOTE: In a production environment, fetching ALL tokens can be memory-intensive.
+ * This should be handled in batches or by a dedicated backend process.
+ */
+async function getTokensForTarget(targetType: string, targetValue?: string): Promise<string[]> {
+    let tokens: string[] = [];
+    const usersRef = collection(db, "Users");
+
+    if (targetType === 'all') {
+        const querySnapshot = await getDocs(usersRef);
+        querySnapshot.forEach(doc => {
+            const user = doc.data() as AppUser;
+            if (user.fcmTokens && user.fcmTokens.length > 0) {
+                tokens.push(...user.fcmTokens);
+            }
+        });
+    } else if (targetType === 'user' && targetValue) {
+        const userDoc = await getDoc(doc(db, 'Users', targetValue));
+        if (userDoc.exists()) {
+            const user = userDoc.data() as AppUser;
+            tokens = user.fcmTokens || [];
+        }
+    } else if (targetType === 'store' && targetValue) {
+        // This assumes we send to users who have favorited the store.
+        // The logic can be adapted based on requirements.
+        const q = query(usersRef, where("favoriteStoreIds", "array-contains", targetValue));
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(doc => {
+            const user = doc.data() as AppUser;
+            if (user.fcmTokens && user.fcmTokens.length > 0) {
+                tokens.push(...user.fcmTokens);
+            }
+        });
+    }
+    
+    // Return unique tokens
+    return [...new Set(tokens)];
+}
+
+/**
+ * Removes invalid FCM tokens from the database.
+ * NOTE: This implementation is for demonstration. It is highly inefficient as it
+ * queries the entire user base. A production system should have a reverse-map
+ * (token -> userId) to perform this cleanup efficiently.
+ */
+async function cleanupInvalidTokens(tokensToDelete: string[]) {
+    if (tokensToDelete.length === 0) return;
+    
+    console.log(`[SIMULATION] Starting cleanup for ${tokensToDelete.length} invalid tokens.`);
+
+    // --- THIS IS THE REAL LOGIC, BUT IT'S INEFFICIENT AND SHOULD RUN ON A DEDICATED BACKEND ---
+    /*
+    try {
+        const usersRef = collection(db, "Users");
+        // Firestore 'array-contains-any' is limited to 30 values.
+        // We'd need to batch this for larger numbers of tokens.
+        const q = query(usersRef, where("fcmTokens", "array-contains-any", tokensToDelete.slice(0, 30)));
+        const userSnapshots = await getDocs(q);
+        
+        if (userSnapshots.empty) {
+            console.log("[SIMULATION] No users found with tokens to clean up.");
+            return;
+        }
+
+        const batch = writeBatch(db);
+        userSnapshots.forEach(userDoc => {
+            const user = userDoc.data() as AppUser;
+            const userTokensToDelete = user.fcmTokens.filter(token => tokensToDelete.includes(token));
+            
+            if (userTokensToDelete.length > 0) {
+                 batch.update(userDoc.ref, {
+                    fcmTokens: arrayRemove(...userTokensToDelete)
+                });
+            }
+        });
+
+        await batch.commit();
+        console.log(`[SIMULATION] Successfully cleaned up tokens from ${userSnapshots.size} users.`);
+
+    } catch(error) {
+        console.error("[SIMULATION] Error during token cleanup:", error);
+    }
+    */
+}
+
 
 export async function sendPushNotification(formData: FormData) {
   const values = Object.fromEntries(formData.entries());
@@ -20,55 +111,62 @@ export async function sendPushNotification(formData: FormData) {
     };
   }
 
-  // In a real application, this is where you would use the Firebase Admin SDK (in a secure backend environment, like a Cloud Function)
-  // to send a multicast message and handle token cleanup.
-  //
-  // --- Example of a real implementation flow ---
-  //
-  // 1. Initialize Firebase Admin SDK.
-  //    const admin = require('firebase-admin');
-  //    admin.initializeApp();
-  //
-  // 2. Fetch the target FCM tokens from Firestore based on `targetType`.
-  //    let tokens = []; // e.g. ['token1', 'token2', 'token3']
-  //    if (validatedFields.data.targetType === 'all') { /* fetch all users' tokens */ }
-  //    // ... logic for other target types ...
-  //
-  // 3. Construct the message payload.
-  //    const message = {
-  //      notification: { title: validatedFields.data.title, message: validatedFields.data.message },
-  //      tokens: tokens,
-  //    };
-  //
-  // 4. Send the message.
-  //    const response = await admin.messaging().sendEachForMulticast(message);
-  //
-  // 5. **Handle token cleanup based on the response.** This is the key to avoiding stale tokens.
-  //    const tokensToDelete = [];
-  //    response.responses.forEach((result, index) => {
-  //      const error = result.error;
-  //      if (error) {
-  //        console.error('Failure sending notification to', tokens[index], error);
-  //        // Cleanup the tokens that are not registered anymore.
-  //        if (error.code === 'messaging/invalid-registration-token' ||
-  //            error.code === 'messaging/registration-token-not-registered') {
-  //          tokensToDelete.push(tokens[index]);
-  //        }
-  //      }
-  //    });
-  //
-  // 6. If there are tokens to delete, remove them from your database.
-  //    if (tokensToDelete.length > 0) {
-  //       // You would need to query for users who have these tokens and remove them.
-  //       // For example, find the user doc and use `FieldValue.arrayRemove(...tokensToDelete)`.
-  //       console.log("Tokens to delete:", tokensToDelete);
-  //    }
-  //
-  // Since the Admin SDK is not available in this environment, this action
-  // will simulate a successful sending.
+  const { title, message, targetType, targetValue } = validatedFields.data;
+
+  // --- REAL IMPLEMENTATION REQUIRES FIREBASE ADMIN SDK ON A SECURE BACKEND ---
+  // The following code simulates the logic but cannot perform the actual sending or cleanup
+  // because the Admin SDK is not available in this environment.
+
+  // 1. Fetch target tokens (Using client SDK for simulation)
+  console.log(`[SIMULATION] Fetching tokens for target: ${targetType}`);
+  const tokens = await getTokensForTarget(targetType, targetValue);
+  if (tokens.length === 0) {
+      console.log("[SIMULATION] No target tokens found.");
+      revalidatePath("/dashboard/notifications");
+      return { message: "Simulación completada: No se encontraron destinatarios." };
+  }
+  console.log(`[SIMULATION] Found ${tokens.length} tokens to target.`);
+
+
+  // 2. Send message and get response (Simulated)
+  // In a real app: const response = await admin.messaging().sendEachForMulticast({ ... });
+  // We simulate a response where every second token is invalid for demonstration.
+  console.log(`[SIMULATION] Sending notification to ${tokens.length} tokens.`);
+  const simulatedResponse = {
+      responses: tokens.map((_token, index) => {
+          if (index % 2 !== 0 && tokens.length > 1) { // Fails for odd indexes
+              return { success: false, error: { code: 'messaging/registration-token-not-registered' } };
+          }
+          return { success: true };
+      }),
+      successCount: Math.ceil(tokens.length / 2),
+      failureCount: Math.floor(tokens.length / 2),
+  };
   
-  console.log("Simulating sending push notification:", validatedFields.data);
+  // 3. Identify invalid tokens from the simulated response
+  const tokensToDelete: string[] = [];
+  simulatedResponse.responses.forEach((result, index) => {
+    if (!result.success) {
+      const error = result.error;
+      const invalidTokenCodes = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'];
+      if (error && invalidTokenCodes.includes(error.code)) {
+        tokensToDelete.push(tokens[index]);
+      }
+    }
+  });
+
+  // 4. Trigger token cleanup logic (Simulated)
+  if (tokensToDelete.length > 0) {
+    await cleanupInvalidTokens(tokensToDelete);
+  }
+
+  console.log("[SIMULATION] Notification process complete.");
+  console.log("[SIMULATION] Success count:", simulatedResponse.successCount);
+  console.log("[SIMULATION] Failure count:", simulatedResponse.failureCount);
+  if (tokensToDelete.length > 0) {
+    console.log(`[SIMULATION] Identified ${tokensToDelete.length} tokens for cleanup:`, tokensToDelete);
+  }
 
   revalidatePath("/dashboard/notifications");
-  return { message: "Notificación enviada exitosamente (simulación)." };
+  return { message: "Proceso de envío de notificación simulado exitosamente." };
 }

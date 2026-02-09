@@ -70,25 +70,18 @@ export function UserForm({ onSuccess }: UserFormProps) {
       }
     });
 
-    // Note: We are simulating user creation. A real implementation needs a secure backend.
-    toast({
-      variant: 'destructive',
-      title: 'Función No Implementada',
-      description:
-        'La creación de usuarios desde el panel de administración no está completamente soportada en este entorno. Por favor, usa la Consola de Firebase para añadir nuevos usuarios por ahora.',
-    });
-    onSuccess();
-    return;
-
-
-    // The code below would be used if backend user creation was fully implemented.
-    /*
+    setServerError(null);
     const result = await createUser(formData);
     
     if (result?.errors) {
       if(result.errors._form) {
         setServerError(result.errors._form.join(', '));
       }
+      Object.entries(result.errors).forEach(([key, value]) => {
+        form.setError(key as keyof UserFormValues, {
+          message: (value as string[]).join(', '),
+        });
+      });
     } else {
         toast({
             title: "Usuario Creado",
@@ -96,7 +89,6 @@ export function UserForm({ onSuccess }: UserFormProps) {
         });
         onSuccess();
     }
-    */
   };
 
   return (

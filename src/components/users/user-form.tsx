@@ -1,10 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
@@ -13,6 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -20,91 +21,98 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { createUser, updateUser } from '@/app/dashboard/users/actions';
 import { useToast } from '@/hooks/use-toast';
-import { createUser } from '@/app/dashboard/users/actions';
-import { useState } from 'react';
-import type { Store } from '@/lib/types';
-import { useFirestoreSubscription } from '@/hooks/use-firestore-subscription';
-import Loader from '../ui/loader';
+import { AppUser } from '@/lib/types';
+import { Loader2 } from 'lucide-react';
 
-const userSchema = z.object({
-  name: z.string().min(1, 'El nombre es obligatorio'),
-  email: z.string().email('Dirección de correo electrónico inválida.'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres.'),
+const formSchema = z.object({
+  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  email: z.string().email('Email inválido'),
+  password: z.string().optional(), // Opcional en edición
   rol: z.enum(['admin', 'store_manager', 'store_employee', 'customer']),
   storeId: z.string().optional(),
 }).refine((data) => {
+    // Si es creación (no tenemos initialData contexto aquí, pero validaremos password después)
+    // Validación de storeId para roles específicos
     if ((data.rol === 'store_manager' || data.rol === 'store_employee') && !data.storeId) {
         return false;
     }
     return true;
 }, {
-    message: "Se debe seleccionar una tienda para este rol.",
+    message: "Se requiere seleccionar una tienda para este rol",
     path: ["storeId"],
 });
 
-type UserFormValues = z.infer<typeof userSchema>;
-
 interface UserFormProps {
-  onSuccess: () => void;
+  initialData?: AppUser;
+  onSuccess?: () => void;
 }
 
-export function UserForm({ onSuccess }: UserFormProps) {
+export function UserForm({ initialData, onSuccess }: UserFormProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [serverError, setServerError] = useState<string | null>(null);
-  const { data: stores, loading: storesLoading } =
-    useFirestoreSubscription<Store>('Stores');
 
-  const form = useForm<UserFormValues>({
-    resolver: zodResolver(userSchema),
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-      rol: 'customer',
-      storeId: '',
+      name: initialData?.name || initialData?.displayName || '',
+      email: initialData?.email || '',
+      password: '', // Siempre vacío por seguridad
+      rol: initialData?.rol || 'store_employee',
+      storeId: initialData?.storeId || '',
     },
   });
 
-  const selectedRole = form.watch('rol');
-  const needsStoreId =
-    selectedRole === 'store_manager' || selectedRole === 'store_employee';
+  const role = form.watch('rol');
 
-  const onSubmit = async (data: UserFormValues) => {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== '') {
-        formData.append(key, String(value));
-      }
-    });
-
-    setServerError(null);
-    const result = await createUser(formData);
+    formData.append('name', values.name);
+    formData.append('email', values.email);
+    formData.append('rol', values.rol);
+    if (values.storeId) formData.append('storeId', values.storeId);
     
-    if (result?.errors) {
-      if(result.errors._form) {
-        setServerError(result.errors._form.join(', '));
-      }
-      Object.entries(result.errors).forEach(([key, value]) => {
-        form.setError(key as keyof UserFormValues, {
-          message: (value as string[]).join(', '),
-        });
-      });
-    } else {
-        toast({
-            title: "Usuario Creado",
-            description: result.message,
-        });
-        onSuccess();
+    // Solo enviar contraseña si el usuario escribió algo o si es creación
+    if (values.password) {
+        formData.append('password', values.password);
+    } else if (!initialData) {
+        // Es creación y no puso password
+        form.setError('password', { message: 'La contraseña es obligatoria para nuevos usuarios' });
+        setIsLoading(false);
+        return;
     }
-  };
+
+    try {
+      let result;
+      if (initialData) {
+        // --- MODO EDICIÓN ---
+        formData.append('id', initialData.id);
+        result = await updateUser(formData);
+      } else {
+        // --- MODO CREACIÓN ---
+        result = await createUser(formData);
+      }
+
+      if (result?.errors) {
+        // Manejo de errores de validación del servidor
+        const errorMessages = Object.values(result.errors).flat().join(', ');
+        toast({ variant: 'destructive', title: 'Error', description: errorMessages });
+      } else if (result?.message) {
+        toast({ title: 'Éxito', description: result.message });
+        if (onSuccess) onSuccess();
+      }
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Algo salió mal.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-4 max-h-[70vh] overflow-y-auto p-1"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -112,33 +120,36 @@ export function UserForm({ onSuccess }: UserFormProps) {
             <FormItem>
               <FormLabel>Nombre Completo</FormLabel>
               <FormControl>
-                <Input placeholder="John Doe" {...field} />
+                <Input placeholder="Juan Pérez" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Correo Electrónico</FormLabel>
+              <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="usuario@ejemplo.com" {...field} />
+                <Input placeholder="juan@ejemplo.com" {...field} disabled={!!initialData} /> 
+                {/* Deshabilitar email en edición suele ser buena práctica en Firebase Auth */}
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Contraseña</FormLabel>
+              <FormLabel>Contraseña {initialData && '(Dejar en blanco para mantener la actual)'}</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <Input type="password" placeholder="******" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -160,7 +171,7 @@ export function UserForm({ onSuccess }: UserFormProps) {
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="store_manager">Gerente de Tienda</SelectItem>
-                  <SelectItem value="store_employee">Empleado de Tienda</SelectItem>
+                  <SelectItem value="store_employee">Empleado</SelectItem>
                   <SelectItem value="customer">Cliente</SelectItem>
                 </SelectContent>
               </Select>
@@ -169,51 +180,25 @@ export function UserForm({ onSuccess }: UserFormProps) {
           )}
         />
 
-        {needsStoreId && (
+        {(role === 'store_manager' || role === 'store_employee') && (
           <FormField
             control={form.control}
             name="storeId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tienda</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={storesLoading}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una tienda" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {storesLoading ? (
-                      <div className="flex items-center justify-center p-4">
-                        <Loader text="Cargando tiendas..." />
-                      </div>
-                    ) : (
-                      stores.map(store => (
-                        <SelectItem key={store.id} value={store.id}>
-                          {store.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <FormLabel>ID de Tienda</FormLabel>
+                <FormControl>
+                  <Input placeholder="store_123" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         )}
 
-        {serverError && (
-          <p className="text-sm font-medium text-destructive">
-            {serverError}
-          </p>
-        )}
-
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Creando...' : 'Crear Usuario'}
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {initialData ? 'Actualizar Usuario' : 'Crear Usuario'}
         </Button>
       </form>
     </Form>

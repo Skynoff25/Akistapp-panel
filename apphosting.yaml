@@ -41,7 +41,3 @@ env:
   - variable: NEXT_PRIVATE_FIREBASE_PROJECT_ID
     secret:   NEXT_PRIVATE_FIREBASE_PROJECT_ID
     availability: [BUILD, RUNTIME]
-
-  - variable: NEXT_PRIVATE_FIREBASE_CLIENT_EMAIL
-    secret:   NEXT_PRIVATE_FIREBASE_CLIENT_EMAIL
-    availability: [BUILD, RUNTIME]

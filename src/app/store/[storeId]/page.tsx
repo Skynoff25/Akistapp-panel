@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo } from 'react';
@@ -12,6 +13,7 @@ import { Package, DollarSign, Store as StoreIcon, Loader2 } from 'lucide-react';
 import Loader from '@/components/ui/loader';
 import { where } from 'firebase/firestore';
 import { PromotionalCarousel } from '@/components/products/promotional-carousel';
+import { StoreKpis } from '@/components/dashboard/store-kpis';
 
 function StatCard({ title, value, icon: Icon, loading }: { title: string, value: string | number, icon: React.ElementType, loading: boolean }) {
   return (
@@ -47,11 +49,15 @@ export default function StoreDashboardPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-8">
       <PageHeader
         title={store?.name || 'Dashboard de Tienda'}
         description={`¡Bienvenido, ${appUser?.name || 'Gerente'}!`}
       />
+
+      {/* NUEVA SECCIÓN DE KPIs OPERATIVOS */}
+      <StoreKpis storeId={storeId} />
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard 
             title="Estado de la Tienda" 

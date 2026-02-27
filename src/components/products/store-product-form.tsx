@@ -16,16 +16,24 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { StoreProduct, ProductVariant } from "@/lib/types";
 import { updateStoreProduct } from "@/app/store/[storeId]/my-products/actions";
 import { useAuth } from "@/context/auth-context";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Label } from "../ui/label";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Wand2, Zap } from "lucide-react";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "../ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Textarea } from "../ui/textarea";
+import { Badge } from "../ui/badge";
 
 const variantSchema = z.object({
   id: z.string(),
@@ -97,12 +105,13 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "variants",
   });
 
   const hasVariations = form.watch("hasVariations");
+  const currentBasePrice = form.watch("price") || 0;
 
   useEffect(() => {
     if (product) {
@@ -122,11 +131,56 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     }
   }, [product, form]);
 
+  const generateBatchVariants = (type: 'shoes' | 'shoes_half' | 'clothing' | 'pants') => {
+    let names: string[] = [];
+    const basePrice = currentBasePrice > 0 ? currentBasePrice : 0;
+
+    switch (type) {
+      case 'shoes':
+        for (let i = 35; i <= 45; i++) names.push(`Talla ${i}`);
+        break;
+      case 'shoes_half':
+        for (let i = 35; i <= 45; i++) {
+          names.push(`Talla ${i}`);
+          names.push(`Talla ${i}.5`);
+        }
+        break;
+      case 'clothing':
+        names = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
+        break;
+      case 'pants':
+        for (let i = 28; i <= 42; i += 2) names.push(`Talla ${i}`);
+        break;
+    }
+
+    const newVariants = names.map(name => ({
+      id: crypto.randomUUID(),
+      name,
+      price: basePrice,
+      stock: 0,
+    }));
+
+    // If there are existing variants, ask to merge or replace
+    if (fields.length > 0) {
+      if (confirm("Ya tienes variantes creadas. ¿Deseas reemplazarlas por este lote nuevo? (Cancelar para añadir al final)")) {
+        replace(newVariants);
+      } else {
+        newVariants.forEach(v => append(v));
+      }
+    } else {
+      replace(newVariants);
+    }
+
+    toast({
+      title: "Variantes Generadas",
+      description: `Se han creado ${newVariants.length} variantes. No olvides asignarles stock.`,
+    });
+  };
+
 
   const onSubmit = async (data: StoreProductFormValues) => {
     const formData = new FormData();
 
-    // First, append all data, letting it stringify the file for now.
     Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
             if (key === 'variants') {
@@ -137,13 +191,9 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         }
     });
 
-    // Now, correct the image field.
     if (data.storeSpecificImage instanceof File) {
-        // A new file was selected. Overwrite the stringified version with the actual file.
         formData.set('storeSpecificImage', data.storeSpecificImage);
     } else {
-        // No new file. This is an update. We don't want to send the old URL string.
-        // Deleting the key ensures the server action keeps the old image.
         formData.delete('storeSpecificImage');
     }
 
@@ -174,9 +224,12 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
           control={form.control}
           name="hasVariations"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/20">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">¿Este producto tiene variaciones?</FormLabel>
+                <FormLabel className="text-base flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-primary" />
+                  Manejar Variantes
+                </FormLabel>
                 <FormDescription>Ej: Tallas, colores, pesos, etc.</FormDescription>
               </div>
               <FormControl>
@@ -187,22 +240,42 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         />
         
         {hasVariations ? (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Variantes del Producto</CardTitle>
-                    <CardDescription>Añade cada opción disponible de tu producto con su precio y stock específico.</CardDescription>
+            <Card className="border-primary/20">
+                <CardHeader className="pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <CardTitle>Variantes del Producto</CardTitle>
+                        <CardDescription>Configura opciones específicas.</CardDescription>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label className="text-[10px] uppercase text-muted-foreground font-bold flex items-center gap-1">
+                          <Wand2 className="h-3 w-3" /> Generación Rápida
+                        </Label>
+                        <Select onValueChange={(v) => generateBatchVariants(v as any)}>
+                          <SelectTrigger className="h-8 text-xs w-[180px]">
+                            <SelectValue placeholder="Elegir Lote..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="shoes">Calzado (35-45)</SelectItem>
+                            <SelectItem value="shoes_half">Calzado con .5</SelectItem>
+                            <SelectItem value="clothing">Ropa (XS-3XL)</SelectItem>
+                            <SelectItem value="pants">Pantalones (28-42)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
                          {fields.map((field, index) => (
-                             <div key={field.id} className="grid grid-cols-12 gap-2 items-start border-b pb-4">
+                             <div key={field.id} className="grid grid-cols-12 gap-2 items-start border-b pb-4 last:border-0">
                                 <FormField
                                     control={form.control}
                                     name={`variants.${index}.name`}
                                     render={({ field }) => (
                                         <FormItem className="col-span-4">
                                             <FormLabel className="text-xs">Nombre</FormLabel>
-                                            <FormControl><Input placeholder="Ej: Rojo, Talla M" {...field} /></FormControl>
+                                            <FormControl><Input className="h-8 text-xs" placeholder="Ej: Rojo, Talla M" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -213,7 +286,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     render={({ field }) => (
                                         <FormItem className="col-span-3">
                                             <FormLabel className="text-xs">Precio ($)</FormLabel>
-                                            <FormControl><Input type="number" step="0.01" placeholder="19.99" {...field} /></FormControl>
+                                            <FormControl><Input className="h-8 text-xs" type="number" step="0.01" placeholder="19.99" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -224,21 +297,21 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     render={({ field }) => (
                                         <FormItem className="col-span-3">
                                             <FormLabel className="text-xs">Stock</FormLabel>
-                                            <FormControl><Input type="number" step="1" placeholder="50" {...field} /></FormControl>
+                                            <FormControl><Input className="h-8 text-xs" type="number" step="1" placeholder="50" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
                                 <div className="col-span-2 flex justify-end pt-7">
-                                     <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive">
+                                     <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive h-8 w-8">
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
                          ))}
-                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: 0, stock: 0 })}>
+                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: currentBasePrice, stock: 0 })} className="w-full border-dashed">
                             <PlusCircle className="mr-2 h-4 w-4" />
-                            Agregar Variante
+                            Añadir Variante Manual
                         </Button>
                          {form.formState.errors.variants && <FormMessage>{form.formState.errors.variants.message}</FormMessage>}
                     </div>
@@ -249,34 +322,32 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                 <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="price" render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Precio</FormLabel>
+                        <FormLabel>Precio Base</FormLabel>
                         <FormControl>
                             <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
                                 <Input type="number" step="0.01" placeholder="19.99" className="pl-7" disabled={!canEditPrice} {...field} />
                             </div>
                         </FormControl>
-                        {!canEditPrice && <FormDescription className="text-xs">Solo gerentes pueden editar.</FormDescription>}
                         <FormMessage />
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="promotionalPrice" render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Precio Promocional</FormLabel>
+                        <FormLabel>Precio Oferta</FormLabel>
                         <FormControl>
                             <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
                                 <Input type="number" step="0.01" placeholder="14.99" className="pl-7" disabled={!canEditPrice} {...field} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))} />
                             </div>
                         </FormControl>
-                        <FormDescription className="text-xs">Opcional. Dejar en blanco para quitar.</FormDescription>
                         <FormMessage />
                         </FormItem>
                     )} />
                 </div>
                  <FormField control={form.control} name="currentStock" render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Stock Actual</FormLabel>
+                    <FormLabel>Stock Total</FormLabel>
                     <FormControl><Input type="number" step="1" placeholder="100" {...field} /></FormControl>
                     <FormMessage />
                     </FormItem>
@@ -284,43 +355,59 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             </div>
         )}
         
-        <FormField
-          control={form.control}
-          name="storeSpecificImage"
-          render={({ field: { onChange, value, ...rest } }) => (
-            <FormItem>
-              <FormLabel>Imagen Personalizada (Opcional)</FormLabel>
-              <FormControl>
-                <Input 
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        onChange(file);
-                    }}
-                    {...rest}
-                />
-              </FormControl>
-              <FormDescription>
-                Si se deja en blanco, se usará la imagen global del producto. Sube un archivo para reemplazar la imagen actual.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Separator />
+
+        <div className="grid sm:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="storeSpecificImage"
+            render={({ field: { onChange, value, ...rest } }) => (
+              <FormItem>
+                <FormLabel>Imagen Específica</FormLabel>
+                <FormControl>
+                  <Input 
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          onChange(file);
+                      }}
+                      {...rest}
+                  />
+                </FormControl>
+                <FormDescription className="text-[10px]">Si se deja en blanco, se usará la imagen global.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="costPriceUsd"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Costo de Reposición (USD)</FormLabel>
+                <FormControl>
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                        <Input type="number" step="0.01" placeholder="10.50" className="pl-7" {...field} />
+                    </div>
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+          />
+        </div>
 
         <FormField
           control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Descripción Personalizada (Opcional)</FormLabel>
+              <FormLabel>Descripción Personalizada</FormLabel>
               <FormControl>
-                <Textarea placeholder="Describe detalles específicos de este producto en tu tienda..." {...field} value={field.value ?? ''} />
+                <Textarea className="min-h-[100px]" placeholder="Describe detalles específicos para tu tienda..." {...field} value={field.value ?? ''} />
               </FormControl>
-              <FormDescription>
-                Esta descripción se mostrará en la página de tu producto. Si se deja en blanco, se usará la descripción global.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -331,82 +418,45 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
           name="disclaimer"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Aviso Legal / Descargo de Responsabilidad (Opcional)</FormLabel>
+              <FormLabel>Aviso / Garantía</FormLabel>
               <FormControl>
-                <Textarea placeholder="Ej: La garantía es directamente con el fabricante." {...field} value={field.value ?? ''} />
+                <Textarea className="min-h-[60px]" placeholder="Ej: Garantía de 3 meses por defectos de fábrica." {...field} value={field.value ?? ''} />
               </FormControl>
-              <FormDescription>
-                Información importante que el cliente debe saber antes de comprar. Se mostrará debajo de la descripción.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="costPriceUsd"
-          render={({ field }) => (
-              <FormItem>
-              <FormLabel>Costo de Reposición (USD)</FormLabel>
-              <FormControl>
-                  <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
-                      <Input type="number" step="0.01" placeholder="10.50" className="pl-7" {...field} />
-                  </div>
-              </FormControl>
-              <FormDescription className="text-xs">El costo real para reponer este producto.</FormDescription>
-              <FormMessage />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="isAvailable"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-sm">Disponible</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
               </FormItem>
-          )}
+            )}
           />
 
-        <div className="space-y-4">
-        <FormField
-          control={form.control}
-          name="isAvailable"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">
-                  Disponible para la venta
-                </FormLabel>
-                <FormDescription>
-                  Si está desactivado, los clientes no podrán ver ni comprar este producto en tu tienda.
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="casheaEligible"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">
-                  Elegible para Financiamiento (Cashea)
-                </FormLabel>
-                <FormDescription>
-                  Marcar si este producto se puede vender a través de financiamiento.
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="casheaEligible"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-sm">Cashea</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                </FormControl>
+              </FormItem>
+            )}
+          />
         </div>
         
         {form.formState.errors.root?.serverError && (
@@ -415,8 +465,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
           </p>
         )}
 
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Guardando..." : "Guardar Cambios"}
+        <Button type="submit" className="w-full py-6" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Guardando..." : "Finalizar y Guardar"}
         </Button>
       </form>
     </Form>

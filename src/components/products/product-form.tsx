@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -13,11 +14,22 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { createProduct, updateProduct } from "@/app/dashboard/products/actions";
 import type { Product } from "@/lib/types";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useFirestoreQuery } from "@/hooks/use-firestore-query";
+import { Copy, Search } from "lucide-react";
+import { Separator } from "../ui/separator";
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -37,6 +49,8 @@ interface ProductFormProps {
 
 export function ProductForm({ product, onSuccess }: ProductFormProps) {
   const { toast } = useToast();
+  const { data: allProducts } = useFirestoreQuery<Product>('Products');
+  const [isCloning, setIsCloning] = useState(false);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -60,18 +74,25 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         image: product.image ?? "",
         tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
       });
-    } else {
-      form.reset({
-        name: "",
-        brand: "",
-        description: "",
-        category: "",
-        image: "",
-        tags: "",
-      });
     }
   }, [product, form]);
 
+  const handleClone = (productId: string) => {
+    const source = allProducts.find(p => p.id === productId);
+    if (source) {
+      form.reset({
+        name: `${source.name} (Copia)`,
+        brand: source.brand,
+        description: source.description,
+        category: source.category,
+        image: source.image,
+        tags: Array.isArray(source.tags) ? source.tags.join(", ") : "",
+      });
+      toast({
+        description: "Datos cargados desde el producto seleccionado.",
+      });
+    }
+  };
 
   const onSubmit = async (data: ProductFormValues) => {
     const formData = new FormData();
@@ -86,8 +107,6 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
     } else if (!product) {
         formData.delete('image');
     } else {
-        // For updates, if no new file is selected, we should not send an empty string
-        // The server action will handle keeping the old image.
         formData.delete('image');
     }
 
@@ -116,6 +135,27 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+        
+        {!product && allProducts.length > 0 && (
+          <div className="bg-muted/50 p-3 rounded-lg border border-dashed border-primary/30 mb-4">
+            <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-primary">
+              <Copy className="h-3 w-3" />
+              AUTOCOMPLETAR DESDE EXISTENTE
+            </div>
+            <Select onValueChange={handleClone}>
+              <SelectTrigger className="h-8 text-xs bg-background">
+                <SelectValue placeholder="Selecciona un producto para clonar datos..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allProducts.map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.name} ({p.brand})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">Ahorra tiempo cargando marca, descripción y etiquetas de otro producto.</p>
+          </div>
+        )}
+
         <FormField
           control={form.control}
           name="name"
@@ -123,51 +163,56 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
             <FormItem>
               <FormLabel>Nombre del Producto</FormLabel>
               <FormControl>
-                <Input placeholder="Auriculares Inalámbricos" {...field} />
+                <Input placeholder="Zapatos Deportivos Pro" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="brand"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Marca</FormLabel>
+                <FormControl>
+                  <Input placeholder="Adidas, Nike..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Categoría</FormLabel>
+                <FormControl>
+                  <Input placeholder="Calzado, Ropa..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
         <FormField
-          control={form.control}
-          name="brand"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Marca</FormLabel>
-              <FormControl>
-                <Input placeholder="NombreDeLaMarca" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
           control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Descripción</FormLabel>
               <FormControl>
-                <Textarea placeholder="Auriculares inalámbricos de alta calidad..." {...field} />
+                <Textarea placeholder="Detalles del producto..." {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Categoría</FormLabel>
-              <FormControl>
-                <Input placeholder="Electrónica" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
          <FormField
             control={form.control}
             name="image"
@@ -196,7 +241,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
             <FormItem>
               <FormLabel>Etiquetas (separadas por comas)</FormLabel>
               <FormControl>
-                <Input placeholder="audio, inalámbrico, bluetooth" {...field} />
+                <Input placeholder="deporte, running, cuero" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -209,7 +254,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
           </p>
         )}
 
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Guardando..." : (product ? "Guardar Cambios" : "Guardar Producto")}
         </Button>
       </form>

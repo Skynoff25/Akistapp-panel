@@ -1,9 +1,13 @@
+
 "use client";
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -32,12 +36,32 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
     const { appUser } = useAuth();
     const { toast } = useToast();
     const pathname = usePathname();
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        if (!storeId) return;
+        const startOfToday = startOfDay(new Date()).getTime();
+        const q = query(
+            collection(db, 'Orders'),
+            where('storeId', '==', storeId),
+            where('status', '==', 'PENDING'),
+            where('createdAt', '>=', startOfToday)
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setPendingCount(snapshot.size);
+        }, (err) => {
+            console.error("Error listening to store pending orders:", err);
+        });
+
+        return () => unsubscribe();
+    }, [storeId]);
 
     const navItems = [
         { href: `/store/${storeId}`, label: 'Dashboard', icon: LayoutDashboard, enabled: true },
         { href: `/store/${storeId}/my-store`, label: 'Mi Tienda', icon: Store, enabled: true },
         { href: `/store/${storeId}/my-products`, label: 'Mis Productos', icon: Package, enabled: true },
-        { href: `/store/${storeId}/orders`, label: 'Pedidos', icon: ShoppingCart, enabled: true },
+        { href: `/store/${storeId}/orders`, label: 'Pedidos', icon: ShoppingCart, enabled: true, badge: pendingCount },
         { href: `/store/${storeId}/promotions`, label: 'Promociones', icon: Megaphone, enabled: true },
         { href: `/store/${storeId}/pos`, label: 'Punto de Venta', icon: Banknote, enabled: store?.hasPos ?? false },
         { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling, enabled: store?.hasFinanceModule ?? false },
@@ -50,7 +74,6 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
             title: "Sesión Cerrada",
             description: "Has cerrado sesión exitosamente.",
         });
-        // AuthProvider will redirect
         } catch (error) {
         console.error("Logout Error:", error);
         toast({
@@ -98,12 +121,17 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
                     <Button
                         variant={isActive ? 'secondary' : 'ghost'}
                         className={cn(
-                            "w-full justify-start",
+                            "w-full justify-start relative",
                             isActive && "text-primary font-semibold"
                         )}
                     >
                         <item.icon className="mr-2 h-4 w-4" />
                         {item.label}
+                        {item.badge !== undefined && item.badge > 0 && (
+                          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                            {item.badge > 9 ? '9+' : item.badge}
+                          </span>
+                        )}
                     </Button>
                 </Link>
             )

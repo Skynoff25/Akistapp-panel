@@ -7,6 +7,8 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { startOfDay } from 'date-fns';
 import type { Order } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { ToastAction } from '@/components/ui/toast';
 
 interface OrderRealtimeNotifierProps {
   storeId?: string;
@@ -17,6 +19,7 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
   const isInitialLoad = useRef(true);
   const audioContext = useRef<AudioContext | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const playAlertSound = () => {
     try {
@@ -26,7 +29,6 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
       
       const ctx = audioContext.current;
       
-      // Los navegadores a veces suspenden el contexto de audio si no hay interacción
       if (ctx.state === 'suspended') {
         ctx.resume();
       }
@@ -62,6 +64,20 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
     }
   };
 
+  const showUINotification = (order: Order) => {
+    const ordersPath = storeId ? `/store/${storeId}/orders` : `/dashboard/orders`;
+    
+    toast({
+      title: "🚀 ¡Nuevo Pedido Recibido!",
+      description: `${order.userName || 'Cliente'} - Total: $${order.totalAmount.toFixed(2)}`,
+      action: (
+        <ToastAction altText="Ver pedido" onClick={() => router.push(ordersPath)}>
+          Ver Pedido
+        </ToastAction>
+      ),
+    });
+  };
+
   useEffect(() => {
     if (!enabled) {
         isInitialLoad.current = true;
@@ -92,6 +108,7 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
           const newOrder = { id: change.doc.id, ...change.doc.data() } as Order;
           playAlertSound();
           showNativeNotification(newOrder);
+          showUINotification(newOrder);
         }
       });
     }, (error) => {
@@ -100,13 +117,13 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
         toast({
           variant: "destructive",
           title: "Error de Base de Datos",
-          description: "La consulta requiere un índice compuesto. Haz clic en el enlace del error en la consola de tu navegador para crearlo automáticamente.",
+          description: "La consulta requiere un índice compuesto. Revisa la consola del navegador para crearlo.",
         });
       }
     });
 
     return () => unsubscribe();
-  }, [enabled, storeId, toast]);
+  }, [enabled, storeId, toast, router]);
 
   return null;
 }

@@ -1,9 +1,13 @@
+
 "use client";
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { startOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -15,12 +19,14 @@ import {
     LogOut,
     Megaphone,
     ShieldAlert,
-    Bell
+    Bell,
+    ShoppingCart
 } from 'lucide-react';
 import Image from 'next/image';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard/orders', label: 'Pedidos Globales', icon: ShoppingCart },
   { href: '/dashboard/stores', label: 'Tiendas', icon: Store },
   { href: '/dashboard/products', label: 'Productos', icon: Package },
   { href: '/dashboard/users', label: 'Usuarios', icon: Users },
@@ -29,22 +35,26 @@ const navItems = [
   { href: '/dashboard/notifications', label: 'Notificaciones', icon: Bell },
 ];
 
-const NavItem = ({ href, label, icon: Icon }: typeof navItems[0]) => {
+const NavItem = ({ href, label, icon: Icon, badgeCount }: typeof navItems[0] & { badgeCount?: number }) => {
   const pathname = usePathname();
   const isActive = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard');
-
 
   return (
     <Link href={href} passHref>
       <Button
         variant={isActive ? 'secondary' : 'ghost'}
         className={cn(
-            "w-full justify-start",
+            "w-full justify-start relative",
             isActive && "text-primary font-semibold"
         )}
       >
         <Icon className="mr-2 h-4 w-4" />
         {label}
+        {badgeCount !== undefined && badgeCount > 0 && (
+          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+            {badgeCount > 9 ? '9+' : badgeCount}
+          </span>
+        )}
       </Button>
     </Link>
   );
@@ -52,6 +62,24 @@ const NavItem = ({ href, label, icon: Icon }: typeof navItems[0]) => {
 
 export default function Sidebar() {
   const { toast } = useToast();
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+
+  useEffect(() => {
+    const startOfToday = startOfDay(new Date()).getTime();
+    const q = query(
+      collection(db, 'Orders'), 
+      where('status', '==', 'PENDING'),
+      where('createdAt', '>=', startOfToday)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPendingOrdersCount(snapshot.size);
+    }, (err) => {
+      console.error("Error listening to global pending orders:", err);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -60,7 +88,6 @@ export default function Sidebar() {
         title: "Sesión Cerrada",
         description: "Has cerrado sesión exitosamente.",
       });
-      // AuthProvider will redirect
     } catch (error) {
       console.error("Logout Error:", error);
       toast({
@@ -93,7 +120,11 @@ export default function Sidebar() {
 
       <nav className="flex-grow space-y-1 overflow-y-auto">
         {navItems.map((item) => (
-          <NavItem key={item.href} {...item} />
+          <NavItem 
+            key={item.href} 
+            {...item} 
+            badgeCount={item.href === '/dashboard/orders' ? pendingOrdersCount : undefined}
+          />
         ))}
       </nav>
     </aside>

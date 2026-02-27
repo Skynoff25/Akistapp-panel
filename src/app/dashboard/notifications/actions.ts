@@ -1,3 +1,4 @@
+
 "use server";
 
 import { z } from "zod";
@@ -44,7 +45,8 @@ export async function sendPushNotification(formData: FormData) {
     response.responses.forEach((res, idx) => {
       if (!res.success) {
         console.error(`Failed to send to token ${tokens[idx].token}:`, res.error);
-        if (['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'].includes(res.error.code)) {
+        const code = (res.error as any).code;
+        if (['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'].includes(code)) {
             invalidTokens.push(tokens[idx].token);
         }
       }
@@ -64,38 +66,42 @@ export async function sendPushNotification(formData: FormData) {
 }
 
 async function getTargetTokens(targetType: string, targetValue?: string): Promise<{ userId: string, token: string }[]> {
-  const { db } = await import("@/lib/firebase");
-  const { collection, query, where, getDocs } = await import("firebase/firestore");
+  if (!adminDb) {
+    throw new Error("El SDK de Firestore de Administrador no está inicializado.");
+  }
   
-  let userDocsQuery;
+  let userQuery: any = adminDb.collection("Users");
   
   if (targetType === 'all') {
-    userDocsQuery = query(collection(db, "Users"), where('fcmTokens', '!=', []));
+    // Nota: El operador '!=' requiere un índice si se combina con otros filtros, 
+    // pero aquí es simple sobre fcmTokens.
+    userQuery = userQuery.where('fcmTokens', '!=', []);
   } else if (targetType === 'user' && targetValue) {
-    userDocsQuery = query(collection(db, "Users"), where('__name__', '==', targetValue));
+    userQuery = userQuery.where('__name__', '==', targetValue);
   } else if (targetType === 'store' && targetValue) {
-    userDocsQuery = query(collection(db, "Users"), where('favoriteStoreIds', 'array-contains', targetValue));
+    userQuery = userQuery.where('favoriteStoreIds', 'array-contains', targetValue);
   } else {
     return [];
   }
   
-  const querySnapshot = await getDocs(userDocsQuery);
+  const querySnapshot = await userQuery.get();
   const tokens: { userId: string, token: string }[] = [];
-  querySnapshot.forEach(doc => {
+  
+  querySnapshot.forEach((doc: any) => {
     const user = doc.data();
     if (user.fcmTokens && Array.isArray(user.fcmTokens)) {
-      user.fcmTokens.forEach(token => {
+      user.fcmTokens.forEach((token: string) => {
         tokens.push({ userId: doc.id, token });
       });
     }
   });
+  
   return tokens;
 }
 
 async function cleanupInvalidTokens(invalidTokens: string[]) {
-    if (!adminDb) {
-      throw new Error("El SDK de Firestore de Administrador no está inicializado.");
-    }
+    if (!adminDb) return;
+    
     const tokensCollection = adminDb.collection('Users');
     const snapshot = await tokensCollection.where('fcmTokens', 'array-contains-any', invalidTokens).get();
 

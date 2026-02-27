@@ -1,11 +1,12 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { startOfDay } from 'date-fns';
 import type { Order } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderRealtimeNotifierProps {
   storeId?: string;
@@ -15,6 +16,7 @@ interface OrderRealtimeNotifierProps {
 export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtimeNotifierProps) {
   const isInitialLoad = useRef(true);
   const audioContext = useRef<AudioContext | null>(null);
+  const { toast } = useToast();
 
   const playAlertSound = () => {
     try {
@@ -23,6 +25,12 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
       }
       
       const ctx = audioContext.current;
+      
+      // Los navegadores a veces suspenden el contexto de audio si no hay interacción
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
 
@@ -46,25 +54,22 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
 
   const showNativeNotification = (order: Order) => {
     if (Notification.permission === 'granted') {
-      const n = new Notification('¡Nueva Orden Recibida! 🚀', {
+      new Notification('¡Nueva Orden Recibida! 🚀', {
         body: `${order.userName || 'Un cliente'} ha realizado un pedido de $${order.totalAmount.toFixed(2)}`,
-        icon: '/logo.png', // Asegúrate de tener un icono en public/logo.png
+        icon: '/logo.png',
         tag: order.id,
       });
-      
-      n.onclick = () => {
-        window.focus();
-        // Podrías redirigir aquí si fuera necesario
-      };
     }
   };
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+        isInitialLoad.current = true;
+        return;
+    }
 
     const startOfToday = startOfDay(new Date()).getTime();
     
-    // Construir query: Pendientes de hoy
     const constraints = [
       where('status', '==', 'PENDING'),
       where('createdAt', '>=', startOfToday),
@@ -85,15 +90,23 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const newOrder = { id: change.doc.id, ...change.doc.data() } as Order;
-          
           playAlertSound();
           showNativeNotification(newOrder);
         }
       });
+    }, (error) => {
+      console.error("Firestore Error in Realtime Notifier:", error);
+      if (error.code === 'failed-precondition') {
+        toast({
+          variant: "destructive",
+          title: "Error de Base de Datos",
+          description: "La consulta requiere un índice compuesto. Haz clic en el enlace del error en la consola de tu navegador para crearlo automáticamente.",
+        });
+      }
     });
 
     return () => unsubscribe();
-  }, [enabled, storeId]);
+  }, [enabled, storeId, toast]);
 
-  return null; // Componente lógico invisible
+  return null;
 }

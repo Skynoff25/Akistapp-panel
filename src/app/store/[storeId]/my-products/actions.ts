@@ -137,20 +137,30 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
             return { errors: { _form: ['El producto no existe.'] } };
         }
 
-        const { promotionalPrice, variants: variantsJSON, storeSpecificImage, storeSpecificImageUrl, ...data } = validatedFields.data;
+        const { 
+            promotionalPrice, 
+            variants: variantsJSON, 
+            storeSpecificImage, 
+            storeSpecificImageUrl, 
+            price, 
+            currentStock, 
+            ...data 
+        } = validatedFields.data;
         
-        const updateData: { [key: string]: any } = {...data};
+        // Inicializamos updateData solo con los campos definidos para evitar errores de Firestore con undefined
+        const updateData: { [key: string]: any } = {};
+        Object.entries(data).forEach(([key, value]) => {
+            if (value !== undefined) updateData[key] = value;
+        });
 
-        // Manejo de imagen: 1. URL texto, 2. Archivo nuevo, 3. Mantener vieja
+        // Manejo de imagen
         let finalImageUrl = storeSpecificImageUrl || docSnap.data().storeSpecificImage;
-        
         if (!storeSpecificImageUrl && storeSpecificImage instanceof File && storeSpecificImage.size > 0) {
             finalImageUrl = await uploadImage(storeSpecificImage, 'store_products');
         } else if (!storeSpecificImageUrl && storeSpecificImage === "") {
              finalImageUrl = "";
         }
-        updateData.storeSpecificImage = finalImageUrl;
-
+        updateData.storeSpecificImage = finalImageUrl || "";
 
         if (updateData.hasVariations) {
             if (!variantsJSON) {
@@ -174,15 +184,16 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
                 updateData.promotionalPrice = deleteField();
                 
             } catch (e) {
-                console.error(e)
                 return { errors: { _form: ['Las variaciones tienen un formato inválido.'] } };
             }
         } else {
-             if (data.price === undefined || data.currentStock === undefined) {
-                return { errors: { _form: ['El precio y el stock base son obligatorios cuando no hay variaciones.'] } };
+             if (price === undefined || currentStock === undefined) {
+                return { errors: { _form: ['El precio y el stock son obligatorios para productos sin variaciones.'] } };
             }
             updateData.variants = [];
             updateData.priceRange = null;
+            updateData.price = price;
+            updateData.currentStock = currentStock;
 
             if (promotionalPrice && promotionalPrice > 0) {
                 updateData.promotionalPrice = promotionalPrice;
@@ -198,10 +209,11 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
         revalidatePath(`/store/${storeId}/my-products`);
         revalidatePath(`/store/${storeId}`);
         revalidatePath(`/store/${storeId}/finance`);
-        return { message: 'Producto actualizado.' };
-    } catch(e) {
-        console.error(e);
-        return { errors: { _form: ['No se pudo actualizar el producto.'] } };
+        
+        return { message: 'Producto actualizado exitosamente.' };
+    } catch(e: any) {
+        console.error("Error updating store product:", e);
+        return { errors: { _form: [`Error al actualizar el producto: ${e.message || 'Error desconocido'}`] } };
     }
 }
 

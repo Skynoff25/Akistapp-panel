@@ -1,13 +1,9 @@
-// src/app/dashboard/users/actions.ts
 'use server';
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
-// 1. DEFINIMOS LA URL BASE
-// Lo ideal es usar una variable de entorno, pero por ahora usa la que SABES que funciona.
-// Si tienes configurado un .env, usa: process.env.BACKEND_URL
 const API_URL = process.env.BACKEND_URL || 'https://akistapp-backend--akistapp.us-east4.hosted.app';
 
 const createUserSchema = z.object({
@@ -49,7 +45,7 @@ async function getAuthHeaders() {
 
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`, // Asegúrate que tu backend espera "Bearer"
+    'Authorization': `Bearer ${token}`,
   };
 }
 
@@ -63,17 +59,12 @@ export async function createUser(formData: FormData) {
 
   try {
     const headers = await getAuthHeaders();
-    
-    // 2. CORRECCIÓN AQUI: Usamos la URL absoluta
-    console.log(`Intentando conectar a: ${API_URL}/api/create-user`); // Log para depurar
-
     const res = await fetch(`${API_URL}/api/create-user`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(validatedFields.data),
     });
 
-    // Es importante leer el texto o json con cuidado
     const responseText = await res.text();
     let data;
     try {
@@ -107,8 +98,6 @@ export async function updateUser(formData: FormData) {
 
   try {
     const headers = await getAuthHeaders();
-
-    // 3. CORRECCIÓN AQUI
     const res = await fetch(`${API_URL}/api/update-user`, {
       method: 'POST', 
       headers: headers,
@@ -132,11 +121,34 @@ export async function updateUser(formData: FormData) {
   }
 }
 
+export async function toggleBlockUser(userId: string, isBlocked: boolean, reason?: string) {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/api/update-user`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        uid: userId,
+        data: {
+          isBlocked: isBlocked,
+          blockedReason: isBlocked ? (reason || 'No especificado') : null
+        }
+      }),
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Error al cambiar estado de bloqueo');
+
+    revalidatePath('/dashboard/users');
+    return { message: `Usuario ${isBlocked ? 'bloqueado' : 'desbloqueado'} correctamente.` };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
 export async function deleteUser(userId: string) {
   try {
     const headers = await getAuthHeaders();
-
-    // 4. CORRECCIÓN AQUI
     const res = await fetch(`${API_URL}/api/delete-user`, {
       method: 'DELETE',
       headers: headers,

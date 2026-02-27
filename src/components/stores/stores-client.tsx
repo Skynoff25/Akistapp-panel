@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { useFirestoreSubscription } from '@/hooks/use-firestore-subscription';
 import type { Store } from '@/lib/types';
@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { StoreForm } from './store-form';
 import { PageHeader } from '../ui/page-header';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Copy, Check } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Copy, Check, Calendar, AlertCircle, XCircle } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -43,6 +43,7 @@ import { deleteStore } from '@/app/dashboard/stores/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { getImageUrl } from '@/lib/utils';
+import { format, differenceInDays, isBefore } from 'date-fns';
 
 function CopyIdButton({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
@@ -51,23 +52,46 @@ function CopyIdButton({ id }: { id: string }) {
   const handleCopy = () => {
     navigator.clipboard.writeText(id);
     setCopied(true);
-    toast({
-      description: "ID de tienda copiado al portapapeles.",
-    });
+    toast({ description: "ID de tienda copiado." });
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      className="h-6 w-6 text-muted-foreground hover:text-primary" 
-      onClick={handleCopy}
-      title="Copiar ID"
-    >
+    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy}>
       {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
     </Button>
   );
+}
+
+function ExpirationBadge({ expiresAt }: { expiresAt?: number }) {
+    if (!expiresAt) return <Badge variant="outline">Sin fecha</Badge>;
+    
+    const now = Date.now();
+    const expiryDate = new Date(expiresAt);
+    const daysLeft = differenceInDays(expiryDate, now);
+    const expired = isBefore(expiryDate, now);
+
+    if (expired) {
+        return (
+            <Badge variant="destructive" className="gap-1">
+                <XCircle className="h-3 w-3" /> Vencido
+            </Badge>
+        );
+    }
+
+    if (daysLeft <= 7) {
+        return (
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 gap-1 border-yellow-200">
+                <AlertCircle className="h-3 w-3" /> Expira en {daysLeft}d
+            </Badge>
+        );
+    }
+
+    return (
+        <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 gap-1">
+            <Check className="h-3 w-3" /> Activo
+        </Badge>
+    );
 }
 
 export default function StoresClient() {
@@ -95,23 +119,17 @@ export default function StoresClient() {
   const confirmDelete = async () => {
     if (!selectedStore) return;
     const result = await deleteStore(selectedStore.id);
-     if (result.message) {
-        toast({
-            title: "Tienda Eliminada",
-            description: result.message,
-        });
-     }
+    toast({ title: "Tienda Eliminada", description: result.message });
     setAlertOpen(false);
     setSelectedStore(null);
   };
-
 
   if (loading) return <Loader className="h-[50vh]" />;
   if (error) return <p className="text-destructive">Error: {error.message}</p>;
 
   return (
     <>
-      <PageHeader title="Tiendas" description="Administra las tiendas.">
+      <PageHeader title="Tiendas" description="Administra las tiendas y sus planes de pago.">
         <Button onClick={handleAddNew}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Crear nueva tienda
@@ -122,63 +140,57 @@ export default function StoresClient() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px]">Imagen</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>ID de Tienda</TableHead>
-              <TableHead>Dirección</TableHead>
+              <TableHead className="w-[80px]">Logo</TableHead>
+              <TableHead>Nombre / ID</TableHead>
               <TableHead>Plan</TableHead>
-              <TableHead className="text-right w-[80px]">Acciones</TableHead>
+              <TableHead>Estado Plan</TableHead>
+              <TableHead>Último Pago</TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {stores.length === 0 ? (
                 <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                        No se encontraron tiendas.
-                    </TableCell>
+                    <TableCell colSpan={6} className="h-24 text-center">No hay tiendas.</TableCell>
                 </TableRow>
             ) : stores.map((store) => (
               <TableRow key={store.id}>
                 <TableCell>
-                  <Image
-                    src={getImageUrl(store.imageUrl, store.id, 40, 40)}
-                    alt={store.name || 'Logo de la tienda'}
-                    width={40}
-                    height={40}
-                    data-ai-hint="store logo"
-                    className="rounded-full object-cover"
-                  />
+                  <Image src={getImageUrl(store.imageUrl, store.id, 40, 40)} alt={store.name} width={40} height={40} className="rounded-full object-cover" />
                 </TableCell>
-                <TableCell className="font-medium">{store.name}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2 font-mono text-[10px] bg-muted px-2 py-1 rounded">
-                    {store.id}
-                    <CopyIdButton id={store.id} />
+                  <div className="font-medium text-sm">{store.name}</div>
+                  <div className="flex items-center gap-1 font-mono text-[9px] text-muted-foreground">
+                    {store.id} <CopyIdButton id={store.id} />
                   </div>
                 </TableCell>
-                <TableCell className="text-xs">{store.address}, {store.city}</TableCell>
                 <TableCell>
-                  <Badge variant={store.subscriptionPlan === 'PREMIUM' ? 'default' : 'secondary'}>
-                    {store.subscriptionPlan}
-                  </Badge>
+                  <Badge variant={store.subscriptionPlan === 'PREMIUM' ? 'default' : 'secondary'}>{store.subscriptionPlan}</Badge>
+                </TableCell>
+                <TableCell>
+                    <ExpirationBadge expiresAt={store.planExpiresAt} />
+                    {store.planExpiresAt && (
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                            Vence: {format(new Date(store.planExpiresAt), 'dd/MM/yyyy')}
+                        </div>
+                    )}
+                </TableCell>
+                <TableCell>
+                    <div className="text-sm font-semibold">${store.lastPaymentAmount?.toFixed(2) || '0.00'}</div>
+                    {store.lastPaymentDate && (
+                        <div className="text-[10px] text-muted-foreground">
+                            {format(new Date(store.lastPaymentDate), 'dd/MM/yy')}
+                        </div>
+                    )}
                 </TableCell>
                 <TableCell className="text-right">
-                    <DropdownMenu modal={false}>
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                            <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => handleEdit(store)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                <span>Editar</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDelete(store)}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                <span>Borrar</span>
-                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleEdit(store)}><Edit className="mr-2 h-4 w-4" /> Editar / Cobrar</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDelete(store)}><Trash2 className="mr-2 h-4 w-4" /> Borrar</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </TableCell>
@@ -190,27 +202,17 @@ export default function StoresClient() {
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{selectedStore ? 'Editar Tienda' : 'Crear Nueva Tienda'}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{selectedStore ? 'Gestionar Tienda' : 'Crear Nueva Tienda'}</DialogTitle></DialogHeader>
           <StoreForm store={selectedStore} onSuccess={() => setDialogOpen(false)} />
         </DialogContent>
       </Dialog>
       
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>¿Estas seguro de esta acción?</AlertDialogTitle>
-            <AlertDialogDescription>
-                Esta acción no se puede deshacer y se eliminara la tienda permanentemente 
-                <span className="font-semibold"> "{selectedStore?.name}"</span>.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
+            <AlertDialogHeader><AlertDialogTitle>¿Borrar tienda?</AlertDialogTitle><AlertDialogDescription>Se eliminará permanentemente "{selectedStore?.name}".</AlertDialogDescription></AlertDialogHeader>
             <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-                Borrar
-            </AlertDialogAction>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Borrar</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

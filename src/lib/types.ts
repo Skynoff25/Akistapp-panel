@@ -27,6 +27,11 @@ export interface Store {
   hasPos?: boolean;
   hasFinanceModule?: boolean;
 
+  // Plan tracking
+  planExpiresAt?: number;
+  lastPaymentAmount?: number;
+  lastPaymentDate?: number;
+
   // Reputation and status
   rating: number;
   ratingCount: number;

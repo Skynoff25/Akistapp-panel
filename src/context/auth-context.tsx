@@ -6,7 +6,7 @@ import { auth, areFirebaseCredentialsSet, db } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import Loader from '@/components/ui/loader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
+import { Terminal, Ban } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -54,11 +54,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-
         const userDocRef = doc(db, 'Users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-          setAppUser({ id: userDocSnap.id, ...userDocSnap.data() } as AppUser);
+          const data = userDocSnap.data() as AppUser;
+          
+          if (data.isBlocked) {
+            setAppUser(null);
+            await signOut(auth);
+            toast({
+                variant: 'destructive',
+                title: 'Cuenta Bloqueada',
+                description: data.blockedReason || 'Tu cuenta ha sido suspendida. Contacta a soporte.',
+            });
+          } else {
+            setAppUser({ id: userDocSnap.id, ...data });
+          }
         } else {
           setAppUser(null);
           await signOut(auth);
@@ -69,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     if (loading || !areFirebaseCredentialsSet) return;
@@ -83,9 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!appUser) {
-      return;
-    }
+    if (!appUser) return;
 
     if (appUser.rol === 'customer') {
       signOut(auth);

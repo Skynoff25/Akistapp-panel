@@ -19,10 +19,12 @@ import type { Store, SubscriptionPlan } from "@/lib/types";
 import { createStore, updateStore } from "@/app/dashboard/stores/actions";
 import { useEffect } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Card } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "../ui/label";
+import { format } from "date-fns";
+import { CalendarIcon, CreditCard } from "lucide-react";
 
 const storeSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
@@ -41,6 +43,9 @@ const storeSchema = z.object({
   sponsoredKeywords: z.string().optional(),
   hasPos: z.boolean().default(false),
   hasFinanceModule: z.boolean().default(false),
+  // Plan tracking
+  planExpiresAt: z.string().optional(),
+  lastPaymentAmount: z.coerce.number().optional(),
 });
 
 type StoreFormValues = z.infer<typeof storeSchema>;
@@ -58,6 +63,7 @@ const planOptions: { value: SubscriptionPlan, title: string, price: string, feat
 
 export function StoreForm({ store, onSuccess }: StoreFormProps) {
   const { toast } = useToast();
+  
   const form = useForm<StoreFormValues>({
     resolver: zodResolver(storeSchema),
     defaultValues: {
@@ -77,28 +83,34 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
       sponsoredKeywords: store?.sponsoredKeywords?.join(', ') || '',
       hasPos: store?.hasPos || false,
       hasFinanceModule: store?.hasFinanceModule || false,
+      planExpiresAt: store?.planExpiresAt ? format(new Date(store.planExpiresAt), 'yyyy-MM-dd') : '',
+      lastPaymentAmount: store?.lastPaymentAmount || 0,
     },
   });
 
   useEffect(() => {
-    form.reset({
-        name: store?.name || "",
-        city: store?.city || "",
-        zipcode: store?.zipcode || "",
-        address: store?.address || "",
-        phone: store?.phone || "",
-        latitude: store?.latitude || 0.0,
-        longitude: store?.longitude || 0.0,
-        imageUrl: store?.imageUrl || "",
-        subscriptionPlan: store?.subscriptionPlan || 'BASIC',
-        allowPickup: store?.allowPickup || false,
-        allowDelivery: store?.allowDelivery || false,
-        deliveryType: store?.deliveryType || 'AGREEMENT',
-        deliveryFee: store?.deliveryFee || 0,
-        sponsoredKeywords: store?.sponsoredKeywords?.join(', ') || '',
-        hasPos: store?.hasPos || false,
-        hasFinanceModule: store?.hasFinanceModule || false,
-    });
+    if (store) {
+        form.reset({
+            name: store.name,
+            city: store.city,
+            zipcode: store.zipcode,
+            address: store.address,
+            phone: store.phone,
+            latitude: store.latitude,
+            longitude: store.longitude,
+            imageUrl: store.imageUrl,
+            subscriptionPlan: store.subscriptionPlan,
+            allowPickup: store.allowPickup,
+            allowDelivery: store.allowDelivery,
+            deliveryType: store.deliveryType,
+            deliveryFee: store.deliveryFee,
+            sponsoredKeywords: store.sponsoredKeywords?.join(', '),
+            hasPos: store.hasPos,
+            hasFinanceModule: store.hasFinanceModule,
+            planExpiresAt: store.planExpiresAt ? format(new Date(store.planExpiresAt), 'yyyy-MM-dd') : '',
+            lastPaymentAmount: store.lastPaymentAmount,
+        });
+    }
   }, [store, form]);
 
   const selectedPlan = form.watch("subscriptionPlan");
@@ -106,14 +118,12 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
   const allowDelivery = form.watch("allowDelivery");
   const deliveryType = form.watch("deliveryType");
 
-
   useEffect(() => {
     if (isBasicPlan) {
       form.setValue('allowPickup', false);
       form.setValue('allowDelivery', false);
     }
   }, [isBasicPlan, form]);
-
 
   const onSubmit = async (data: StoreFormValues) => {
     const formData = new FormData();
@@ -129,19 +139,16 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
     const result = await action(formData);
     
     if (result?.errors) {
-        // This part is for server-side validation errors, not implemented in this version
+        toast({ variant: 'destructive', title: 'Error', description: 'Revisa los campos del formulario.' });
     } else {
-        toast({
-            title: store ? "Tienda Actualizada" : "Tienda Creada",
-            description: `La tienda "${data.name}" se ha guardado exitosamente.`,
-        });
+        toast({ title: store ? "Tienda Actualizada" : "Tienda Creada", description: result.message });
         onSuccess();
     }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[75vh] overflow-y-auto p-1">
         
         <FormField
           control={form.control}
@@ -150,25 +157,16 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
             <FormItem className="space-y-3">
               <FormLabel>Plan de Suscripción</FormLabel>
               <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-                >
+                <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {planOptions.map(plan => (
                     <FormItem key={plan.value}>
-                      <FormControl>
-                          <RadioGroupItem value={plan.value} className="sr-only" />
-                      </FormControl>
+                      <FormControl><RadioGroupItem value={plan.value} className="sr-only" /></FormControl>
                       <FormLabel className="cursor-pointer">
-                        <Card className={cn(
-                            "p-4 transition-all",
-                             field.value === plan.value ? "border-primary ring-2 ring-primary" : "hover:border-muted-foreground/50"
-                        )}>
+                        <Card className={cn("p-4 transition-all", field.value === plan.value ? "border-primary ring-2 ring-primary" : "hover:border-muted-foreground/50")}>
                             <div className="font-bold">{plan.title}</div>
                             <div className="text-lg font-semibold text-primary">{plan.price}</div>
-                            <ul className="mt-2 text-xs text-muted-foreground space-y-1">
-                                {plan.features.map((feature, i) => <li key={i}>{feature}</li>)}
+                            <ul className="mt-2 text-[10px] text-muted-foreground space-y-1">
+                                {plan.features.map((feature, i) => <li key={i}>• {feature}</li>)}
                             </ul>
                         </Card>
                       </FormLabel>
@@ -180,254 +178,112 @@ export function StoreForm({ store, onSuccess }: StoreFormProps) {
             </FormItem>
           )}
         />
-        
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre</FormLabel>
-              <FormControl>
-                <Input placeholder="Tienda Increíble" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Dirección</FormLabel>
-              <FormControl>
-                <Input placeholder="Calle Principal 123" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="city"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Ciudad</FormLabel>
-              <FormControl>
-                <Input placeholder="Metrópolis" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="zipcode"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Código Postal</FormLabel>
-              <FormControl>
-                <Input placeholder="12345" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="phone"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Teléfono</FormLabel>
-              <FormControl>
-                <Input placeholder="555-123-4567" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="flex gap-4">
-            <FormField
-            control={form.control}
-            name="latitude"
-            render={({ field }) => (
-                <FormItem className="w-1/2">
-                <FormLabel>Latitud</FormLabel>
-                <FormControl>
-                    <Input type="number" step="any" placeholder="40.7128" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-            <FormField
-            control={form.control}
-            name="longitude"
-            render={({ field }) => (
-                <FormItem className="w-1/2">
-                <FormLabel>Longitud</FormLabel>
-                <FormControl>
-                    <Input type="number" step="any" placeholder="-74.0060" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-            />
-        </div>
 
-        <FormField
-          control={form.control}
-          name="imageUrl"
-          render={({ field: { onChange, value, ...rest } }) => (
-            <FormItem>
-              <FormLabel>Imagen</FormLabel>
-              <FormControl>
-                 <Input 
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        onChange(file);
-                    }}
-                    {...rest}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="sponsoredKeywords"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Palabras Clave Patrocinadas ("Top Search")</FormLabel>
-              <FormControl>
-                <Input placeholder="batería, caucho, aceite" {...field} />
-              </FormControl>
-              <FormDescription>
-                Palabras separadas por comas. La tienda aparecerá primero en las búsquedas de estas palabras.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="allowPickup"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Permitir Retiro en Tienda</FormLabel>
-                <FormDescription>Los clientes podrán realizar pedidos para recoger en el local.</FormDescription>
-              </div>
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isBasicPlan} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="allowDelivery"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Permitir Despacho a Domicilio</FormLabel>
-                <FormDescription>Tu tienda podrá recibir pedidos para enviar a domicilio.</FormDescription>
-              </div>
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} disabled={isBasicPlan} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-
-         {allowDelivery && !isBasicPlan && (
-            <div className="space-y-4 rounded-lg border p-4">
-                <h4 className="font-medium text-sm">Configuración de Despacho</h4>
+        <Card className="border-orange-200 bg-orange-50/30">
+            <CardHeader className="py-3 px-4 flex flex-row items-center gap-2">
+                <CreditCard className="h-4 w-4 text-orange-600" />
+                <CardTitle className="text-sm font-bold text-orange-800">Control de Pagos y Expiración</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 grid grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
-                    name="deliveryType"
+                    name="planExpiresAt"
                     render={({ field }) => (
-                        <FormItem className="space-y-3">
-                        <FormLabel>Tipo de Tarifa</FormLabel>
-                        <FormControl>
-                            <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
-                                <FormItem className="flex items-center space-x-2">
-                                    <FormControl><RadioGroupItem value="AGREEMENT" id="admin-agreement" /></FormControl>
-                                    <Label htmlFor="admin-agreement" className="font-normal">A Convenir</Label>
-                                </FormItem>
-                                <FormItem className="flex items-center space-x-2">
-                                    <FormControl><RadioGroupItem value="FIXED" id="admin-fixed" /></FormControl>
-                                    <Label htmlFor="admin-fixed" className="font-normal">Tarifa Fija</Label>
-                                </FormItem>
-                            </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
+                        <FormItem>
+                            <FormLabel className="text-xs">Fecha de Vencimiento</FormLabel>
+                            <FormControl>
+                                <div className="relative">
+                                    <CalendarIcon className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input type="date" {...field} className="pl-8" />
+                                </div>
+                            </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                 />
-                {deliveryType === 'FIXED' && (
-                    <FormField
-                        control={form.control}
-                        name="deliveryFee"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Monto de Tarifa Fija</FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
-                                        <Input type="number" step="0.01" placeholder="5.00" className="pl-7" {...field} />
-                                    </div>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                <FormField
+                    control={form.control}
+                    name="lastPaymentAmount"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs">Monto Último Pago ($)</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="0.00" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                {store?.lastPaymentDate && (
+                    <div className="col-span-2 text-[10px] text-muted-foreground text-right italic">
+                        Último pago registrado el: {format(new Date(store.lastPaymentDate), 'dd/MM/yyyy HH:mm')}
+                    </div>
                 )}
-            </div>
-        )}
+            </CardContent>
+        </Card>
         
-        <div className="space-y-4">
-            <h3 className="text-md font-medium text-foreground">Módulos Adicionales</h3>
-            <FormField
-                control={form.control}
-                name="hasPos"
-                render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                    <FormLabel className="text-base">Punto de Venta (POS)</FormLabel>
-                    <FormDescription>Habilita el módulo para registrar ventas en tienda.</FormDescription>
-                    </div>
-                    <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="hasFinanceModule"
-                render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                    <FormLabel className="text-base">Módulo de Finanzas</FormLabel>
-                    <FormDescription>Habilita el módulo "Finanzas Reales" para esta tienda.</FormDescription>
-                    </div>
-                    <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                </FormItem>
-                )}
-            />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+                <FormItem><FormLabel>Nombre</FormLabel><FormControl><Input placeholder="Tienda Increíble" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="phone" render={({ field }) => (
+                <FormItem><FormLabel>Teléfono</FormLabel><FormControl><Input placeholder="555-123-4567" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
         </div>
 
+        <FormField control={form.control} name="address" render={({ field }) => (
+            <FormItem><FormLabel>Dirección</FormLabel><FormControl><Input placeholder="Calle Principal 123" {...field} /></FormControl><FormMessage /></FormItem>
+        )} />
 
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <div className="grid grid-cols-2 gap-4">
+            <FormField control={form.control} name="city" render={({ field }) => (
+                <FormItem><FormLabel>Ciudad</FormLabel><FormControl><Input placeholder="Metrópolis" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="zipcode" render={({ field }) => (
+                <FormItem><FormLabel>CP</FormLabel><FormControl><Input placeholder="12345" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
+        </div>
+
+        <FormField control={form.control} name="sponsoredKeywords" render={({ field }) => (
+            <FormItem>
+                <FormLabel>Top Search (Keywords)</FormLabel>
+                <FormControl><Input placeholder="batería, caucho, aceite" {...field} /></FormControl>
+                <FormDescription className="text-[10px]">Separadas por comas.</FormDescription>
+                <FormMessage />
+            </FormItem>
+        )} />
+
+        <div className="space-y-4">
+            <h3 className="text-sm font-semibold">Configuración de Logística y Módulos</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField control={form.control} name="allowPickup" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <FormLabel className="text-xs">Permitir Retiro</FormLabel>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={isBasicPlan} /></FormControl>
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="allowDelivery" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <FormLabel className="text-xs">Permitir Delivery</FormLabel>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} disabled={isBasicPlan} /></FormControl>
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="hasPos" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/20">
+                        <FormLabel className="text-xs font-bold">Módulo POS</FormLabel>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="hasFinanceModule" render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/20">
+                        <FormLabel className="text-xs font-bold">Módulo Finanzas</FormLabel>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    </FormItem>
+                )} />
+            </div>
+        </div>
+
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Guardando..." : "Guardar Tienda"}
         </Button>
       </form>

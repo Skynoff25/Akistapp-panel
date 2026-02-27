@@ -23,6 +23,9 @@ const storeSchema = z.object({
     sponsoredKeywords: z.string().optional(),
     hasPos: z.enum(['true', 'false']).transform(v => v === 'true'),
     hasFinanceModule: z.enum(['true', 'false']).transform(v => v === 'true'),
+    // Plan tracking fields
+    planExpiresAt: z.string().optional(),
+    lastPaymentAmount: z.coerce.number().optional(),
 });
 
 function getPlanDetails(plan: 'BASIC' | 'STANDARD' | 'PREMIUM') {
@@ -38,16 +41,13 @@ function getPlanDetails(plan: 'BASIC' | 'STANDARD' | 'PREMIUM') {
 
 export async function createStore(formData: FormData) {
     const values = Object.fromEntries(formData.entries());
-
     const validatedFields = storeSchema.safeParse(values);
 
     if (!validatedFields.success) {
-        return {
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
+        return { errors: validatedFields.error.flatten().fieldErrors };
     }
 
-    const { imageUrl: imageFile, ...dataFromForm } = validatedFields.data;
+    const { imageUrl: imageFile, planExpiresAt, lastPaymentAmount, ...dataFromForm } = validatedFields.data;
     const planDetails = getPlanDetails(dataFromForm.subscriptionPlan);
     let finalImageUrl = `https://picsum.photos/seed/${dataFromForm.name}/100/100`;
 
@@ -66,20 +66,14 @@ export async function createStore(formData: FormData) {
             sponsoredKeywords: dataFromForm.sponsoredKeywords
                 ? dataFromForm.sponsoredKeywords.split(',').map(kw => kw.trim().toLowerCase()).filter(kw => kw)
                 : [],
+            planExpiresAt: planExpiresAt ? new Date(planExpiresAt).getTime() : null,
+            lastPaymentAmount: lastPaymentAmount || 0,
+            lastPaymentDate: lastPaymentAmount ? Date.now() : null,
         };
 
         if (storePayload.subscriptionPlan === 'BASIC') {
             storePayload.allowPickup = false;
             storePayload.allowDelivery = false;
-        }
-
-        if (storePayload.allowDelivery) {
-            if (storePayload.deliveryType === 'AGREEMENT') {
-                storePayload.deliveryFee = 0;
-            }
-        } else {
-            delete storePayload.deliveryType;
-            storePayload.deliveryFee = 0;
         }
 
         await addDoc(collection(db, "Stores"), storePayload);
@@ -96,50 +90,45 @@ export async function updateStore(id: string, formData: FormData) {
     const validatedFields = storeSchema.safeParse(values);
 
     if (!validatedFields.success) {
-        return {
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
+        return { errors: validatedFields.error.flatten().fieldErrors };
     }
     
-    const { imageUrl: imageFile, ...dataFromForm } = validatedFields.data;
+    const { imageUrl: imageFile, planExpiresAt, lastPaymentAmount, ...dataFromForm } = validatedFields.data;
     const planDetails = getPlanDetails(dataFromForm.subscriptionPlan);
-    const dataToUpdate: { [key: string]: any } = { ...dataFromForm };
     
     try {
         const storeRef = doc(db, "Stores", id);
         const docSnap = await getDoc(storeRef);
-        if (!docSnap.exists()) {
-             return { message: "La tienda no existe." };
-        }
+        if (!docSnap.exists()) return { message: "La tienda no existe." };
 
-        let finalImageUrl = docSnap.data().imageUrl;
+        const currentData = docSnap.data();
+        let finalImageUrl = currentData.imageUrl;
         if (imageFile instanceof File && imageFile.size > 0) {
             finalImageUrl = await uploadImage(imageFile, 'store_profile');
         }
 
-        dataToUpdate.sponsoredKeywords = dataFromForm.sponsoredKeywords
-            ? dataFromForm.sponsoredKeywords.split(',').map(kw => kw.trim().toLowerCase()).filter(kw => kw)
-            : [];
+        const dataToUpdate: any = {
+            ...dataFromForm,
+            ...planDetails,
+            imageUrl: finalImageUrl,
+            sponsoredKeywords: dataFromForm.sponsoredKeywords
+                ? dataFromForm.sponsoredKeywords.split(',').map(kw => kw.trim().toLowerCase()).filter(kw => kw)
+                : [],
+            planExpiresAt: planExpiresAt ? new Date(planExpiresAt).getTime() : (currentData.planExpiresAt || null),
+        };
+
+        // Si el monto de pago cambió o se ingresó uno nuevo, actualizamos fecha de pago
+        if (lastPaymentAmount !== undefined && lastPaymentAmount !== currentData.lastPaymentAmount) {
+            dataToUpdate.lastPaymentAmount = lastPaymentAmount;
+            dataToUpdate.lastPaymentDate = Date.now();
+        }
 
         if (dataToUpdate.subscriptionPlan === 'BASIC') {
             dataToUpdate.allowPickup = false;
             dataToUpdate.allowDelivery = false;
         }
-        
-        if (dataToUpdate.allowDelivery) {
-            if (dataToUpdate.deliveryType === 'AGREEMENT') {
-                dataToUpdate.deliveryFee = 0;
-            }
-        } else {
-            dataToUpdate.deliveryType = deleteField();
-            dataToUpdate.deliveryFee = 0;
-        }
 
-        await updateDoc(storeRef, {
-            ...dataToUpdate,
-            ...planDetails,
-            imageUrl: finalImageUrl
-        });
+        await updateDoc(storeRef, dataToUpdate);
         revalidatePath("/dashboard/stores");
         return { message: "Tienda actualizada exitosamente." };
     } catch (e) {
@@ -147,7 +136,6 @@ export async function updateStore(id: string, formData: FormData) {
         return { message: "No se pudo actualizar la tienda." };
     }
 }
-
 
 export async function deleteStore(id: string) {
     try {

@@ -1,5 +1,6 @@
+
 import StoreSidebar from '@/components/layout/store-sidebar';
-import { PageHeader } from '@/components/ui/page-header';
+import DashboardHeader from '@/components/layout/dashboard-header';
 
 export default function StoreDashboardLayout({
   children,
@@ -11,9 +12,12 @@ export default function StoreDashboardLayout({
   return (
     <div className="flex min-h-screen">
       <StoreSidebar storeId={params.storeId} />
-      <main className="flex-1 p-4 sm:p-6 md:p-8 bg-background">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col">
+        <DashboardHeader storeId={params.storeId} />
+        <main className="p-4 sm:p-6 md:p-8 bg-background flex-1">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

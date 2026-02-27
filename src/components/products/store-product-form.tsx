@@ -28,7 +28,7 @@ import { updateStoreProduct } from "@/app/store/[storeId]/my-products/actions";
 import { useAuth } from "@/context/auth-context";
 import { useEffect, useState } from "react";
 import { Label } from "../ui/label";
-import { PlusCircle, Trash2, Wand2, Zap, Link, Upload } from "lucide-react";
+import { PlusCircle, Trash2, Wand2, Zap, Link, Upload, Copy } from "lucide-react";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "../ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Textarea } from "../ui/textarea";
@@ -160,18 +160,27 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       id: crypto.randomUUID(),
       name,
       price: basePrice,
-      stock: 0,
+      stock: 1, // Por defecto al menos 1 unidad según requerimiento
     }));
 
-    if (fields.length > 0) {
-      if (confirm("Ya tienes variantes creadas. ¿Deseas reemplazarlas por este lote nuevo?")) {
-        replace(newVariants);
-      } else {
-        newVariants.forEach(v => append(v));
-      }
-    } else {
-      replace(newVariants);
-    }
+    // El requerimiento pide que se añadan (no reemplacen)
+    newVariants.forEach(v => append(v));
+    
+    toast({
+        description: `Se han añadido ${newVariants.length} variantes nuevas.`,
+    });
+  };
+
+  const handleDuplicateVariant = (index: number) => {
+    const variantToCopy = fields[index];
+    append({
+        ...variantToCopy,
+        id: crypto.randomUUID(),
+        name: `${variantToCopy.name} (Copia)`,
+    });
+    toast({
+        description: "Variante duplicada.",
+    });
   };
 
 
@@ -251,11 +260,11 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                         </Label>
                         <Select onValueChange={(v) => generateBatchVariants(v as any)}>
                           <SelectTrigger className="h-8 text-xs w-[180px]">
-                            <SelectValue placeholder="Elegir Lote..." />
+                            <SelectValue placeholder="Añadir Lote..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="shoes">Calzado (35-45)</SelectItem>
-                            <SelectItem value="shoes_half">Calzado con .5</SelectItem>
+                            <SelectItem value="shoes">Zapatos (35-45)</SelectItem>
+                            <SelectItem value="shoes_half">Zapatos (+.5)</SelectItem>
                             <SelectItem value="clothing">Ropa (XS-3XL)</SelectItem>
                             <SelectItem value="pants">Pantalones (28-42)</SelectItem>
                           </SelectContent>
@@ -293,21 +302,24 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     control={form.control}
                                     name={`variants.${index}.stock`}
                                     render={({ field }) => (
-                                        <FormItem className="col-span-3">
+                                        <FormItem className="col-span-2">
                                             <FormLabel className="text-xs">Stock</FormLabel>
                                             <FormControl><Input className="h-8 text-xs" type="number" step="1" placeholder="50" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
-                                <div className="col-span-2 flex justify-end pt-7">
-                                     <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive h-8 w-8">
+                                <div className="col-span-3 flex justify-end pt-7 gap-1">
+                                     <Button variant="ghost" size="icon" type="button" onClick={() => handleDuplicateVariant(index)} className="text-primary h-8 w-8" title="Duplicar">
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                     <Button variant="ghost" size="icon" type="button" onClick={() => remove(index)} className="text-destructive h-8 w-8" title="Eliminar">
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </div>
                          ))}
-                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: currentBasePrice, stock: 0 })} className="w-full border-dashed">
+                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: currentBasePrice, stock: 1 })} className="w-full border-dashed">
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Añadir Variante Manual
                         </Button>

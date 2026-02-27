@@ -93,11 +93,10 @@ export interface User {
   name: string;
 }
 
-// This represents the user data stored in the 'users' collection,
-// which might be different from the Firebase Auth user object.
+// Sincronizado con Kotlin data class User
 export interface AppUser {
-  id: string; // from uid
-  email: string;
+  id: string; // Map to uid in Kotlin
+  email: string | null;
   displayName: string;
   photoUrl: string | null;
   cityId: string;
@@ -106,9 +105,9 @@ export interface AppUser {
   createdAt: number;
   name: string;
   rol: 'admin' | 'store_manager' | 'store_employee' | 'customer';
-  storeId?: string;
-  phoneNumber?: string;
-  nationalId?: string;
+  storeId?: string | null;
+  phoneNumber?: string | null;
+  nationalId?: string | null;
 
   // Verification status
   emailVerified: boolean;
@@ -119,10 +118,16 @@ export interface AppUser {
   rating: number;
   ratingCount: number;
   isBlocked: boolean;
-  blockedReason?: string;
+  blockedReason?: string | null;
 
   // For notifications
   fcmTokens: string[];
+}
+
+export interface GlobalRates {
+    tasaOficial: number;
+    tasaParalela: number;
+    updatedAt: number;
 }
 
 export interface CartItemSnapshot {

@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
+import { useDocument } from '@/hooks/use-document';
 import { where } from 'firebase/firestore';
-import type { StoreProduct, ProductVariant } from '@/lib/types';
+import type { StoreProduct, ProductVariant, GlobalRates } from '@/lib/types';
 import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
@@ -11,11 +12,12 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart } from 'lucide-react';
+import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { createManualSale } from '@/app/store/[storeId]/pos/actions';
+import { updateGlobalRates, fetchBcvRate } from '@/app/dashboard/rates-actions';
 import {
   Dialog,
   DialogContent,
@@ -27,11 +29,11 @@ import {
 import { Label } from '../ui/label';
 
 interface CartItem {
-  cartItemId: string; // Unique key for cart: e.g., 'prod1' or 'prod1-variant2'
-  inventoryId: string; // The ID of the document in the 'Inventory' collection
+  cartItemId: string; 
+  inventoryId: string;
   productId: string;
-  name: string; // e.g., 'T-Shirt (Red, L)' -> This is for display in POS cart.
-  productName: string; // This is the base product name 'T-Shirt'
+  name: string;
+  productName: string;
   price: number;
   quantity: number;
   image: string;
@@ -148,20 +150,49 @@ function CustomerInfoDialog({ open, onOpenChange, onSave, initialData }: {
 
 
 export default function PosClient({ storeId }: { storeId: string }) {
+  const { toast } = useToast();
+  const { data: rates, loading: ratesLoading } = useDocument<GlobalRates>("Config/rates");
   const { data: inventory, loading, error, refetch } = useFirestoreQuery<StoreProduct>('Inventory', [
     where('storeId', '==', storeId),
     where('isAvailable', '==', true),
   ]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({ name: '', nationalId: '', phone: '' });
   const [isCustomerDialogOpen, setCustomerDialogOpen] = useState(false);
-  const { toast } = useToast();
   
-  const [tasaOficial, setTasaOficial] = useState(36.5);
-  const [tasaParalela, setTasaParalela] = useState(40);
+  const [localTasaOficial, setLocalTasaOficial] = useState(36.5);
+  const [localTasaParalela, setLocalTasaParalela] = useState(40);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [variantSelectionProduct, setVariantSelectionProduct] = useState<StoreProduct | null>(null);
+
+  useEffect(() => {
+    if (rates) {
+        setLocalTasaOficial(rates.tasaOficial);
+        setLocalTasaParalela(rates.tasaParalela);
+    }
+  }, [rates]);
+
+  const handleParaleloChange = async (val: string) => {
+    const num = parseFloat(val) || 0;
+    setLocalTasaParalela(num);
+    if (num > 0) {
+        await updateGlobalRates(localTasaOficial, num);
+    }
+  };
+
+  const handleSyncBCV = async () => {
+    setIsSyncing(true);
+    const result = await fetchBcvRate();
+    if (result.error) {
+        toast({ variant: 'destructive', title: 'Error', description: result.error });
+    } else {
+        toast({ title: 'Tasas Sincronizadas', description: 'BCV actualizado y Paralelo ajustado.' });
+    }
+    setIsSyncing(false);
+  };
 
   const filteredInventory = useMemo(() => {
     if (!inventory) return [];
@@ -270,8 +301,8 @@ export default function PosClient({ storeId }: { storeId: string }) {
         toast({ variant: 'destructive', title: 'El carrito está vacío' });
         return;
     }
-     if (tasaOficial <= 0 || tasaParalela <= 0) {
-        toast({ variant: 'destructive', title: 'Tasas inválidas', description: 'Por favor, introduce tasas de cambio válidas para el día.' });
+     if (localTasaOficial <= 0 || localTasaParalela <= 0) {
+        toast({ variant: 'destructive', title: 'Tasas inválidas', description: 'Por favor, introduce tasas de cambio válidas.' });
         return;
     }
     setIsSubmitting(true);
@@ -293,8 +324,8 @@ export default function PosClient({ storeId }: { storeId: string }) {
     formData.append('userName', customerInfo.name);
     formData.append('userNationalId', customerInfo.nationalId);
     formData.append('userPhoneNumber', customerInfo.phone);
-    formData.append('tasaOficial', String(tasaOficial));
-    formData.append('tasaParalela', String(tasaParalela));
+    formData.append('tasaOficial', String(localTasaOficial));
+    formData.append('tasaParalela', String(localTasaParalela));
 
 
     const result = await createManualSale(storeId, formData);
@@ -304,33 +335,41 @@ export default function PosClient({ storeId }: { storeId: string }) {
     } else {
         toast({ title: 'Éxito', description: 'Venta registrada y stock actualizado.' });
         setCart([]);
-        setCustomerInfo({ name: '', nationalId: '', phone: '' }); // Reset customer info
-        refetch(); // Refresca el inventario para mostrar el nuevo stock
+        setCustomerInfo({ name: '', nationalId: '', phone: '' }); 
+        refetch();
     }
     setIsSubmitting(false);
   };
 
 
-  if (loading) return <Loader text="Cargando punto de venta..." />;
+  if (loading || ratesLoading) return <Loader text="Cargando punto de venta..." />;
   if (error) return <p className="text-destructive">Error: {error.message}</p>;
 
   return (
     <>
       <PageHeader title="Punto de Venta" description="Registra ventas manuales en tu tienda." />
       
-      <Card className="mb-8">
+      <Card className="mb-8 border-primary/20">
         <CardHeader>
-            <CardTitle>Configuración de Tasas del Día</CardTitle>
-            <CardDescription>Introduce las tasas de cambio para registrar las ventas de hoy. Estos valores son cruciales para el análisis financiero.</CardDescription>
+            <div className="flex justify-between items-center">
+                <div>
+                    <CardTitle>Configuración de Tasas Globales</CardTitle>
+                    <CardDescription>Estos valores afectan a todos los cálculos financieros de la tienda.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleSyncBCV} disabled={isSyncing}>
+                    {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                    Actualizar BCV
+                </Button>
+            </div>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
                 <Label htmlFor="tasa-oficial-pos">Tasa Oficial (BCV)</Label>
-                <Input id="tasa-oficial-pos" type="number" value={tasaOficial} onChange={e => setTasaOficial(parseFloat(e.target.value) || 0)} placeholder="36.50"/>
+                <Input id="tasa-oficial-pos" type="number" value={localTasaOficial} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="tasa-paralela-pos">Tasa de Reposición (Paralelo)</Label>
-                <Input id="tasa-paralela-pos" type="number" value={tasaParalela} onChange={e => setTasaParalela(parseFloat(e.target.value) || 0)} placeholder="40.00"/>
+                <Input id="tasa-paralela-pos" type="number" value={localTasaParalela} onChange={e => handleParaleloChange(e.target.value)} placeholder="40.00"/>
             </div>
         </CardContent>
       </Card>

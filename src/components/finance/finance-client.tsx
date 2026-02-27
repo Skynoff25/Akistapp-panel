@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
+import { useDocument } from '@/hooks/use-document';
 import { where } from 'firebase/firestore';
-import type { StoreProduct } from '@/lib/types';
+import type { StoreProduct, GlobalRates } from '@/lib/types';
 import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
@@ -11,13 +12,15 @@ import { Label } from '../ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { HelpCircle, AlertTriangle } from 'lucide-react';
+import { HelpCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn, getImageUrl } from '@/lib/utils';
 import Image from 'next/image';
 import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Badge } from '../ui/badge';
 import { SalesAnalysis } from './sales-analysis';
+import { updateGlobalRates, fetchBcvRate } from '@/app/dashboard/rates-actions';
+import { useToast } from '@/hooks/use-toast';
 
 const CASHEA_COMMISSION = 0.07;
 
@@ -64,23 +67,53 @@ function PriceSuggester({ tasaOficial, tasaParalela }: { tasaOficial: number; ta
 }
 
 export default function FinanceClient({ storeId }: { storeId: string }) {
-  const [tasaOficial, setTasaOficial] = useState(36.5);
-  const [tasaParalela, setTasaParalela] = useState(40);
+  const { toast } = useToast();
+  const { data: rates, loading: ratesLoading } = useDocument<GlobalRates>("Config/rates");
+  const [localTasaParalela, setLocalTasaParalela] = useState<number>(40);
+  const [localTasaOficial, setLocalTasaOficial] = useState<number>(36.5);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const { data: products, loading, error } = useFirestoreQuery<StoreProduct>('Inventory', [
     where('storeId', '==', storeId),
   ]);
 
+  useEffect(() => {
+    if (rates) {
+        setLocalTasaOficial(rates.tasaOficial);
+        setLocalTasaParalela(rates.tasaParalela);
+    }
+  }, [rates]);
+
+  const handleParaleloChange = async (val: string) => {
+    const num = parseFloat(val) || 0;
+    setLocalTasaParalela(num);
+    // Guardado automático persistente
+    if (num > 0) {
+        await updateGlobalRates(localTasaOficial, num);
+    }
+  };
+
+  const handleSyncBCV = async () => {
+    setIsSyncing(true);
+    const result = await fetchBcvRate();
+    if (result.error) {
+        toast({ variant: 'destructive', title: 'Error', description: result.error });
+    } else {
+        toast({ title: 'Tasas Sincronizadas', description: 'BCV actualizado y Paralelo ajustado al +10%.' });
+    }
+    setIsSyncing(false);
+  };
+
   const analysisData = useMemo(() => {
     if (!products) return [];
     return products.map(p => {
         const precioVenta = p.promotionalPrice || p.price;
-        const precioVes = precioVenta * tasaOficial;
-        const valorRealUsd = precioVes / tasaParalela;
+        const precioVes = precioVenta * localTasaOficial;
+        const valorRealUsd = precioVes / localTasaParalela;
         const gananciaReal = valorRealUsd - (p.costPriceUsd || 0);
 
         const precioVesCashea = precioVes * (1 - CASHEA_COMMISSION);
-        const valorRealCashea = precioVesCashea / tasaParalela;
+        const valorRealCashea = precioVesCashea / localTasaParalela;
         const gananciaRealCashea = valorRealCashea - (p.costPriceUsd || 0);
         
         return {
@@ -92,9 +125,9 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
             gananciaRealCashea
         };
     });
-  }, [products, tasaOficial, tasaParalela]);
+  }, [products, localTasaOficial, localTasaParalela]);
 
-  if (loading) return <Loader text="Cargando análisis financiero..." />;
+  if (loading || ratesLoading) return <Loader text="Cargando análisis financiero..." />;
   if (error) return <p className="text-destructive">Error: {error.message}</p>;
 
   return (
@@ -109,22 +142,32 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
         <div className="lg:col-span-3 space-y-8">
              <Card>
                 <CardHeader>
-                    <CardTitle>Configuración de Tasas del Día</CardTitle>
-                    <CardDescription>Introduce las tasas de cambio para calcular la rentabilidad de tus productos actuales.</CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Configuración de Tasas Globales</CardTitle>
+                            <CardDescription>Las tasas se guardan automáticamente para toda la aplicación.</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={handleSyncBCV} disabled={isSyncing}>
+                            {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                            Sincronizar BCV
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="tasa-oficial">Tasa Oficial (BCV)</Label>
-                        <Input id="tasa-oficial" type="number" value={tasaOficial} onChange={e => setTasaOficial(parseFloat(e.target.value) || 0)} placeholder="36.50"/>
+                        <Input id="tasa-oficial" type="number" value={localTasaOficial} onChange={e => setLocalTasaOficial(parseFloat(e.target.value) || 0)} placeholder="36.50" disabled />
+                        <p className="text-[10px] text-muted-foreground italic">Solo lectura. Se actualiza mediante sincronización.</p>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="tasa-paralela">Tasa de Reposición (Paralelo)</Label>
-                        <Input id="tasa-paralela" type="number" value={tasaParalela} onChange={e => setTasaParalela(parseFloat(e.target.value) || 0)} placeholder="40.00"/>
+                        <Input id="tasa-paralela" type="number" value={localTasaParalela} onChange={e => handleParaleloChange(e.target.value)} placeholder="40.00"/>
+                        <p className="text-[10px] text-muted-foreground italic">Edita este campo para guardarlo como referencia global.</p>
                     </div>
                 </CardContent>
             </Card>
 
-            <PriceSuggester tasaOficial={tasaOficial} tasaParalela={tasaParalela} />
+            <PriceSuggester tasaOficial={localTasaOficial} tasaParalela={localTasaParalela} />
 
         </div>
 

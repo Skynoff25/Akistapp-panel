@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -28,8 +27,8 @@ import { createProduct, updateProduct } from "@/app/dashboard/products/actions";
 import type { Product } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
-import { Copy, Search } from "lucide-react";
-import { Separator } from "../ui/separator";
+import { Copy, Link, Upload } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -37,6 +36,7 @@ const productSchema = z.object({
   description: z.string().min(1, "La descripción es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
   image: z.any().optional(),
+  imageUrl: z.string().optional(),
   tags: z.string().optional(),
 });
 
@@ -50,7 +50,6 @@ interface ProductFormProps {
 export function ProductForm({ product, onSuccess }: ProductFormProps) {
   const { toast } = useToast();
   const { data: allProducts } = useFirestoreQuery<Product>('Products');
-  const [isCloning, setIsCloning] = useState(false);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -60,6 +59,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
       description: "",
       category: "",
       image: "",
+      imageUrl: "",
       tags: "",
     },
   });
@@ -71,7 +71,8 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         brand: product.brand ?? "",
         description: product.description ?? "",
         category: product.category ?? "",
-        image: product.image ?? "",
+        image: "",
+        imageUrl: product.image?.startsWith('http') ? product.image : "",
         tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
       });
     }
@@ -81,11 +82,11 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
     const source = allProducts.find(p => p.id === productId);
     if (source) {
       form.reset({
-        name: `${source.name} (Copia)`,
+        ...form.getValues(),
         brand: source.brand,
         description: source.description,
         category: source.category,
-        image: source.image,
+        imageUrl: source.image,
         tags: Array.isArray(source.tags) ? source.tags.join(", ") : "",
       });
       toast({
@@ -97,17 +98,17 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
   const onSubmit = async (data: ProductFormValues) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-        if(value !== undefined) {
+        if(value !== undefined && key !== 'image' && key !== 'imageUrl') {
              formData.append(key, String(value));
         }
     });
 
+    // Manejo especial de imagen
+    if (data.imageUrl) {
+        formData.append('imageUrl', data.imageUrl);
+    }
     if (data.image instanceof File) {
-        formData.set('image', data.image);
-    } else if (!product) {
-        formData.delete('image');
-    } else {
-        formData.delete('image');
+        formData.append('image', data.image);
     }
 
     form.clearErrors();
@@ -152,7 +153,6 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-muted-foreground mt-1">Ahorra tiempo cargando marca, descripción y etiquetas de otro producto.</p>
           </div>
         )}
 
@@ -213,27 +213,53 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
           )}
         />
 
-         <FormField
-            control={form.control}
-            name="image"
-            render={({ field: { onChange, value, ...rest } }) => (
-                <FormItem>
-                <FormLabel>Imagen del Producto</FormLabel>
-                <FormControl>
-                    <Input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            onChange(file);
-                        }}
-                        {...rest}
+        <div className="space-y-2">
+            <FormLabel>Imagen del Producto</FormLabel>
+            <Tabs defaultValue="url" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="url" className="flex items-center gap-2"><Link className="h-3 w-3"/> URL</TabsTrigger>
+                    <TabsTrigger value="upload" className="flex items-center gap-2"><Upload className="h-3 w-3"/> Subir</TabsTrigger>
+                </TabsList>
+                <TabsContent value="url">
+                    <FormField
+                        control={form.control}
+                        name="imageUrl"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Input placeholder="https://ejemplo.com/imagen.jpg" {...field} />
+                                </FormControl>
+                                <FormDescription className="text-[10px]">Pega un enlace directo a la imagen.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
                     />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
+                </TabsContent>
+                <TabsContent value="upload">
+                    <FormField
+                        control={form.control}
+                        name="image"
+                        render={({ field: { onChange, value, ...rest } }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Input 
+                                        type="file" 
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            onChange(file);
+                                        }}
+                                        {...rest}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </TabsContent>
+            </Tabs>
+        </div>
+
         <FormField
           control={form.control}
           name="tags"

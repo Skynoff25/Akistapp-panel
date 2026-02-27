@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -19,7 +18,6 @@ import {
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Product, Store, StoreProduct, ProductVariant } from '@/lib/types';
-import { auth } from '@/lib/firebase';
 import { uploadImage } from '@/lib/storage';
 
 const addProductToStoreSchema = z.object({
@@ -37,9 +35,6 @@ export async function addProductToStore(formData: FormData) {
 
   const { storeId, productId } = validatedFields.data;
 
-  // Security check: ensure user has rights for this store
-  // A real app would have more robust security rules in Firestore
-  
   try {
     const storeRef = doc(db, 'Stores', storeId);
     const storeSnap = await getDoc(storeRef);
@@ -90,7 +85,6 @@ export async function addProductToStore(formData: FormData) {
       globalImage: productData.image || `https://picsum.photos/seed/${productId}/400/400`,
       storeName: storeData.name,
       storeAddress: `${storeData.address}, ${storeData.city}`,
-      // Initialize variation fields
       hasVariations: false,
       variants: [],
       priceRange: null,
@@ -118,6 +112,7 @@ const updateStoreProductSchema = z.object({
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.enum(['true', 'false']).transform(v => v === 'true'),
   storeSpecificImage: z.any().optional(),
+  storeSpecificImageUrl: z.string().optional(),
   description: z.string().optional(),
   disclaimer: z.string().optional(),
   costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.').optional(),
@@ -142,14 +137,16 @@ export async function updateStoreProduct(storeId: string, inventoryId: string, f
             return { errors: { _form: ['El producto no existe.'] } };
         }
 
-        const { promotionalPrice, variants: variantsJSON, storeSpecificImage, ...data } = validatedFields.data;
+        const { promotionalPrice, variants: variantsJSON, storeSpecificImage, storeSpecificImageUrl, ...data } = validatedFields.data;
         
         const updateData: { [key: string]: any } = {...data};
 
-        let finalImageUrl = docSnap.data().storeSpecificImage;
-        if (storeSpecificImage instanceof File && storeSpecificImage.size > 0) {
+        // Manejo de imagen: 1. URL texto, 2. Archivo nuevo, 3. Mantener vieja
+        let finalImageUrl = storeSpecificImageUrl || docSnap.data().storeSpecificImage;
+        
+        if (!storeSpecificImageUrl && storeSpecificImage instanceof File && storeSpecificImage.size > 0) {
             finalImageUrl = await uploadImage(storeSpecificImage, 'store_products');
-        } else if (storeSpecificImage === "") {
+        } else if (!storeSpecificImageUrl && storeSpecificImage === "") {
              finalImageUrl = "";
         }
         updateData.storeSpecificImage = finalImageUrl;

@@ -12,6 +12,7 @@ const productSchema = z.object({
   description: z.string().min(1, "La descripción es obligatoria"),
   category: z.string().min(1, "La categoría es obligatoria"),
   image: z.any().optional(),
+  imageUrl: z.string().optional(),
   tags: z.string().optional(),
 });
 
@@ -25,11 +26,12 @@ export async function createProduct(formData: FormData) {
         };
     }
     
-    const { image, tags, ...productData } = validatedFields.data;
-    let finalImageUrl = `https://picsum.photos/seed/${productData.name}/400/400`;
+    const { image, imageUrl, tags, ...productData } = validatedFields.data;
+    let finalImageUrl = imageUrl || `https://picsum.photos/seed/${productData.name}/400/400`;
 
     try {
-        if (image instanceof File && image.size > 0) {
+        // Prioridad: 1. URL de texto, 2. Archivo subido
+        if (!imageUrl && image instanceof File && image.size > 0) {
             finalImageUrl = await uploadImage(image, "store_products");
         }
 
@@ -58,7 +60,7 @@ export async function updateProduct(id: string, formData: FormData) {
         };
     }
 
-    const { image, tags, ...productData } = validatedFields.data;
+    const { image, imageUrl, tags, ...productData } = validatedFields.data;
 
     try {
         const productRef = doc(db, "Products", id);
@@ -67,8 +69,10 @@ export async function updateProduct(id: string, formData: FormData) {
              return { errors: { _form: ["El producto no existe."] } };
         }
 
-        let finalImageUrl = docSnap.data().image; // Keep old image by default
-        if (image instanceof File && image.size > 0) {
+        let finalImageUrl = imageUrl || docSnap.data().image; // Usa URL nueva o mantiene la vieja
+        
+        // Si no hay URL de texto y hay un archivo nuevo, lo subimos
+        if (!imageUrl && image instanceof File && image.size > 0) {
             finalImageUrl = await uploadImage(image, "store_products");
         }
         

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm, useFieldArray } from "react-hook-form";
@@ -29,11 +28,12 @@ import { updateStoreProduct } from "@/app/store/[storeId]/my-products/actions";
 import { useAuth } from "@/context/auth-context";
 import { useEffect, useState } from "react";
 import { Label } from "../ui/label";
-import { PlusCircle, Trash2, Wand2, Zap } from "lucide-react";
+import { PlusCircle, Trash2, Wand2, Zap, Link, Upload } from "lucide-react";
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "../ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const variantSchema = z.object({
   id: z.string(),
@@ -49,6 +49,7 @@ const storeProductSchema = z.object({
   currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.boolean(),
   storeSpecificImage: z.any().optional(),
+  storeSpecificImageUrl: z.string().optional(),
   description: z.string().optional(),
   disclaimer: z.string().optional(),
   costPriceUsd: z.coerce.number().min(0, 'El costo no puede ser negativo.').optional(),
@@ -96,6 +97,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       currentStock: 0,
       isAvailable: true,
       storeSpecificImage: "",
+      storeSpecificImageUrl: "",
       description: "",
       disclaimer: "",
       costPriceUsd: 0,
@@ -120,7 +122,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             promotionalPrice: product.promotionalPrice || null,
             currentStock: product.currentStock || 0,
             isAvailable: product.isAvailable,
-            storeSpecificImage: product.storeSpecificImage || "",
+            storeSpecificImage: "",
+            storeSpecificImageUrl: product.storeSpecificImage?.startsWith('http') ? product.storeSpecificImage : "",
             description: product.description || "",
             disclaimer: product.disclaimer || "",
             costPriceUsd: product.costPriceUsd || 0,
@@ -160,9 +163,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       stock: 0,
     }));
 
-    // If there are existing variants, ask to merge or replace
     if (fields.length > 0) {
-      if (confirm("Ya tienes variantes creadas. ¿Deseas reemplazarlas por este lote nuevo? (Cancelar para añadir al final)")) {
+      if (confirm("Ya tienes variantes creadas. ¿Deseas reemplazarlas por este lote nuevo?")) {
         replace(newVariants);
       } else {
         newVariants.forEach(v => append(v));
@@ -170,11 +172,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     } else {
       replace(newVariants);
     }
-
-    toast({
-      title: "Variantes Generadas",
-      description: `Se han creado ${newVariants.length} variantes. No olvides asignarles stock.`,
-    });
   };
 
 
@@ -182,7 +179,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     const formData = new FormData();
 
     Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null && key !== 'storeSpecificImage' && key !== 'storeSpecificImageUrl') {
             if (key === 'variants') {
                 formData.append(key, JSON.stringify(value));
             } else {
@@ -191,10 +188,11 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         }
     });
 
+    if (data.storeSpecificImageUrl) {
+        formData.append('storeSpecificImageUrl', data.storeSpecificImageUrl);
+    }
     if (data.storeSpecificImage instanceof File) {
-        formData.set('storeSpecificImage', data.storeSpecificImage);
-    } else {
-        formData.delete('storeSpecificImage');
+        formData.append('storeSpecificImage', data.storeSpecificImage);
     }
 
     const result = await updateStoreProduct(storeId, product.id, formData);
@@ -313,7 +311,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Añadir Variante Manual
                         </Button>
-                         {form.formState.errors.variants && <FormMessage>{form.formState.errors.variants.message}</FormMessage>}
                     </div>
                 </CardContent>
             </Card>
@@ -355,32 +352,54 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             </div>
         )}
         
-        <Separator />
+        <div className="space-y-4 border rounded-lg p-4 bg-muted/10">
+            <h3 className="font-semibold text-sm">Imagen Específica de Tienda</h3>
+            <Tabs defaultValue="url" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="url" className="flex items-center gap-2"><Link className="h-3 w-3"/> URL</TabsTrigger>
+                    <TabsTrigger value="upload" className="flex items-center gap-2"><Upload className="h-3 w-3"/> Subir</TabsTrigger>
+                </TabsList>
+                <TabsContent value="url">
+                    <FormField
+                        control={form.control}
+                        name="storeSpecificImageUrl"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Input placeholder="https://ejemplo.com/imagen.jpg" {...field} />
+                                </FormControl>
+                                <FormDescription className="text-[10px]">Si se deja vacío, se usará la imagen global del catálogo.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </TabsContent>
+                <TabsContent value="upload">
+                    <FormField
+                        control={form.control}
+                        name="storeSpecificImage"
+                        render={({ field: { onChange, value, ...rest } }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Input 
+                                        type="file" 
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            onChange(file);
+                                        }}
+                                        {...rest}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </TabsContent>
+            </Tabs>
+        </div>
 
         <div className="grid sm:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="storeSpecificImage"
-            render={({ field: { onChange, value, ...rest } }) => (
-              <FormItem>
-                <FormLabel>Imagen Específica</FormLabel>
-                <FormControl>
-                  <Input 
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          onChange(file);
-                      }}
-                      {...rest}
-                  />
-                </FormControl>
-                <FormDescription className="text-[10px]">Si se deja en blanco, se usará la imagen global.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <FormField
             control={form.control}
             name="costPriceUsd"
@@ -433,27 +452,18 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             name="isAvailable"
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-sm">Disponible</FormLabel>
-                </div>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
+                <div className="space-y-0.5"><FormLabel className="text-sm">Disponible</FormLabel></div>
+                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name="casheaEligible"
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-sm">Cashea</FormLabel>
-                </div>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
+                <div className="space-y-0.5"><FormLabel className="text-sm">Cashea</FormLabel></div>
+                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
               </FormItem>
             )}
           />

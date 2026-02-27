@@ -19,7 +19,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     AlertDialog,
@@ -33,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { StoreForm } from './store-form';
 import { PageHeader } from '../ui/page-header';
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Copy, Check } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -45,6 +44,31 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { getImageUrl } from '@/lib/utils';
 
+function CopyIdButton({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    toast({
+      description: "ID de tienda copiado al portapapeles.",
+    });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      className="h-6 w-6 text-muted-foreground hover:text-primary" 
+      onClick={handleCopy}
+      title="Copiar ID"
+    >
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+    </Button>
+  );
+}
 
 export default function StoresClient() {
   const { data: stores, loading, error } = useFirestoreSubscription<Store>('Stores');
@@ -100,9 +124,9 @@ export default function StoresClient() {
             <TableRow>
               <TableHead className="w-[80px]">Imagen</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>ID de Tienda</TableHead>
               <TableHead>Dirección</TableHead>
               <TableHead>Plan</TableHead>
-              <TableHead>Teléfono</TableHead>
               <TableHead className="text-right w-[80px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -126,18 +150,18 @@ export default function StoresClient() {
                   />
                 </TableCell>
                 <TableCell className="font-medium">{store.name}</TableCell>
-                <TableCell>{store.address}, {store.city} {store.zipcode}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 font-mono text-[10px] bg-muted px-2 py-1 rounded">
+                    {store.id}
+                    <CopyIdButton id={store.id} />
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs">{store.address}, {store.city}</TableCell>
                 <TableCell>
                   <Badge variant={store.subscriptionPlan === 'PREMIUM' ? 'default' : 'secondary'}>
                     {store.subscriptionPlan}
                   </Badge>
-                  {store.sponsoredKeywords && store.sponsoredKeywords.length > 0 && (
-                    <Badge variant="outline" className="ml-2">
-                        Patrocinado
-                    </Badge>
-                  )}
                 </TableCell>
-                <TableCell>{store.phone}</TableCell>
                 <TableCell className="text-right">
                     <DropdownMenu modal={false}>
                         <DropdownMenuTrigger asChild>

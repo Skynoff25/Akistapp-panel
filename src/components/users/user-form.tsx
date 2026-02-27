@@ -12,6 +12,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,12 +30,10 @@ import { Loader2 } from 'lucide-react';
 const formSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   email: z.string().email('Email inválido'),
-  password: z.string().optional(), // Opcional en edición
+  password: z.string().optional(),
   rol: z.enum(['admin', 'store_manager', 'store_employee', 'customer']),
   storeId: z.string().optional(),
 }).refine((data) => {
-    // Si es creación (no tenemos initialData contexto aquí, pero validaremos password después)
-    // Validación de storeId para roles específicos
     if ((data.rol === 'store_manager' || data.rol === 'store_employee') && !data.storeId) {
         return false;
     }
@@ -58,7 +57,7 @@ export function UserForm({ initialData, onSuccess }: UserFormProps) {
     defaultValues: {
       name: initialData?.name || initialData?.displayName || '',
       email: initialData?.email || '',
-      password: '', // Siempre vacío por seguridad
+      password: '',
       rol: initialData?.rol || 'store_employee',
       storeId: initialData?.storeId || '',
     },
@@ -74,11 +73,9 @@ export function UserForm({ initialData, onSuccess }: UserFormProps) {
     formData.append('rol', values.rol);
     if (values.storeId) formData.append('storeId', values.storeId);
     
-    // Solo enviar contraseña si el usuario escribió algo o si es creación
     if (values.password) {
         formData.append('password', values.password);
     } else if (!initialData) {
-        // Es creación y no puso password
         form.setError('password', { message: 'La contraseña es obligatoria para nuevos usuarios' });
         setIsLoading(false);
         return;
@@ -87,16 +84,13 @@ export function UserForm({ initialData, onSuccess }: UserFormProps) {
     try {
       let result;
       if (initialData) {
-        // --- MODO EDICIÓN ---
         formData.append('id', initialData.id);
         result = await updateUser(formData);
       } else {
-        // --- MODO CREACIÓN ---
         result = await createUser(formData);
       }
 
       if (result?.errors) {
-        // Manejo de errores de validación del servidor
         const errorMessages = Object.values(result.errors).flat().join(', ');
         toast({ variant: 'destructive', title: 'Error', description: errorMessages });
       } else if (result?.message) {
@@ -135,7 +129,6 @@ export function UserForm({ initialData, onSuccess }: UserFormProps) {
               <FormLabel>Email</FormLabel>
               <FormControl>
                 <Input placeholder="juan@ejemplo.com" {...field} disabled={!!initialData} /> 
-                {/* Deshabilitar email en edición suele ser buena práctica en Firebase Auth */}
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -188,8 +181,11 @@ export function UserForm({ initialData, onSuccess }: UserFormProps) {
               <FormItem>
                 <FormLabel>ID de Tienda</FormLabel>
                 <FormControl>
-                  <Input placeholder="store_123" {...field} />
+                  <Input placeholder="Copia el ID desde el panel de Tiendas" {...field} />
                 </FormControl>
+                <FormDescription>
+                  Puedes copiar este ID directamente desde la lista de tiendas.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

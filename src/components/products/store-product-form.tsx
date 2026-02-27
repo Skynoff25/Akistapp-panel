@@ -89,6 +89,10 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   const { appUser } = useAuth();
   const canEditPrice = appUser?.rol === 'store_manager' || appUser?.rol === 'admin';
 
+  // Estados locales para la configuración de generación por lotes
+  const [batchPrice, setBatchPrice] = useState<number>(0);
+  const [batchStock, setBatchStock] = useState<number>(1);
+
   const form = useForm<StoreProductFormValues>({
     resolver: zodResolver(storeProductSchema),
     defaultValues: {
@@ -107,13 +111,12 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "variants",
   });
 
   const hasVariations = form.watch("hasVariations");
-  const currentBasePrice = form.watch("price") || 0;
 
   useEffect(() => {
     if (product) {
@@ -131,12 +134,15 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             hasVariations: product.hasVariations || false,
             variants: product.variants || [],
         });
+        // Sincronizar el precio base con el batchPrice inicial si es 0
+        if (product.price > 0 && batchPrice === 0) {
+            setBatchPrice(product.price);
+        }
     }
   }, [product, form]);
 
   const generateBatchVariants = (type: 'shoes' | 'shoes_half' | 'clothing' | 'pants') => {
     let names: string[] = [];
-    const basePrice = currentBasePrice > 0 ? currentBasePrice : 0;
 
     switch (type) {
       case 'shoes':
@@ -159,15 +165,14 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     const newVariants = names.map(name => ({
       id: crypto.randomUUID(),
       name,
-      price: basePrice,
-      stock: 1, // Por defecto al menos 1 unidad según requerimiento
+      price: batchPrice,
+      stock: batchStock,
     }));
 
-    // El requerimiento pide que se añadan (no reemplacen)
     newVariants.forEach(v => append(v));
     
     toast({
-        description: `Se han añadido ${newVariants.length} variantes nuevas.`,
+        description: `Se han añadido ${newVariants.length} variantes con precio $${batchPrice} y stock ${batchStock}.`,
     });
   };
 
@@ -248,40 +253,71 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         
         {hasVariations ? (
             <Card className="border-primary/20">
-                <CardHeader className="pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <CardTitle>Variantes del Producto</CardTitle>
-                        <CardDescription>Configura opciones específicas.</CardDescription>
+                <CardHeader className="pb-3 border-b mb-4">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg">Variantes del Producto</CardTitle>
+                          <CardDescription>Configura opciones específicas.</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <Badge variant="outline" className="h-6">Total: {fields.length}</Badge>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <Label className="text-[10px] uppercase text-muted-foreground font-bold flex items-center gap-1">
-                          <Wand2 className="h-3 w-3" /> Generación Rápida
-                        </Label>
-                        <Select onValueChange={(v) => generateBatchVariants(v as any)}>
-                          <SelectTrigger className="h-8 text-xs w-[180px]">
-                            <SelectValue placeholder="Añadir Lote..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="shoes">Zapatos (35-45)</SelectItem>
-                            <SelectItem value="shoes_half">Zapatos (+.5)</SelectItem>
-                            <SelectItem value="clothing">Ropa (XS-3XL)</SelectItem>
-                            <SelectItem value="pants">Pantalones (28-42)</SelectItem>
-                          </SelectContent>
-                        </Select>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-md border border-dashed">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Precio Inicial</Label>
+                          <div className="relative">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-muted-foreground text-xs">$</span>
+                            <Input 
+                              type="number" 
+                              className="h-8 text-xs pl-5" 
+                              value={batchPrice} 
+                              onChange={(e) => setBatchPrice(Number(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Stock Inicial</Label>
+                          <Input 
+                            type="number" 
+                            className="h-8 text-xs" 
+                            value={batchStock} 
+                            onChange={(e) => setBatchStock(Number(e.target.value))}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Generación Rápida</Label>
+                          <Select onValueChange={(v) => generateBatchVariants(v as any)}>
+                            <SelectTrigger className="h-8 text-xs bg-background">
+                              <SelectValue placeholder="Añadir Lote..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="shoes">Zapatos (35-45)</SelectItem>
+                              <SelectItem value="shoes_half">Zapatos (+.5)</SelectItem>
+                              <SelectItem value="clothing">Ropa (XS-3XL)</SelectItem>
+                              <SelectItem value="pants">Pantalones (28-42)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                         {fields.map((field, index) => (
-                             <div key={field.id} className="grid grid-cols-12 gap-2 items-start border-b pb-4 last:border-0">
+                         {fields.length === 0 ? (
+                            <p className="text-center py-8 text-sm text-muted-foreground italic">
+                              No hay variantes. Usa el generador de arriba o añade una manual.
+                            </p>
+                         ) : fields.map((field, index) => (
+                             <div key={field.id} className="grid grid-cols-12 gap-2 items-start border-b pb-4 last:border-0 hover:bg-muted/10 transition-colors px-1">
                                 <FormField
                                     control={form.control}
                                     name={`variants.${index}.name`}
                                     render={({ field }) => (
                                         <FormItem className="col-span-4">
-                                            <FormLabel className="text-xs">Nombre</FormLabel>
+                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Opción</FormLabel>
                                             <FormControl><Input className="h-8 text-xs" placeholder="Ej: Rojo, Talla M" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -292,8 +328,8 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     name={`variants.${index}.price`}
                                     render={({ field }) => (
                                         <FormItem className="col-span-3">
-                                            <FormLabel className="text-xs">Precio ($)</FormLabel>
-                                            <FormControl><Input className="h-8 text-xs" type="number" step="0.01" placeholder="19.99" {...field} /></FormControl>
+                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Precio ($)</FormLabel>
+                                            <FormControl><Input className="h-8 text-xs" type="number" step="0.01" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -303,13 +339,13 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     name={`variants.${index}.stock`}
                                     render={({ field }) => (
                                         <FormItem className="col-span-2">
-                                            <FormLabel className="text-xs">Stock</FormLabel>
-                                            <FormControl><Input className="h-8 text-xs" type="number" step="1" placeholder="50" {...field} /></FormControl>
+                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Stock</FormLabel>
+                                            <FormControl><Input className="h-8 text-xs" type="number" step="1" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
-                                <div className="col-span-3 flex justify-end pt-7 gap-1">
+                                <div className="col-span-3 flex justify-end pt-6 gap-1">
                                      <Button variant="ghost" size="icon" type="button" onClick={() => handleDuplicateVariant(index)} className="text-primary h-8 w-8" title="Duplicar">
                                         <Copy className="h-4 w-4" />
                                     </Button>
@@ -319,7 +355,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                 </div>
                             </div>
                          ))}
-                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: currentBasePrice, stock: 1 })} className="w-full border-dashed">
+                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: batchPrice, stock: batchStock })} className="w-full border-dashed mt-2">
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Añadir Variante Manual
                         </Button>

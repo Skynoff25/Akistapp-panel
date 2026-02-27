@@ -37,24 +37,25 @@ export async function updateGlobalRates(tasaOficial: number, tasaParalela: numbe
 }
 
 /**
- * Intenta obtener la tasa oficial desde una API externa (DolarAPI es común en Venezuela)
+ * Obtiene la tasa oficial desde open.er-api.com y ajusta el paralelo al +10%
  */
 export async function fetchBcvRate() {
   try {
-    const res = await fetch("https://ve.dolarapi.com/v1/dolares/oficial", { cache: 'no-store' });
+    const res = await fetch("https://open.er-api.com/v6/latest/USD", { cache: 'no-store' });
     const data = await res.json();
     
-    if (data && data.promedio) {
-        const oficial = Number(data.promedio);
-        const paralelo = oficial * 1.10; // 10% por encima por defecto
+    if (data && data.result === "success" && data.rates && data.rates.VES) {
+        const oficial = Number(data.rates.VES);
+        // El paralelo por defecto es 10% por encima del oficial según requerimiento
+        const paralelo = oficial * 1.10; 
         
         await updateGlobalRates(oficial, paralelo);
         
         return { oficial, paralelo };
     }
-    throw new Error("Formato de API desconocido");
+    throw new Error("La API no devolvió un formato válido para VES");
   } catch (e) {
-    console.error("Error fetching BCV from API:", e);
-    return { error: "No se pudo conectar con el BCV automáticamente." };
+    console.error("Error fetching rates from API:", e);
+    return { error: "No se pudo conectar con el servicio de tasas automáticamente." };
   }
 }

@@ -28,7 +28,7 @@ function FirebaseConfigChecker({ children }: { children: React.ReactNode }) {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>Falta la Configuración de Firebase</AlertTitle>
                     <AlertDescription>
-                        Las variables de entorno de Firebase no están configuradas. Por favor, crea un archivo <code>.env.local</code> y añade las credenciales de tu proyecto de Firebase. Revisa <code>.env.local.example</code> para ver las variables requeridas.
+                        Las variables de entorno de Firebase no están configuradas. Por favor, crea un archivo <code>.env.local</code> y añade las credenciales de tu proyecto de Firebase.
                     </AlertDescription>
                 </Alert>
             </div>
@@ -56,7 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(user);
       if (user) {
         const token = await user.getIdToken();
-        Cookies.set('token', token, { path: '/' }); 
+        // Guardamos el token en una cookie para que las Server Actions puedan leerlo
+        Cookies.set('token', token, { path: '/', secure: true, sameSite: 'strict' }); 
 
         const userDocRef = doc(db, 'Users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
@@ -111,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             router.push(`/store/${appUser.storeId}`);
         }
     } else { 
-        if (appUser.rol === 'admin' && !isAdminPanel) {
+        if (appUser.rol === 'admin' && !isAdminPanel && !isStorePanel) {
              router.push('/dashboard');
         } else if ((appUser.rol === 'store_manager' || appUser.rol === 'store_employee') && !isStorePanel) {
             if (appUser.storeId) {

@@ -130,6 +130,9 @@ export interface AppUser {
 
   // For notifications
   fcmTokens: string[];
+  
+  // Analytics
+  lastLoginAt?: number;
 }
 
 export interface GlobalRates {

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFirestoreSubscription } from '@/hooks/use-firestore-subscription';
 import { Store, Package, Users, Loader2 } from 'lucide-react';
 import type { Store as StoreType, Product, AppUser } from '@/lib/types';
+import { AdminKpis } from '@/components/dashboard/admin-kpis';
 
 function StatCard({ title, value, icon: Icon, loading }: { title: string, value: number, icon: React.ElementType, loading: boolean }) {
   return (
@@ -32,11 +33,14 @@ export default function DashboardPage() {
 
 
   return (
-    <div>
+    <div className="space-y-8">
       <PageHeader
         title="Dashboard"
         description={`¡Bienvenido de nuevo, ${user?.displayName || 'Admin'}!`}
       />
+
+      <AdminKpis />
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard title="Tiendas Totales" value={stores.length} icon={Store} loading={storesLoading} />
         <StatCard title="Productos Totales" value={products.length} icon={Package} loading={productsLoading} />

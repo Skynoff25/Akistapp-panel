@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Loader from '@/components/ui/loader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal, Ban } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -69,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
           } else {
             setAppUser({ id: userDocSnap.id, ...data });
+            // Update last login
+            updateDoc(userDocRef, { lastLoginAt: Date.now() }).catch(console.error);
           }
         } else {
           setAppUser(null);

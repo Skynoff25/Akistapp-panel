@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
@@ -23,6 +23,8 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
+      await setPersistence(auth, browserSessionPersistence);
+
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const userDocRef = doc(db, 'Users', userCredential.user.uid);
       const userDocSnap = await getDoc(userDocRef);
@@ -41,7 +43,6 @@ export default function LoginPage() {
             title: "Inicio de Sesión Exitoso",
             description: "¡Bienvenido de nuevo!",
           });
-          // The AuthProvider will handle the redirect
         }
       } else {
         await signOut(auth);

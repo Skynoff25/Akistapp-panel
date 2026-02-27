@@ -10,7 +10,6 @@ import { Terminal } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import Cookies from 'js-cookie'; 
 
 interface AuthContextType {
   user: User | null;
@@ -55,9 +54,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        const token = await user.getIdToken();
-        // Guardamos el token en una cookie para que las Server Actions puedan leerlo
-        Cookies.set('token', token, { path: '/', secure: true, sameSite: 'strict' }); 
 
         const userDocRef = doc(db, 'Users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
@@ -68,7 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await signOut(auth);
         }
       } else {
-        Cookies.remove('token', { path: '/' });
         setAppUser(null);
       }
       setLoading(false);

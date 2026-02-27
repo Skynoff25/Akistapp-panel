@@ -3,6 +3,7 @@
     {
       "backendId": "akistapp-backend",
       "rootDir": "/",
+      "alwaysDeployFromSource": true,
       "ignore": [
         "node_modules",
         ".git",
@@ -10,91 +11,57 @@
         "firebase-debug.*.log",
         "functions"
       ],
-      "alwaysDeployFromSource": true,
       "environmentVariables": {
         "NEXT_PRIVATE_FIREBASE_PROJECT_ID": {
           "secret": "NEXT_PRIVATE_FIREBASE_PROJECT_ID",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_API_KEY": {
           "secret": "NEXT_PUBLIC_FIREBASE_API_KEY",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": {
           "secret": "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_PROJECT_ID": {
           "secret": "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": {
           "secret": "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": {
           "secret": "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_APP_ID": {
           "secret": "NEXT_PUBLIC_FIREBASE_APP_ID",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_MEASUREMENTID": {
           "secret": "NEXT_PUBLIC_FIREBASE_MEASUREMENTID",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         },
         "NEXT_PUBLIC_FIREBASE_DATABASE_URL": {
           "secret": "NEXT_PUBLIC_FIREBASE_DATABASE_URL",
-          "availability": [
-            "BUILD",
-            "RUNTIME"
-          ]
+          "availability": ["BUILD", "RUNTIME"]
         }
       }
-    },
-    {
-      "backendId": "akistapp-backend",
-      "rootDir": "/",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "functions"
-      ]
     }
   ],
   "hosting": {
     "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "akistapp-backend",
+          "region": "us-east4"
+        }
+      }
     ]
   }
 }

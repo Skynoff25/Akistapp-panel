@@ -5,7 +5,11 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
-// Esquema base coincidente con tu formulario
+// 1. DEFINIMOS LA URL BASE
+// Lo ideal es usar una variable de entorno, pero por ahora usa la que SABES que funciona.
+// Si tienes configurado un .env, usa: process.env.BACKEND_URL
+const API_URL = process.env.BACKEND_URL || 'https://akistapp-backend--akistapp.us-east4.hosted.app';
+
 const createUserSchema = z.object({
   email: z.string().email('Email inválido'),
   name: z.string().min(1, 'El nombre es obligatorio'),
@@ -39,25 +43,13 @@ const updateUserSchema = z.object({
     path: ["storeId"],
 });
 
-// Helper para obtener la URL base y el token
 async function getAuthHeaders() {
   const cookieStore = await cookies();
-  // Asumimos que guardas el token en una cookie llamada 'token' o 'session'
   const token = cookieStore.get('token')?.value || ''; 
-  
-  // Si no hay token en cookies, esto fallará en la API con 401.
-  // Asegúrate de que tu middleware o login setee esta cookie.
-  
-  const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
-  const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_HOST || 'localhost:9002';
-  const baseUrl = `${protocol}://${host}`;
 
   return {
-    baseUrl,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    }
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`, // Asegúrate que tu backend espera "Bearer"
   };
 }
 
@@ -70,16 +62,25 @@ export async function createUser(formData: FormData) {
   }
 
   try {
-    const { baseUrl, headers } = await getAuthHeaders();
+    const headers = await getAuthHeaders();
     
-    // Llamada a tu API Backend
-    const res = await fetch(`${baseUrl}/api/create-user`, {
+    // 2. CORRECCIÓN AQUI: Usamos la URL absoluta
+    console.log(`Intentando conectar a: ${API_URL}/api/create-user`); // Log para depurar
+
+    const res = await fetch(`${API_URL}/api/create-user`, {
       method: 'POST',
-      headers,
+      headers: headers,
       body: JSON.stringify(validatedFields.data),
     });
 
-    const data = await res.json();
+    // Es importante leer el texto o json con cuidado
+    const responseText = await res.text();
+    let data;
+    try {
+        data = JSON.parse(responseText);
+    } catch (e) {
+        throw new Error(`El servidor devolvió algo que no es JSON: ${responseText}`);
+    }
 
     if (!res.ok) {
       throw new Error(data.error || 'Error al crear usuario en el servidor');
@@ -105,11 +106,12 @@ export async function updateUser(formData: FormData) {
   }
 
   try {
-    const { baseUrl, headers } = await getAuthHeaders();
+    const headers = await getAuthHeaders();
 
-    const res = await fetch(`${baseUrl}/api/update-user`, {
-      method: 'POST', // Usamos POST como en tu archivo original, aunque PUT sería más semántico
-      headers,
+    // 3. CORRECCIÓN AQUI
+    const res = await fetch(`${API_URL}/api/update-user`, {
+      method: 'POST', 
+      headers: headers,
       body: JSON.stringify({
         uid: validatedFields.data.id,
         data: validatedFields.data
@@ -132,11 +134,12 @@ export async function updateUser(formData: FormData) {
 
 export async function deleteUser(userId: string) {
   try {
-    const { baseUrl, headers } = await getAuthHeaders();
+    const headers = await getAuthHeaders();
 
-    const res = await fetch(`${baseUrl}/api/delete-user`, {
+    // 4. CORRECCIÓN AQUI
+    const res = await fetch(`${API_URL}/api/delete-user`, {
       method: 'DELETE',
-      headers,
+      headers: headers,
       body: JSON.stringify({ uid: userId }),
     });
 

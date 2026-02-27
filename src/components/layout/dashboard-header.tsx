@@ -11,9 +11,22 @@ interface DashboardHeaderProps {
   storeId?: string;
 }
 
+const ALERTS_STORAGE_KEY = 'akistapp_alerts_enabled';
+
 export default function DashboardHeader({ storeId }: DashboardHeaderProps) {
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const { toast } = useToast();
+
+  // Cargar estado inicial desde localStorage al montar el componente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem(ALERTS_STORAGE_KEY);
+      // Solo activamos automáticamente si el usuario lo pidió antes Y tiene permisos otorgados
+      if (savedState === 'true' && Notification.permission === 'granted') {
+        setAlertsEnabled(true);
+      }
+    }
+  }, []);
 
   const toggleAlerts = async () => {
     if (!alertsEnabled) {
@@ -22,11 +35,13 @@ export default function DashboardHeader({ storeId }: DashboardHeaderProps) {
       
       if (permission === 'granted') {
         setAlertsEnabled(true);
+        localStorage.setItem(ALERTS_STORAGE_KEY, 'true');
         toast({
           title: "Alertas Activas",
           description: "Recibirás una notificación y sonido cuando entre un nuevo pedido.",
         });
       } else {
+        localStorage.setItem(ALERTS_STORAGE_KEY, 'false');
         toast({
           variant: "destructive",
           title: "Permiso Denegado",
@@ -35,6 +50,7 @@ export default function DashboardHeader({ storeId }: DashboardHeaderProps) {
       }
     } else {
       setAlertsEnabled(false);
+      localStorage.setItem(ALERTS_STORAGE_KEY, 'false');
       toast({
         description: "Alertas en tiempo real desactivadas.",
       });

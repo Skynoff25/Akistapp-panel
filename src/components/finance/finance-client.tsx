@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
 import { useDocument } from '@/hooks/use-document';
 import { where } from 'firebase/firestore';
-import type { StoreProduct, GlobalRates } from '@/lib/types';
+import type { StoreProduct, GlobalRates, Store } from '@/lib/types';
 import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
@@ -19,7 +19,7 @@ import { Button } from '../ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { Badge } from '../ui/badge';
 import { SalesAnalysis } from './sales-analysis';
-import { updateGlobalRates, fetchBcvRate } from '@/app/dashboard/rates-actions';
+import { updateStoreParallelRate, fetchBcvRate } from '@/app/dashboard/rates-actions';
 import { useToast } from '@/hooks/use-toast';
 
 const CASHEA_COMMISSION = 0.07;
@@ -68,7 +68,9 @@ function PriceSuggester({ tasaOficial, tasaParalela }: { tasaOficial: number; ta
 
 export default function FinanceClient({ storeId }: { storeId: string }) {
   const { toast } = useToast();
-  const { data: rates, loading: ratesLoading } = useDocument<GlobalRates>("Config/rates");
+  const { data: globalRates, loading: ratesLoading } = useDocument<GlobalRates>("Config/rates");
+  const { data: store, loading: storeLoading } = useDocument<Store>(`Stores/${storeId}`);
+  
   const [localTasaParalela, setLocalTasaParalela] = useState<number>(40);
   const [localTasaOficial, setLocalTasaOficial] = useState<number>(36.5);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -78,28 +80,32 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
   ]);
 
   useEffect(() => {
-    if (rates) {
-        setLocalTasaOficial(rates.tasaOficial);
-        setLocalTasaParalela(rates.tasaParalela);
+    if (globalRates) {
+        setLocalTasaOficial(globalRates.tasaOficial);
     }
-  }, [rates]);
+    if (store?.tasaParalela) {
+        setLocalTasaParalela(store.tasaParalela);
+    } else if (globalRates?.tasaParalela) {
+        setLocalTasaParalela(globalRates.tasaParalela);
+    }
+  }, [globalRates, store]);
 
   const handleParaleloChange = async (val: string) => {
     const num = parseFloat(val) || 0;
     setLocalTasaParalela(num);
-    // Guardado automático persistente
+    // Guardado específico para esta tienda
     if (num > 0) {
-        await updateGlobalRates(localTasaOficial, num);
+        await updateStoreParallelRate(storeId, num);
     }
   };
 
   const handleSyncBCV = async () => {
     setIsSyncing(true);
-    const result = await fetchBcvRate();
+    const result = await fetchBcvRate(storeId);
     if (result.error) {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
     } else {
-        toast({ title: 'Tasas Sincronizadas', description: 'BCV actualizado y Paralelo ajustado al +10%.' });
+        toast({ title: 'Tasas Sincronizadas', description: 'BCV actualizado globalmente y tu Paralelo ajustado al +10%.' });
     }
     setIsSyncing(false);
   };
@@ -127,7 +133,7 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
     });
   }, [products, localTasaOficial, localTasaParalela]);
 
-  if (loading || ratesLoading) return <Loader text="Cargando análisis financiero..." />;
+  if (loading || ratesLoading || storeLoading) return <Loader text="Cargando análisis financiero..." />;
   if (error) return <p className="text-destructive">Error: {error.message}</p>;
 
   return (
@@ -144,8 +150,8 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>Configuración de Tasas Globales</CardTitle>
-                            <CardDescription>Las tasas se guardan automáticamente para toda la aplicación.</CardDescription>
+                            <CardTitle>Configuración de Tasas</CardTitle>
+                            <CardDescription>La tasa oficial es global. El paralelo es específico para tu tienda.</CardDescription>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleSyncBCV} disabled={isSyncing}>
                             {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
@@ -155,14 +161,14 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
                 </CardHeader>
                 <CardContent className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label htmlFor="tasa-oficial">Tasa Oficial (BCV)</Label>
-                        <Input id="tasa-oficial" type="number" value={localTasaOficial} onChange={e => setLocalTasaOficial(parseFloat(e.target.value) || 0)} placeholder="36.50" disabled />
-                        <p className="text-[10px] text-muted-foreground italic">Solo lectura. Se actualiza mediante sincronización.</p>
+                        <Label htmlFor="tasa-oficial">Tasa Oficial (BCV) - Global</Label>
+                        <Input id="tasa-oficial" type="number" value={localTasaOficial} readOnly placeholder="36.50" className="bg-muted" />
+                        <p className="text-[10px] text-muted-foreground italic">Referencia obligatoria para toda la plataforma.</p>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="tasa-paralela">Tasa de Reposición (Paralelo)</Label>
+                        <Label htmlFor="tasa-paralela">Tasa de Reposición (Paralelo) - Tu Tienda</Label>
                         <Input id="tasa-paralela" type="number" value={localTasaParalela} onChange={e => handleParaleloChange(e.target.value)} placeholder="40.00"/>
-                        <p className="text-[10px] text-muted-foreground italic">Edita este campo para guardarlo como referencia global.</p>
+                        <p className="text-[10px] text-muted-foreground italic">Edita este campo para ajustar el cálculo a tus costos propios.</p>
                     </div>
                 </CardContent>
             </Card>
@@ -175,7 +181,7 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
              <Card>
                 <CardHeader>
                     <CardTitle>Tabla de Análisis de Rentabilidad de Inventario</CardTitle>
-                    <CardDescription>Análisis de rentabilidad basado en tu inventario actual y las tasas del día.</CardDescription>
+                    <CardDescription>Análisis basado en tu inventario y las tasas configuradas para tu comercio.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">

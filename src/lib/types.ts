@@ -38,6 +38,9 @@ export interface Store {
   isVerified: boolean;
   isBlocked: boolean;
   blockedReason?: string;
+
+  // Exchange rates specific to this store
+  tasaParalela?: number;
 }
 
 export interface Product {

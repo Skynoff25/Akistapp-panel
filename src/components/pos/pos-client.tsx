@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
 import { useDocument } from '@/hooks/use-document';
 import { where } from 'firebase/firestore';
-import type { StoreProduct, ProductVariant, GlobalRates } from '@/lib/types';
+import type { StoreProduct, ProductVariant, GlobalRates, Store } from '@/lib/types';
 import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
@@ -17,7 +17,7 @@ import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { createManualSale } from '@/app/store/[storeId]/pos/actions';
-import { updateGlobalRates, fetchBcvRate } from '@/app/dashboard/rates-actions';
+import { updateStoreParallelRate, fetchBcvRate } from '@/app/dashboard/rates-actions';
 import {
   Dialog,
   DialogContent,
@@ -151,7 +151,9 @@ function CustomerInfoDialog({ open, onOpenChange, onSave, initialData }: {
 
 export default function PosClient({ storeId }: { storeId: string }) {
   const { toast } = useToast();
-  const { data: rates, loading: ratesLoading } = useDocument<GlobalRates>("Config/rates");
+  const { data: globalRates, loading: ratesLoading } = useDocument<GlobalRates>("Config/rates");
+  const { data: store, loading: storeLoading } = useDocument<Store>(`Stores/${storeId}`);
+  
   const { data: inventory, loading, error, refetch } = useFirestoreQuery<StoreProduct>('Inventory', [
     where('storeId', '==', storeId),
     where('isAvailable', '==', true),
@@ -169,27 +171,31 @@ export default function PosClient({ storeId }: { storeId: string }) {
   const [variantSelectionProduct, setVariantSelectionProduct] = useState<StoreProduct | null>(null);
 
   useEffect(() => {
-    if (rates) {
-        setLocalTasaOficial(rates.tasaOficial);
-        setLocalTasaParalela(rates.tasaParalela);
+    if (globalRates) {
+        setLocalTasaOficial(globalRates.tasaOficial);
     }
-  }, [rates]);
+    if (store?.tasaParalela) {
+        setLocalTasaParalela(store.tasaParalela);
+    } else if (globalRates?.tasaParalela) {
+        setLocalTasaParalela(globalRates.tasaParalela);
+    }
+  }, [globalRates, store]);
 
   const handleParaleloChange = async (val: string) => {
     const num = parseFloat(val) || 0;
     setLocalTasaParalela(num);
     if (num > 0) {
-        await updateGlobalRates(localTasaOficial, num);
+        await updateStoreParallelRate(storeId, num);
     }
   };
 
   const handleSyncBCV = async () => {
     setIsSyncing(true);
-    const result = await fetchBcvRate();
+    const result = await fetchBcvRate(storeId);
     if (result.error) {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
     } else {
-        toast({ title: 'Tasas Sincronizadas', description: 'BCV actualizado y Paralelo ajustado.' });
+        toast({ title: 'Tasas Sincronizadas', description: 'BCV actualizado y tu paralelo ajustado al +10%.' });
     }
     setIsSyncing(false);
   };
@@ -342,7 +348,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
   };
 
 
-  if (loading || ratesLoading) return <Loader text="Cargando punto de venta..." />;
+  if (loading || ratesLoading || storeLoading) return <Loader text="Cargando punto de venta..." />;
   if (error) return <p className="text-destructive">Error: {error.message}</p>;
 
   return (
@@ -353,8 +359,8 @@ export default function PosClient({ storeId }: { storeId: string }) {
         <CardHeader>
             <div className="flex justify-between items-center">
                 <div>
-                    <CardTitle>Configuración de Tasas Globales</CardTitle>
-                    <CardDescription>Estos valores afectan a todos los cálculos financieros de la tienda.</CardDescription>
+                    <CardTitle>Configuración de Tasas</CardTitle>
+                    <CardDescription>La oficial es global. El paralelo es exclusivo de tu tienda.</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleSyncBCV} disabled={isSyncing}>
                     {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
@@ -364,11 +370,11 @@ export default function PosClient({ storeId }: { storeId: string }) {
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-                <Label htmlFor="tasa-oficial-pos">Tasa Oficial (BCV)</Label>
+                <Label htmlFor="tasa-oficial-pos">Tasa Oficial (BCV) - Global</Label>
                 <Input id="tasa-oficial-pos" type="number" value={localTasaOficial} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="tasa-paralela-pos">Tasa de Reposición (Paralelo)</Label>
+                <Label htmlFor="tasa-paralela-pos">Tasa de Reposición (Paralelo) - Tu Tienda</Label>
                 <Input id="tasa-paralela-pos" type="number" value={localTasaParalela} onChange={e => handleParaleloChange(e.target.value)} placeholder="40.00"/>
             </div>
         </CardContent>

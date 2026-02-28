@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from 'react';
@@ -33,14 +32,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { StoreForm } from './store-form';
 import { PageHeader } from '../ui/page-header';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Copy, Check, Calendar, AlertCircle, XCircle } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Copy, Check, Calendar, AlertCircle, XCircle, Zap, ZapOff } from 'lucide-react';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { deleteStore } from '@/app/dashboard/stores/actions';
+import { deleteStore, toggleStoreFeatured } from '@/app/dashboard/stores/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { getImageUrl } from '@/lib/utils';
@@ -112,6 +111,16 @@ export default function StoresClient() {
     setDialogOpen(true);
   };
 
+  const handleToggleFeatured = async (store: Store) => {
+    const newState = !store.featured;
+    const result = await toggleStoreFeatured(store.id, newState);
+    if (result.success) {
+        toast({ title: "Estado Actualizado", description: result.message });
+    } else {
+        toast({ variant: 'destructive', title: 'Error', description: result.error });
+    }
+  }
+
   const handleDelete = (store: Store) => {
     setSelectedStore(store);
     setAlertOpen(true);
@@ -157,10 +166,20 @@ export default function StoresClient() {
             ) : stores.map((store) => (
               <TableRow key={store.id}>
                 <TableCell>
-                  <Image src={getImageUrl(store.imageUrl, store.id, 40, 40)} alt={store.name} width={40} height={40} className="rounded-full object-cover" />
+                  <div className="relative">
+                    <Image src={getImageUrl(store.imageUrl, store.id, 40, 40)} alt={store.name} width={40} height={40} className="rounded-full object-cover" />
+                    {store.featured && (
+                        <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full p-0.5 shadow-sm">
+                            <Zap className="h-2 w-2 fill-current" />
+                        </div>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium text-sm">{store.name}</div>
+                  <div className="font-medium text-sm flex items-center gap-2">
+                    {store.name}
+                    {store.featured && <Badge variant="default" className="text-[8px] h-4 px-1 bg-primary">DESTACADA</Badge>}
+                  </div>
                   <div className="flex items-center gap-1 font-mono text-[9px] text-muted-foreground">
                     {store.id} <CopyIdButton id={store.id} />
                   </div>
@@ -190,6 +209,13 @@ export default function StoresClient() {
                             <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => handleToggleFeatured(store)}>
+                                {store.featured ? (
+                                    <><ZapOff className="mr-2 h-4 w-4" /> Quitar de Destacadas</>
+                                ) : (
+                                    <><Zap className="mr-2 h-4 w-4 text-primary" /> Marcar como Destacada</>
+                                )}
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => handleEdit(store)}><Edit className="mr-2 h-4 w-4" /> Editar / Cobrar</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDelete(store)}><Trash2 className="mr-2 h-4 w-4" /> Borrar</DropdownMenuItem>
                         </DropdownMenuContent>

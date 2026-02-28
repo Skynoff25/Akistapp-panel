@@ -137,6 +137,17 @@ export async function updateStore(id: string, formData: FormData) {
     }
 }
 
+export async function toggleStoreFeatured(storeId: string, featured: boolean) {
+    try {
+        const storeRef = doc(db, "Stores", storeId);
+        await updateDoc(storeRef, { featured });
+        revalidatePath("/dashboard/stores");
+        return { success: true, message: `Tienda ${featured ? 'marcada como destacada' : 'eliminada de destacadas'}.` };
+    } catch (e) {
+        return { error: "No se pudo actualizar el estado destacado." };
+    }
+}
+
 export async function deleteStore(id: string) {
     try {
         await deleteDoc(doc(db, "Stores", id));

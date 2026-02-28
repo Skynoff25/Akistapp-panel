@@ -40,6 +40,7 @@ export async function createProduct(formData: FormData) {
             normalizedName: productData.name.toLowerCase(),
             tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
             image: finalImageUrl,
+            isRecommended: false,
         });
         revalidatePath("/dashboard/products");
         return { message: "Producto creado exitosamente." };
@@ -87,6 +88,17 @@ export async function updateProduct(id: string, formData: FormData) {
     } catch (e: any) {
         console.error(e);
         return { errors: { _form: ["No se pudo actualizar el producto."] } };
+    }
+}
+
+export async function toggleProductRecommendation(productId: string, isRecommended: boolean) {
+    try {
+        const productRef = doc(db, "Products", productId);
+        await updateDoc(productRef, { isRecommended });
+        revalidatePath("/dashboard/products");
+        return { success: true, message: `Producto ${isRecommended ? 'añadido a' : 'eliminado de'} recomendados.` };
+    } catch (e) {
+        return { error: "No se pudo actualizar el estado de recomendación." };
     }
 }
 

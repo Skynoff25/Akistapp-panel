@@ -52,6 +52,7 @@ export interface Product {
   category: string;
   image: string;
   tags: string[];
+  isRecommended?: boolean; // Nuevo campo para recomendaciones
 }
 
 export interface ProductVariant {

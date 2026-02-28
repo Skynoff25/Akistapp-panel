@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit, Search, FileText } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Search, FileText, MessageCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -266,6 +266,12 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
     });
   };
 
+  const getWhatsAppLink = (phoneNumber: string, name: string, orderId: string) => {
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const message = encodeURIComponent(`Hola ${name}, te contacto de AkistApp referente a tu pedido #${orderId.substring(0, 7)}. ¿Cómo podemos coordinar la entrega?`);
+    return `https://wa.me/${cleanPhone}?text=${message}`;
+  };
+
   if (loading) return <Loader className="h-[50vh]" text="Cargando pedidos..." />;
   if (error)
     return <p className="text-destructive">Error: {error.message}</p>;
@@ -368,6 +374,19 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
                                 <FileText className="mr-2 h-4 w-4" />
                                 <span>Ver Comprobante</span>
                             </DropdownMenuItem>
+                            {order.userPhoneNumber && (
+                                <DropdownMenuItem asChild>
+                                    <a 
+                                        href={getWhatsAppLink(order.userPhoneNumber, order.userName || 'Cliente', order.id)} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex w-full items-center"
+                                    >
+                                        <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
+                                        <span>Contactar WhatsApp</span>
+                                    </a>
+                                </DropdownMenuItem>
+                            )}
                             {order.status === 'PENDING' && (
                                 <DropdownMenuItem onSelect={() => handleEdit(order)}>
                                     <Edit className="mr-2 h-4 w-4" />

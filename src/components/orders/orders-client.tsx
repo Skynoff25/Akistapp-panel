@@ -420,7 +420,11 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
 
       <Dialog open={isReceiptOpen} onOpenChange={setReceiptOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-muted/30">
-            <div className="max-h-[90vh] overflow-y-auto p-6">
+            <DialogHeader className="p-6 pb-0">
+                <DialogTitle>Comprobante de Pedido</DialogTitle>
+                <DialogDescription>Vista de la nota de entrega para impresión o revisión.</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[80vh] overflow-y-auto p-6">
                 {selectedOrder && <OrderReceipt order={selectedOrder} />}
             </div>
         </DialogContent>

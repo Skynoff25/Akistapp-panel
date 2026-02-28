@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit, Search } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Search, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +50,7 @@ import { getImageUrl } from "@/lib/utils";
 import { EditOrderDialog } from "./edit-order-dialog";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { OrderReceipt } from "./order-receipt";
 
 interface OrdersClientProps {
   storeId: string;
@@ -71,7 +73,17 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 
-function OrderDetailsDialog({ order, open, onOpenChange, onReportSuccess }: { order: Order | null; open: boolean; onOpenChange: (open: boolean) => void; onReportSuccess: () => void; }) {
+function OrderDetailsDialog({ 
+    order, 
+    open, 
+    onOpenChange, 
+    onReportSuccess 
+}: { 
+    order: Order | null; 
+    open: boolean; 
+    onOpenChange: (open: boolean) => void; 
+    onReportSuccess: () => void; 
+}) {
     if (!order) return null;
     const { appUser } = useAuth();
     const [isReportDialogOpen, setReportDialogOpen] = useState(false);
@@ -201,6 +213,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setDetailsOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isReceiptOpen, setReceiptOpen] = useState(false);
   const { toast } = useToast();
 
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
@@ -239,6 +252,11 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   const handleEdit = (order: Order) => {
     setSelectedOrder(order);
     setEditDialogOpen(true);
+  };
+
+  const handleViewReceipt = (order: Order) => {
+    setSelectedOrder(order);
+    setReceiptOpen(true);
   };
   
   const handleReportSuccess = () => {
@@ -346,6 +364,10 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
                                 <Eye className="mr-2 h-4 w-4" />
                                 <span>Ver Detalles</span>
                             </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleViewReceipt(order)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                <span>Ver Comprobante</span>
+                            </DropdownMenuItem>
                             {order.status === 'PENDING' && (
                                 <DropdownMenuItem onSelect={() => handleEdit(order)}>
                                     <Edit className="mr-2 h-4 w-4" />
@@ -363,6 +385,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
       </div>
 
       <OrderDetailsDialog order={selectedOrder} open={isDetailsOpen} onOpenChange={setDetailsOpen} onReportSuccess={handleReportSuccess} />
+      
       {selectedOrder && (
         <EditOrderDialog 
             order={selectedOrder}
@@ -375,6 +398,14 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
             }}
         />
       )}
+
+      <Dialog open={isReceiptOpen} onOpenChange={setReceiptOpen}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-muted/30">
+            <div className="max-h-[90vh] overflow-y-auto p-6">
+                {selectedOrder && <OrderReceipt order={selectedOrder} />}
+            </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,10 +1,12 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
 import { useDocument } from '@/hooks/use-document';
-import { where } from 'firebase/firestore';
-import type { StoreProduct, ProductVariant, GlobalRates, Store } from '@/lib/types';
+import { where, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { StoreProduct, ProductVariant, GlobalRates, Store, Order } from '@/lib/types';
 import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
@@ -12,7 +14,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw, FileCheck } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from '../ui/label';
+import { OrderReceipt } from '../orders/order-receipt';
 
 interface CartItem {
   cartItemId: string; 
@@ -169,6 +172,9 @@ export default function PosClient({ storeId }: { storeId: string }) {
   const [localTasaParalela, setLocalTasaParalela] = useState(40);
   const [isSyncing, setIsSyncing] = useState(false);
   const [variantSelectionProduct, setVariantSelectionProduct] = useState<StoreProduct | null>(null);
+  
+  const [lastOrder, setLastOrder] = useState<Order | null>(null);
+  const [isReceiptDialogOpen, setReceiptDialogOpen] = useState(false);
 
   useEffect(() => {
     if (globalRates) {
@@ -340,6 +346,25 @@ export default function PosClient({ storeId }: { storeId: string }) {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
     } else {
         toast({ title: 'Éxito', description: 'Venta registrada y stock actualizado.' });
+        
+        // Fetch last order to show receipt
+        try {
+            const q = query(
+                collection(db, "Orders"), 
+                where("storeId", "==", storeId),
+                where("userId", "==", "IN_STORE_SALE"),
+                orderBy("createdAt", "desc"),
+                limit(1)
+            );
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                setLastOrder({ id: snap.docs[0].id, ...snap.docs[0].data() } as Order);
+                setReceiptDialogOpen(true);
+            }
+        } catch (e) {
+            console.error("Error fetching last order for receipt:", e);
+        }
+
         setCart([]);
         setCustomerInfo({ name: '', nationalId: '', phone: '' }); 
         refetch();
@@ -516,6 +541,22 @@ export default function PosClient({ storeId }: { storeId: string }) {
                 setVariantSelectionProduct(null);
             }}
         />
+
+        {/* Dialogo de Comprobante después de la venta */}
+        <Dialog open={isReceiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+            <DialogContent className="max-w-4xl p-0 bg-muted/20">
+                <DialogHeader className="p-6 pb-0">
+                    <DialogTitle className="flex items-center gap-2"><FileCheck className="text-green-600" /> ¡Venta Registrada!</DialogTitle>
+                    <DialogDescription>Aquí tienes el comprobante de la última operación.</DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[80vh] overflow-y-auto p-6">
+                    {lastOrder && <OrderReceipt order={lastOrder} />}
+                </div>
+                <DialogFooter className="p-6 pt-0">
+                    <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>Cerrar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </>
   );
 }

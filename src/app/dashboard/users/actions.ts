@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -41,7 +42,11 @@ const updateUserSchema = z.object({
 
 async function getAuthHeaders() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('token')?.value || ''; 
+  const token = cookieStore.get('token')?.value; 
+
+  if (!token) {
+    throw new Error("Sesión expirada o token no encontrado. Por favor, recarga la página.");
+  }
 
   return {
     'Content-Type': 'application/json',
@@ -70,7 +75,7 @@ export async function createUser(formData: FormData) {
     try {
         data = JSON.parse(responseText);
     } catch (e) {
-        throw new Error(`El servidor devolvió algo que no es JSON: ${responseText}`);
+        throw new Error(`El servidor devolvió un error inesperado.`);
     }
 
     if (!res.ok) {

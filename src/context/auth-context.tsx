@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import { auth, areFirebaseCredentialsSet, db } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 import Loader from '@/components/ui/loader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Ban } from 'lucide-react';
+import { Terminal } from 'lucide-react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -57,8 +58,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (firebaseUser) {
         // Sincronizar token con cookie para que el servidor (Server Actions) pueda leerlo
-        const token = await firebaseUser.getIdToken();
-        Cookies.set('token', token, { expires: 7, secure: true, sameSite: 'strict' });
+        const token = await firebaseUser.getIdToken(true); // Force refresh to ensure validity
+        
+        // Configuramos la cookie de forma que sea accesible para las Server Actions
+        // secure: false en desarrollo si no hay HTTPS, lax es más compatible que strict para tokens de sesión
+        Cookies.set('token', token, { 
+            expires: 7, 
+            secure: window.location.protocol === 'https:', 
+            sameSite: 'lax',
+            path: '/' 
+        });
 
         const userDocRef = doc(db, 'Users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
@@ -68,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           if (data.isBlocked) {
             setAppUser(null);
-            Cookies.remove('token');
+            Cookies.remove('token', { path: '/' });
             await signOut(auth);
             toast({
                 variant: 'destructive',
@@ -78,20 +87,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             setAppUser({ id: userDocSnap.id, ...data });
             // Update last login
-            updateDoc(userDocRef, { lastLoginAt: Date.now() }).catch(console.error);
+            updateDoc(userDocRef, { lastLoginAt: Date.now() }).catch(() => {});
           }
         } else {
           setAppUser(null);
-          // Si el usuario existe en Auth pero no en Firestore, cerramos sesión por seguridad
-          // a menos que sea un flujo de registro pendiente
           if (pathname !== '/login') {
-             Cookies.remove('token');
+             Cookies.remove('token', { path: '/' });
              await signOut(auth);
           }
         }
       } else {
         setAppUser(null);
-        Cookies.remove('token');
+        Cookies.remove('token', { path: '/' });
       }
       setLoading(false);
     });
@@ -114,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (appUser.rol === 'customer') {
       signOut(auth);
-      Cookies.remove('token');
+      Cookies.remove('token', { path: '/' });
       toast({
         variant: 'destructive',
         title: 'Acceso Denegado',
@@ -140,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 router.push(`/store/${appUser.storeId}`);
             } else {
                 signOut(auth);
-                Cookies.remove('token');
+                Cookies.remove('token', { path: '/' });
                 toast({ variant: 'destructive', title: 'Error de Cuenta', description: 'No tienes una tienda asignada.' });
             }
         }

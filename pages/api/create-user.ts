@@ -1,6 +1,7 @@
+
 // api/create-user.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { adminAuth, adminDb } from "../../src/lib/firebase-admin"; // Asegúrate de importar adminDb
+import { adminAuth, adminDb } from "../../src/lib/firebase-admin"; 
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import { z } from "zod";
 
@@ -9,7 +10,6 @@ const rateLimiter = new RateLimiterMemory({
   duration: 60,
 });
 
-// Esquema actualizado para recibir los datos completos del dashboard
 const createUserRequestSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -19,7 +19,7 @@ const createUserRequestSchema = z.object({
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!adminAuth || !adminDb) return res.status(500).json({ error: "Error del servidor" });
+  if (!adminAuth || !adminDb) return res.status(500).json({ error: "Servicio de administración no disponible" });
   if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido" });
 
   // 1. Rate Limiting
@@ -30,24 +30,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(429).json({ error: "Demasiadas solicitudes" });
   }
 
-  // 2. Verificación de Token (Seguridad)
+  // 2. Verificación de Token
   const authHeader = req.headers.authorization || "";
-  if (!authHeader.startsWith("Bearer ")) {
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
     return res.status(401).json({ error: "Falta token de autorización" });
   }
   
   try {
-    const idToken = authHeader.slice("Bearer ".length);
+    const idToken = authHeader.split(" ")[1];
+    if (!idToken) throw new Error("Token vacío");
+    
     const decoded = await adminAuth.verifyIdToken(idToken);
     
-    // Solo admins o managers pueden crear usuarios (ajusta según tu lógica)
-    if (!['admin', 'store_manager', 'company'].includes(decoded.rol || decoded.type || '')) {
-       // Nota: he añadido 'rol' para compatibilidad con tu nuevo esquema
+    const requesterRol = decoded.rol || decoded.type || '';
+    if (!['admin', 'store_manager', 'company'].includes(requesterRol)) {
        return res.status(403).json({ error: "Permisos insuficientes" });
     }
   } catch (e) {
-    console.error(e)
-    return res.status(401).json({ error: "Token inválido" });
+    return res.status(401).json({ error: "Token inválido o expirado" });
   }
 
   // 3. Validación de datos
@@ -59,7 +59,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { email, password, name, rol, storeId } = parsed.data;
 
   try {
-    // 4. Crear usuario en Authentication
     const userRecord = await adminAuth.createUser({
       email,
       password,
@@ -67,14 +66,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       emailVerified: true 
     });
 
-    // 5. Asignar Custom Claims (Roles)
     await adminAuth.setCustomUserClaims(userRecord.uid, { 
       rol, 
       storeId: storeId || null,
-      type: rol === 'admin' ? 'admin' : 'employee' // Manteniendo compatibilidad con tu sistema anterior
+      type: rol === 'admin' ? 'admin' : 'employee'
     });
 
-    // 6. Crear documento en Firestore (Movido desde el frontend/action hacia aquí)
     if (adminDb) {
       await adminDb.collection('Users').doc(userRecord.uid).set({
         name,
@@ -84,7 +81,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         createdAt: Date.now(),
         photoUrl: null,
         cityName: 'default',
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        emailVerified: true,
+        isBlocked: false
       });
     }
 
@@ -92,8 +91,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error: any) {
     console.error("Error backend create-user:", error);
-    // Si falla Firestore, idealmente deberíamos borrar el usuario de Auth (rollback manual), 
-    // pero por simplicidad retornamos error.
     return res.status(500).json({ error: error.message || "Error interno al crear usuario" });
   }
 }

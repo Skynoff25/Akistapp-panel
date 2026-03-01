@@ -10,6 +10,7 @@ import { Terminal, Ban } from 'lucide-react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import Cookies from 'js-cookie';
 
 interface AuthContextType {
   user: User | null;
@@ -51,16 +52,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
     }
     
-    const unsubscribe = onIdTokenChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const userDocRef = doc(db, 'Users', user.uid);
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      
+      if (firebaseUser) {
+        // Sincronizar token con cookie para que el servidor (Server Actions) pueda leerlo
+        const token = await firebaseUser.getIdToken();
+        Cookies.set('token', token, { expires: 7, secure: true, sameSite: 'strict' });
+
+        const userDocRef = doc(db, 'Users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
+        
         if (userDocSnap.exists()) {
           const data = userDocSnap.data() as AppUser;
           
           if (data.isBlocked) {
             setAppUser(null);
+            Cookies.remove('token');
             await signOut(auth);
             toast({
                 variant: 'destructive',
@@ -74,15 +82,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           setAppUser(null);
-          await signOut(auth);
+          // Si el usuario existe en Auth pero no en Firestore, cerramos sesión por seguridad
+          // a menos que sea un flujo de registro pendiente
+          if (pathname !== '/login') {
+             Cookies.remove('token');
+             await signOut(auth);
+          }
         }
       } else {
         setAppUser(null);
+        Cookies.remove('token');
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, pathname]);
 
   useEffect(() => {
     if (loading || !areFirebaseCredentialsSet) return;
@@ -100,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (appUser.rol === 'customer') {
       signOut(auth);
+      Cookies.remove('token');
       toast({
         variant: 'destructive',
         title: 'Acceso Denegado',
@@ -125,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 router.push(`/store/${appUser.storeId}`);
             } else {
                 signOut(auth);
+                Cookies.remove('token');
                 toast({ variant: 'destructive', title: 'Error de Cuenta', description: 'No tienes una tienda asignada.' });
             }
         }

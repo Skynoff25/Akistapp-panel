@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -20,7 +19,8 @@ import {
     ShoppingCart,
     Megaphone,
     Banknote,
-    Scaling
+    Scaling,
+    Ticket
 } from 'lucide-react';
 import { useDocument } from '@/hooks/use-document';
 import type { Store as StoreType } from '@/lib/types';
@@ -63,6 +63,7 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
         { href: `/store/${storeId}/my-products`, label: 'Mis Productos', icon: Package, enabled: true },
         { href: `/store/${storeId}/orders`, label: 'Pedidos', icon: ShoppingCart, enabled: true, badge: pendingCount },
         { href: `/store/${storeId}/promotions`, label: 'Promociones', icon: Megaphone, enabled: true },
+        { href: `/store/${storeId}/coupons`, label: 'Cupones', icon: Ticket, enabled: true },
         { href: `/store/${storeId}/pos`, label: 'Punto de Venta', icon: Banknote, enabled: store?.hasPos ?? false },
         { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling, enabled: store?.hasFinanceModule ?? false },
     ];

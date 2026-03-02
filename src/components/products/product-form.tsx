@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Form,
   FormControl,
@@ -27,7 +28,7 @@ import { createProduct, updateProduct } from "@/app/dashboard/products/actions";
 import type { Product } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
-import { Copy, Link, Upload } from "lucide-react";
+import { Copy, Link, Upload, PackageSearch } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const productSchema = z.object({
@@ -38,6 +39,7 @@ const productSchema = z.object({
   image: z.any().optional(),
   imageUrl: z.string().optional(),
   tags: z.string().optional(),
+  isGenericBrand: z.boolean().default(false),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -61,8 +63,17 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
       image: "",
       imageUrl: "",
       tags: "",
+      isGenericBrand: false,
     },
   });
+
+  const isGeneric = form.watch("isGenericBrand");
+
+  useEffect(() => {
+    if (isGeneric) {
+      form.setValue("brand", "Genérico");
+    }
+  }, [isGeneric, form]);
 
   useEffect(() => {
     if (product) {
@@ -74,6 +85,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         image: "",
         imageUrl: product.image?.startsWith('http') ? product.image : "",
         tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
+        isGenericBrand: product.isGenericBrand || false,
       });
     }
   }, [product, form]);
@@ -88,6 +100,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         category: source.category,
         imageUrl: source.image,
         tags: Array.isArray(source.tags) ? source.tags.join(", ") : "",
+        isGenericBrand: source.isGenericBrand || false,
       });
       toast({
         description: "Datos cargados desde el producto seleccionado.",
@@ -103,7 +116,6 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         }
     });
 
-    // Manejo especial de imagen
     if (data.imageUrl) {
         formData.append('imageUrl', data.imageUrl);
     }
@@ -169,13 +181,32 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="isGenericBrand"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/10">
+              <div className="space-y-0.5">
+                <FormLabel className="text-sm font-medium flex items-center gap-2">
+                  <PackageSearch className="h-4 w-4" />
+                  ¿Producto genérico / marca variable?
+                </FormLabel>
+                <FormDescription className="text-xs">Si la marca no es relevante o varía constantemente.</FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
         
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="brand"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className={isGeneric ? "hidden" : "block"}>
                 <FormLabel>Marca</FormLabel>
                 <FormControl>
                   <Input placeholder="Adidas, Nike..." {...field} />
@@ -188,7 +219,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
             control={form.control}
             name="category"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className={isGeneric ? "col-span-2" : ""}>
                 <FormLabel>Categoría</FormLabel>
                 <FormControl>
                   <Input placeholder="Calzado, Ropa..." {...field} />

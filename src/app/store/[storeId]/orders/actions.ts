@@ -33,7 +33,6 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
 
       const order = orderSnap.data() as Order;
       
-      // Solo descontar inventario si no ha sido descontado antes
       if (!order.inventoryDeducted) {
         const inventoryIds = order.items.map(item => item.inventoryId).filter(Boolean);
         if (inventoryIds.length > 0) {
@@ -52,14 +51,12 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
         }
         batch.update(orderRef, { status: status, inventoryDeducted: true });
       } else {
-        // Si ya se descontó, solo actualizar el estado
         batch.update(orderRef, { status: status });
       }
 
       await batch.commit();
 
     } else {
-      // Para otros estados, solo actualizar el estado.
       await updateDoc(orderRef, { status });
     }
 
@@ -70,6 +67,30 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
     console.error(e);
     return { error: `No se pudo actualizar el estado del pedido. ${e.message}` };
   }
+}
+
+export async function applyManualDiscount(storeId: string, orderId: string, discount: number) {
+    try {
+        const orderRef = doc(db, "Orders", orderId);
+        const orderSnap = await getDoc(orderRef);
+        if (!orderSnap.exists()) throw new Error("El pedido no existe.");
+        
+        const order = orderSnap.data() as Order;
+        const subtotal = order.totalAmount + (order.shippingCost || 0);
+        const couponDiscount = order.couponDiscount || 0;
+        
+        const newFinalTotal = Math.max(0, subtotal - couponDiscount - discount);
+
+        await updateDoc(orderRef, {
+            manualDiscount: discount,
+            finalTotal: newFinalTotal,
+        });
+
+        revalidatePath(`/store/${storeId}/orders`);
+        return { success: true, message: "Descuento aplicado correctamente." };
+    } catch (e: any) {
+        return { error: e.message };
+    }
 }
 
 const updateOrderItemsSchema = z.object({
@@ -108,11 +129,18 @@ export async function updateOrderItems(storeId: string, orderId: string, formDat
       return { error: "El pedido no se puede modificar o no existe." };
     }
 
-    const newTotalAmount = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const orderData = orderSnap.data() as Order;
+    const newSubtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const shipping = orderData.shippingCost || 0;
+    const manualDisc = orderData.manualDiscount || 0;
+    const couponDisc = orderData.couponDiscount || 0;
+    
+    const newFinalTotal = Math.max(0, (newSubtotal + shipping) - manualDisc - couponDisc);
 
     await updateDoc(orderRef, {
       items: items,
-      totalAmount: newTotalAmount,
+      totalAmount: newSubtotal,
+      finalTotal: newFinalTotal,
     });
 
     revalidatePath(`/store/${storeId}/orders`);

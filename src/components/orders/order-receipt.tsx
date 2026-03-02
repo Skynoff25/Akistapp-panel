@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useRef } from 'react';
@@ -34,7 +33,6 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
     if (!windowPrint) return;
 
     windowPrint.document.write('<html><head><title>Comprobante de Pedido</title>');
-    // Import Tailwind for printing
     windowPrint.document.write('<script src="https://cdn.tailwindcss.com"></script>');
     windowPrint.document.write('<style>@media print { .no-print { display: none; } }</style>');
     windowPrint.document.write('</head><body>');
@@ -42,7 +40,6 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
     windowPrint.document.write('</body></html>');
     windowPrint.document.close();
     
-    // Wait for content to load then print
     setTimeout(() => {
       windowPrint.focus();
       windowPrint.print();
@@ -52,7 +49,8 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
 
   if (loading) return <Loader text="Generando comprobante..." />;
 
-  const totalVes = (order.totalAmount + order.shippingCost) * (order.tasaOficial || 1);
+  const finalTotalUsd = order.finalTotal || (order.totalAmount + order.shippingCost);
+  const totalVes = finalTotalUsd * (order.tasaOficial || 1);
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,7 +62,6 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
       </div>
 
       <div ref={printRef} className="bg-white p-8 border rounded-lg shadow-sm text-slate-900 font-sans printable-receipt">
-        {/* Header */}
         <div className="flex justify-between items-start border-b pb-6 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
@@ -85,7 +82,6 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
           </div>
         </div>
 
-        {/* Info Grid */}
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
             <h3 className="text-[10px] font-bold uppercase text-slate-400 mb-2">Datos del Cliente</h3>
@@ -111,7 +107,6 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
           </div>
         </div>
 
-        {/* Items Table */}
         <div className="mb-8">
           <Table>
             <TableHeader className="bg-slate-50">
@@ -138,7 +133,6 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
           </Table>
         </div>
 
-        {/* Totals Section */}
         <div className="flex justify-end mb-8">
           <div className="w-full max-w-[250px] space-y-2">
             <div className="flex justify-between text-sm">
@@ -151,9 +145,21 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
                 <span className="font-medium">${order.shippingCost.toFixed(2)}</span>
               </div>
             )}
+            {order.couponCode && (
+              <div className="flex justify-between text-sm text-primary">
+                <span>Cupón ({order.couponCode}):</span>
+                <span>-${(order.couponDiscount || 0).toFixed(2)}</span>
+              </div>
+            )}
+            {order.manualDiscount && order.manualDiscount > 0 && (
+              <div className="flex justify-between text-sm text-destructive">
+                <span>Descuento Manual:</span>
+                <span>-${order.manualDiscount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t pt-2 text-lg font-bold text-primary">
-              <span>Total USD:</span>
-              <span>${(order.totalAmount + order.shippingCost).toFixed(2)}</span>
+              <span>Total Final USD:</span>
+              <span>${finalTotalUsd.toFixed(2)}</span>
             </div>
             
             {order.tasaOficial && (
@@ -171,7 +177,6 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
           </div>
         </div>
 
-        {/* Disclaimer Footer */}
         <div className="border-t pt-6 text-center">
           <p className="text-[11px] font-bold text-slate-600 mb-1">
             ESTE DOCUMENTO ES UN COMPROBANTE DE PEDIDO INTERNO.

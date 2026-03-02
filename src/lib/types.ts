@@ -52,7 +52,8 @@ export interface Product {
   category: string;
   image: string;
   tags: string[];
-  isRecommended?: boolean; // Nuevo campo para recomendaciones
+  isRecommended?: boolean;
+  isGenericBrand?: boolean; // New generic brand field
 }
 
 export interface ProductVariant {
@@ -82,6 +83,7 @@ export interface StoreProduct {
     globalImage: string;
     storeName: string;
     storeAddress: string;
+    isGenericBrand?: boolean; // New generic brand field
 
     // New variation fields
     hasVariations: boolean;
@@ -160,16 +162,22 @@ export type OrderType = 'ONLINE' | 'IN_STORE';
 
 export interface Order {
     id: string;
-    userId: string; // Puede ser un ID genérico para ventas en tienda
+    userId: string; 
     storeId: string;
     storeName: string;
     items: CartItemSnapshot[];
-    totalAmount: number;
+    totalAmount: number; // This is the subtotal before discounts
     shippingCost: number;
     status: OrderStatus;
     createdAt: number;
     type: OrderType;
     inventoryDeducted?: boolean;
+
+    // --- New Discount Fields ---
+    couponCode?: string;
+    couponDiscount?: number;
+    manualDiscount?: number;
+    finalTotal: number; // Total after all discounts
 
     // --- Exchange rates at time of sale ---
     tasaOficial?: number;
@@ -212,4 +220,15 @@ export interface Report {
   createdAt: number;
   // Context
   orderId?: string;
+}
+
+export interface StoreCoupon {
+  id: string;
+  storeId: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  isActive: boolean;
+  expirationDate: number;
+  createdAt: number;
 }

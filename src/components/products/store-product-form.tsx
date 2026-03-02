@@ -28,7 +28,7 @@ import { updateStoreProduct } from "@/app/store/[storeId]/my-products/actions";
 import { useAuth } from "@/context/auth-context";
 import { useEffect, useState } from "react";
 import { Label } from "../ui/label";
-import { PlusCircle, Trash2, Wand2, Zap, Link, Upload, Copy, Layers } from "lucide-react";
+import { PlusCircle, Trash2, Wand2, Zap, Link, Upload, Copy, Layers, PackageSearch } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
@@ -56,6 +56,7 @@ const storeProductSchema = z.object({
   casheaEligible: z.boolean(),
   hasVariations: z.boolean(),
   variants: z.array(variantSchema).optional(),
+  isGenericBrand: z.boolean().default(false),
 }).superRefine((data, ctx) => {
     if (data.hasVariations) {
         if (!data.variants || data.variants.length === 0) {
@@ -88,7 +89,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   const { appUser } = useAuth();
   const canEditPrice = appUser?.rol === 'store_manager' || appUser?.rol === 'admin';
 
-  // Estados para generador de combinaciones
   const [showGenerator, setShowGenerator] = useState(false);
   const [attr1Name, setAttr1Name] = useState("Color");
   const [attr1Values, setAttr1Values] = useState("");
@@ -112,10 +112,11 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       casheaEligible: false,
       hasVariations: false,
       variants: [],
+      isGenericBrand: false,
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "variants",
   });
@@ -137,6 +138,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             casheaEligible: product.casheaEligible || false,
             hasVariations: product.hasVariations || false,
             variants: product.variants || [],
+            isGenericBrand: product.isGenericBrand || false,
         });
         if (product.price > 0 && batchPrice === 0) setBatchPrice(product.price);
     }
@@ -154,7 +156,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
     const newVariants: any[] = [];
 
     if (vals2.length === 0) {
-        // Solo un atributo
         vals1.forEach(v1 => {
             newVariants.push({
                 id: crypto.randomUUID(),
@@ -164,7 +165,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             });
         });
     } else {
-        // Combinación de dos atributos
         vals1.forEach(v1 => {
             vals2.forEach(v2 => {
                 newVariants.push({
@@ -177,7 +177,6 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
         });
     }
 
-    // Añadir a las existentes
     newVariants.forEach(v => append(v));
     setShowGenerator(false);
     toast({ title: 'Éxito', description: `Se han generado ${newVariants.length} combinaciones.` });
@@ -226,6 +225,25 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
 
         <FormField
           control={form.control}
+          name="isGenericBrand"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/10">
+              <div className="space-y-0.5">
+                <FormLabel className="text-sm font-medium flex items-center gap-2">
+                  <PackageSearch className="h-4 w-4" />
+                  ¿Producto genérico / marca variable?
+                </FormLabel>
+                <FormDescription className="text-xs">Marca variable o no relevante.</FormDescription>
+              </div>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="hasVariations"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/20">
@@ -234,7 +252,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                   <Zap className="h-4 w-4 text-primary" />
                   Manejar Variantes / Combinaciones
                 </FormLabel>
-                <FormDescription>Activa para gestionar tallas, colores o versiones con stock propio.</FormDescription>
+                <FormDescription>Activa para gestionar tallas, colores o versiones.</FormDescription>
               </div>
               <FormControl>
                 <Switch checked={field.value} onCheckedChange={field.onChange} disabled={!canEditPrice} />
@@ -250,7 +268,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                           <CardTitle className="text-lg">Gestor de Variantes</CardTitle>
-                          <CardDescription>Crea combinaciones únicas de atributos.</CardDescription>
+                          <CardDescription>Crea combinaciones únicas.</CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
                            <Button 
@@ -286,11 +304,11 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                             <Separator />
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase font-bold">Precio para estas variantes</Label>
+                                    <Label className="text-[10px] uppercase font-bold">Precio sugerido</Label>
                                     <Input type="number" value={batchPrice} onChange={e => setBatchPrice(Number(e.target.value))} className="h-8 text-xs" />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase font-bold">Stock para estas variantes</Label>
+                                    <Label className="text-[10px] uppercase font-bold">Stock sugerido</Label>
                                     <Input type="number" value={batchStock} onChange={e => setBatchStock(Number(e.target.value))} className="h-8 text-xs" />
                                 </div>
                                 <div className="flex items-end">
@@ -334,7 +352,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     name={`variants.${index}.name`}
                                     render={({ field }) => (
                                         <FormItem className="col-span-5">
-                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Variante / Combinación</FormLabel>
+                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Variante</FormLabel>
                                             <FormControl><Input className="h-8 text-xs" placeholder="Ej: Rojo / XL" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -345,7 +363,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     name={`variants.${index}.price`}
                                     render={({ field }) => (
                                         <FormItem className="col-span-3">
-                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Precio Final ($)</FormLabel>
+                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Precio ($)</FormLabel>
                                             <FormControl><Input className="h-8 text-xs" type="number" step="0.01" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>

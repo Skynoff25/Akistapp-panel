@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo } from 'react';
@@ -22,9 +21,10 @@ import {
     TableRow 
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Printer, Download, ShoppingCart, Calculator, FileText } from 'lucide-react';
+import { Printer, Download, ShoppingCart, Calculator, FileText, AlertCircle } from 'lucide-react';
 import type { Order } from '@/lib/types';
 import Loader from '@/components/ui/loader';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface DailyClosureReportProps {
   storeId: string;
@@ -43,7 +43,7 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
   const end = endOfDay(new Date()).getTime();
 
   // Consultar órdenes entregadas hoy
-  const { data: orders, loading } = useFirestoreQuery<Order>('Orders', [
+  const { data: orders, loading, error } = useFirestoreQuery<Order>('Orders', [
     where('storeId', '==', storeId),
     where('status', '==', 'DELIVERED'),
     where('createdAt', '>=', start),
@@ -51,7 +51,7 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
   ]);
 
   const { summarizedItems, totalGrossAmount, totalOrders } = useMemo(() => {
-    if (!orders) return { summarizedItems: [], totalGrossAmount: 0, totalOrders: 0 };
+    if (!orders || orders.length === 0) return { summarizedItems: [], totalGrossAmount: 0, totalOrders: 0 };
 
     const itemMap = new Map<string, SummarizedItem>();
     let grossAmount = 0;
@@ -94,8 +94,8 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
 
     const headers = ["Producto", "Variante", "Cantidad Total", "Total ($)"];
     const rows = summarizedItems.map(item => [
-        item.productName,
-        item.variantLabel,
+        `"${item.productName}"`,
+        `"${item.variantLabel}"`,
         item.totalQuantity.toString(),
         item.totalRevenue.toFixed(2)
     ]);
@@ -112,6 +112,19 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
   };
 
   if (loading) return <Loader text="Generando consolidado diario..." />;
+
+  if (error) {
+    return (
+        <Alert variant="destructive" className="my-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error al cargar el cierre</AlertTitle>
+            <AlertDescription>
+                Hubo un problema al consultar las ventas de hoy. Por favor, asegúrate de que los índices de la base de datos estén listos.
+                <br/> Detalle: {error.message}
+            </AlertDescription>
+        </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6 print:p-0">
@@ -168,14 +181,31 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
       {/* Tabla de Consolidación */}
       <Card className="print:shadow-none print:border-none">
         <CardHeader className="print:pb-6">
-            <CardTitle className="text-lg">Detalle de Productos Vendidos (Consolidado)</CardTitle>
-            <CardDescription className="no-print">
-                Suma total por producto para carga masiva en inventario.
-            </CardDescription>
-            <div className="hidden print:block text-xs mt-2 space-y-1">
-                <p><strong>Fecha:</strong> {format(new Date(), "dd 'de' MMMM, yyyy", { locale: es })}</p>
-                <p><strong>Total Ventas:</strong> ${totalGrossAmount.toFixed(2)}</p>
-                <p><strong>Total Pedidos:</strong> {totalOrders}</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle className="text-lg">Detalle de Productos Vendidos (Consolidado)</CardTitle>
+                    <CardDescription className="no-print">
+                        Suma total por producto para carga masiva en inventario.
+                    </CardDescription>
+                </div>
+                <div className="hidden print:block text-right">
+                    <h1 className="text-2xl font-bold text-primary">AkistApp</h1>
+                    <p className="text-xs text-muted-foreground">Reporte de Cierre Diario</p>
+                </div>
+            </div>
+            <div className="hidden print:grid grid-cols-3 gap-4 text-xs mt-6 border p-4 rounded-lg">
+                <div>
+                    <p className="font-bold uppercase text-muted-foreground">Fecha del Reporte</p>
+                    <p className="text-sm">{format(new Date(), "dd 'de' MMMM, yyyy", { locale: es })}</p>
+                </div>
+                <div>
+                    <p className="font-bold uppercase text-muted-foreground">Venta Total</p>
+                    <p className="text-sm font-bold">${totalGrossAmount.toFixed(2)}</p>
+                </div>
+                <div>
+                    <p className="font-bold uppercase text-muted-foreground">Total Pedidos</p>
+                    <p className="text-sm">{totalOrders}</p>
+                </div>
             </div>
         </CardHeader>
         <CardContent>
@@ -207,9 +237,9 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
                     )}
                 </TableBody>
                 {summarizedItems.length > 0 && (
-                    <tfoot className="bg-muted/30 font-bold">
-                        <TableRow>
-                            <TableCell colSpan={2} className="text-right">TOTALES DEL CIERRE:</TableCell>
+                    <TableFooter>
+                        <TableRow className="bg-muted/30 font-bold">
+                            <TableCell colSpan={2} className="text-right uppercase">Total Consolidado:</TableCell>
                             <TableCell className="text-center">
                                 {summarizedItems.reduce((acc, i) => acc + i.totalQuantity, 0)} items
                             </TableCell>
@@ -217,12 +247,24 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
                                 ${totalGrossAmount.toFixed(2)}
                             </TableCell>
                         </TableRow>
-                    </tfoot>
+                    </TableFooter>
                 )}
             </Table>
             
-            <div className="hidden print:block mt-12 border-t pt-8 text-center text-[10px] text-muted-foreground uppercase tracking-widest">
-                <p>Documento de Control Interno - Generado por AkistApp</p>
+            <div className="hidden print:block mt-12 border-t pt-8">
+                <div className="grid grid-cols-2 gap-8 text-center">
+                    <div className="space-y-12">
+                        <div className="border-t border-black w-48 mx-auto"></div>
+                        <p className="text-[10px] font-bold">FIRMA CAJERO / RESPONSABLE</p>
+                    </div>
+                    <div className="space-y-12">
+                        <div className="border-t border-black w-48 mx-auto"></div>
+                        <p className="text-[10px] font-bold">FIRMA GERENTE / ADMINISTRADOR</p>
+                    </div>
+                </div>
+                <p className="text-center text-[10px] text-muted-foreground uppercase tracking-widest mt-12">
+                    Documento de Control Interno - Generado por AkistApp
+                </p>
             </div>
         </CardContent>
       </Card>

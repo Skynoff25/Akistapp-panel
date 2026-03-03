@@ -69,3 +69,32 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+@media print {
+  .no-print,
+  aside,
+  header,
+  nav,
+  button,
+  [role="tablist"] {
+    display: none !important;
+  }
+  
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  .border {
+    border-color: #e2e8f0 !important;
+  }
+}

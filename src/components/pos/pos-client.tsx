@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -6,7 +5,7 @@ import { useFirestoreQuery } from '@/hooks/use-firestore-query';
 import { useDocument } from '@/hooks/use-document';
 import { where, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { StoreProduct, ProductVariant, GlobalRates, Store, Order } from '@/lib/types';
+import type { StoreProduct, ProductVariant, GlobalRates, Store, Order, StoreCoupon } from '@/lib/types';
 import { PageHeader } from '../ui/page-header';
 import Loader from '../ui/loader';
 import { Input } from '../ui/input';
@@ -14,7 +13,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw, FileCheck } from 'lucide-react';
+import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw, FileCheck, Tag, Percent } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '../ui/label';
 import { OrderReceipt } from '../orders/order-receipt';
+import { Separator } from '../ui/separator';
 
 interface CartItem {
   cartItemId: string; 
@@ -173,6 +173,12 @@ export default function PosClient({ storeId }: { storeId: string }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [variantSelectionProduct, setVariantSelectionProduct] = useState<StoreProduct | null>(null);
   
+  // --- Estados de Descuento ---
+  const [couponInput, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<StoreCoupon | null>(null);
+  const [manualDiscount, setManualDiscount] = useState<number>(0);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [isReceiptDialogOpen, setReceiptDialogOpen] = useState(false);
 
@@ -211,9 +217,50 @@ export default function PosClient({ storeId }: { storeId: string }) {
     return inventory.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [inventory, searchTerm]);
 
-  const cartTotal = useMemo(() => {
+  const cartSubtotal = useMemo(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   }, [cart]);
+
+  const couponDiscountValue = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.discountType === 'FIXED') return appliedCoupon.discountValue;
+    return (cartSubtotal * appliedCoupon.discountValue) / 100;
+  }, [appliedCoupon, cartSubtotal]);
+
+  const finalTotal = useMemo(() => {
+    return Math.max(0, cartSubtotal - couponDiscountValue - manualDiscount);
+  }, [cartSubtotal, couponDiscountValue, manualDiscount]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setIsValidatingCoupon(true);
+    try {
+        const q = query(
+            collection(db, "Coupons"), 
+            where("storeId", "==", storeId), 
+            where("code", "==", couponInput.trim().toUpperCase()),
+            where("isActive", "==", true)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) {
+            toast({ variant: 'destructive', title: 'Cupón Inválido', description: 'El código no existe o está inactivo.' });
+            setAppliedCoupon(null);
+        } else {
+            const coupon = { id: snap.docs[0].id, ...snap.docs[0].data() } as StoreCoupon;
+            if (Date.now() > coupon.expirationDate) {
+                toast({ variant: 'destructive', title: 'Cupón Expirado', description: 'Este cupón ya no es válido.' });
+                setAppliedCoupon(null);
+            } else {
+                setAppliedCoupon(coupon);
+                toast({ title: 'Cupón Aplicado', description: `Se ha aplicado el descuento de ${coupon.code}.` });
+            }
+        }
+    } catch (e) {
+        toast({ variant: 'destructive', title: 'Error', description: 'No se pudo validar el cupón.' });
+    } finally {
+        setIsValidatingCoupon(false);
+    }
+  };
 
   const addBaseProductToCart = (product: StoreProduct) => {
     setCart(prevCart => {
@@ -332,7 +379,11 @@ export default function PosClient({ storeId }: { storeId: string }) {
     
     const formData = new FormData();
     formData.append('items', JSON.stringify(saleItems));
-    formData.append('totalAmount', String(cartTotal));
+    formData.append('totalAmount', String(cartSubtotal));
+    formData.append('finalTotal', String(finalTotal));
+    formData.append('couponCode', appliedCoupon?.code || '');
+    formData.append('couponDiscount', String(couponDiscountValue));
+    formData.append('manualDiscount', String(manualDiscount));
     formData.append('userName', customerInfo.name);
     formData.append('userNationalId', customerInfo.nationalId);
     formData.append('userPhoneNumber', customerInfo.phone);
@@ -347,7 +398,6 @@ export default function PosClient({ storeId }: { storeId: string }) {
     } else {
         toast({ title: 'Éxito', description: 'Venta registrada y stock actualizado.' });
         
-        // Fetch last order to show receipt
         try {
             const q = query(
                 collection(db, "Orders"), 
@@ -367,6 +417,9 @@ export default function PosClient({ storeId }: { storeId: string }) {
 
         setCart([]);
         setCustomerInfo({ name: '', nationalId: '', phone: '' }); 
+        setAppliedCoupon(null);
+        setManualDiscount(0);
+        setCouponCode('');
         refetch();
     }
     setIsSubmitting(false);
@@ -455,12 +508,12 @@ export default function PosClient({ storeId }: { storeId: string }) {
             </Card>
         </div>
         <div className="md:col-span-1">
-            <Card className="flex flex-col h-full">
+            <Card className="flex flex-col h-full sticky top-4">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><ShoppingCart /> Carrito de Venta</CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-lg"><ShoppingCart /> Carrito de Venta</CardTitle>
                 </CardHeader>
-                <CardContent className="flex-grow">
-                    <ScrollArea className="h-[40vh] pr-4">
+                <CardContent className="flex-grow space-y-4">
+                    <ScrollArea className="h-[30vh] pr-4">
                         {cart.length === 0 ? (
                             <p className="text-muted-foreground text-center py-8">El carrito está vacío.</p>
                         ) : (
@@ -469,55 +522,107 @@ export default function PosClient({ storeId }: { storeId: string }) {
                                     <div key={item.cartItemId} className="flex items-start gap-3">
                                         <Image src={item.image} alt={item.name} width={48} height={48} className="rounded-md" />
                                         <div className="flex-grow">
-                                            <p className="font-medium text-sm leading-tight">{item.name}</p>
-                                            <p className="text-xs text-muted-foreground">${item.price.toFixed(2)}</p>
+                                            <p className="font-medium text-xs leading-tight">{item.name}</p>
+                                            <p className="text-[10px] text-muted-foreground">${item.price.toFixed(2)}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}><MinusCircle className="h-4 w-4" /></Button>
-                                                <Input type="number" value={item.quantity} onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value) || 0)} className="h-8 w-14 text-center p-1" />
+                                                <Input type="number" value={item.quantity} onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center p-1 text-xs" />
                                                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}><PlusCircle className="h-4 w-4" /></Button>
                                             </div>
                                         </div>
-                                        <p className="font-semibold text-sm">${(item.price * item.quantity).toFixed(2)}</p>
+                                        <p className="font-semibold text-xs">${(item.price * item.quantity).toFixed(2)}</p>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </ScrollArea>
+
+                    <Separator />
+
+                    {/* --- Sección de Descuentos --- */}
+                    <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-dashed">
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3"/> Cupón de Descuento</Label>
+                            <div className="flex gap-2">
+                                <Input 
+                                    placeholder="CÓDIGO" 
+                                    className="h-8 text-xs uppercase" 
+                                    value={couponInput} 
+                                    onChange={e => setCouponCode(e.target.value)}
+                                    disabled={!!appliedCoupon}
+                                />
+                                {appliedCoupon ? (
+                                    <Button size="sm" variant="ghost" className="h-8 text-destructive px-2" onClick={() => { setAppliedCoupon(null); setCouponCode(''); }}>
+                                        <XCircle className="h-4 w-4" />
+                                    </Button>
+                                ) : (
+                                    <Button size="sm" className="h-8 text-[10px]" onClick={handleApplyCoupon} disabled={isValidatingCoupon || !couponInput}>
+                                        {isValidatingCoupon ? '...' : 'APLICAR'}
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Percent className="h-3 w-3"/> Descuento Manual ($)</Label>
+                            <Input 
+                                type="number" 
+                                step="0.01" 
+                                className="h-8 text-xs" 
+                                placeholder="0.00"
+                                value={manualDiscount || ''}
+                                onChange={e => setManualDiscount(parseFloat(e.target.value) || 0)}
+                            />
+                        </div>
+                    </div>
                 </CardContent>
-                 <div className="p-4 border-t">
-                    <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-sm font-medium">Información del Cliente</h4>
-                        {customerInfo.name && (
-                            <Button variant="link" className="p-0 h-auto text-xs" onClick={() => setCustomerInfo({ name: '', nationalId: '', phone: '' })}>
-                                Limpiar
+
+                 <div className="p-4 border-t space-y-4">
+                    <div className="space-y-1 text-sm">
+                        <div className="flex justify-between text-muted-foreground">
+                            <span>Subtotal:</span>
+                            <span>${cartSubtotal.toFixed(2)}</span>
+                        </div>
+                        {appliedCoupon && (
+                            <div className="flex justify-between text-primary font-medium">
+                                <span>Cupón ({appliedCoupon.code}):</span>
+                                <span>-${couponDiscountValue.toFixed(2)}</span>
+                            </div>
+                        )}
+                        {manualDiscount > 0 && (
+                            <div className="flex justify-between text-destructive font-medium">
+                                <span>Desc. Manual:</span>
+                                <span>-${manualDiscount.toFixed(2)}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between items-center text-lg font-bold border-t pt-2 mt-2">
+                            <span>Total Final:</span>
+                            <span className="text-primary">${finalTotal.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                        <h4 className="text-[10px] uppercase font-bold text-muted-foreground">Información del Cliente</h4>
+                        {customerInfo.name ? (
+                            <div className="text-xs text-muted-foreground space-y-1 p-2 bg-muted/50 rounded-md">
+                                <p><span className="font-semibold text-foreground">Cliente:</span> {customerInfo.name}</p>
+                                {customerInfo.nationalId && <p><span className="font-semibold text-foreground">Cédula:</span> {customerInfo.nationalId}</p>}
+                                <Button variant="link" className="p-0 h-auto text-[10px] mt-1" onClick={() => setCustomerDialogOpen(true)}>
+                                    Editar Datos
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setCustomerDialogOpen(true)}>
+                                Añadir Datos de Cliente
                             </Button>
                         )}
                     </div>
                     
-                    {customerInfo.name ? (
-                        <div className="text-sm text-muted-foreground space-y-1 p-2 bg-muted/50 rounded-md">
-                            <p><span className="font-semibold text-foreground">Nombre:</span> {customerInfo.name}</p>
-                            {customerInfo.nationalId && <p><span className="font-semibold text-foreground">Cédula:</span> {customerInfo.nationalId}</p>}
-                            {customerInfo.phone && <p><span className="font-semibold text-foreground">Teléfono:</span> {customerInfo.phone}</p>}
-                            <Button variant="link" className="p-0 h-auto text-xs mt-1" onClick={() => setCustomerDialogOpen(true)}>
-                                Editar
-                            </Button>
-                        </div>
-                    ) : (
-                        <Button variant="outline" className="w-full" onClick={() => setCustomerDialogOpen(true)}>
-                            Añadir Cliente (Opcional)
-                        </Button>
-                    )}
-                </div>
-                <CardFooter className="flex-col gap-4 !p-4 mt-auto">
-                    <div className="w-full flex justify-between items-center text-lg font-bold">
-                        <span>Total:</span>
-                        <span>${cartTotal.toFixed(2)}</span>
-                    </div>
-                    <Button className="w-full" onClick={handleCompleteSale} disabled={isSubmitting || cart.length === 0}>
-                        {isSubmitting ? "Registrando Venta..." : "Completar Venta"}
+                    <Button className="w-full py-6 text-base font-bold shadow-lg" onClick={handleCompleteSale} disabled={isSubmitting || cart.length === 0}>
+                        {isSubmitting ? "REGISTRANDO..." : "COMPLETAR VENTA"}
                     </Button>
-                </CardFooter>
+                </div>
             </Card>
         </div>
       </div>
@@ -542,7 +647,6 @@ export default function PosClient({ storeId }: { storeId: string }) {
             }}
         />
 
-        {/* Dialogo de Comprobante después de la venta */}
         <Dialog open={isReceiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
             <DialogContent className="max-w-4xl p-0 bg-muted/20">
                 <DialogHeader className="p-6 pb-0">

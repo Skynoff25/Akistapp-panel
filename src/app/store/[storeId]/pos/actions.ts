@@ -21,6 +21,10 @@ const saleItemSchema = z.array(z.object({
 const createManualSaleSchema = z.object({
   items: z.string(),
   totalAmount: z.coerce.number().min(0),
+  couponCode: z.string().optional(),
+  couponDiscount: z.coerce.number().default(0),
+  manualDiscount: z.coerce.number().default(0),
+  finalTotal: z.coerce.number().min(0),
   userName: z.string().optional(),
   userNationalId: z.string().optional(),
   userPhoneNumber: z.string().optional(),
@@ -33,10 +37,23 @@ export async function createManualSale(storeId: string, formData: FormData) {
   const validatedFields = createManualSaleSchema.safeParse(values);
 
   if (!validatedFields.success) {
+    console.error("Validation Error:", validatedFields.error.flatten());
     return { error: "Datos de venta inválidos." };
   }
 
-  const { totalAmount, userName, userNationalId, userPhoneNumber, tasaOficial, tasaParalela } = validatedFields.data;
+  const { 
+    totalAmount, 
+    finalTotal, 
+    couponCode, 
+    couponDiscount, 
+    manualDiscount, 
+    userName, 
+    userNationalId, 
+    userPhoneNumber, 
+    tasaOficial, 
+    tasaParalela 
+  } = validatedFields.data;
+
   let items: z.infer<typeof saleItemSchema>;
   try {
     items = saleItemSchema.parse(JSON.parse(validatedFields.data.items));
@@ -47,21 +64,23 @@ export async function createManualSale(storeId: string, formData: FormData) {
   const batch = writeBatch(db);
 
   try {
-    const storeRef = doc(db, "Stores", storeId);
-    
     // --- 1. Crear el documento de la orden ---
     const orderRef = doc(collection(db, "Orders"));
     batch.set(orderRef, {
       storeId: storeId,
-      storeName: "Venta en Tienda", // Se podría denormalizar el nombre de la tienda aquí
-      userId: "IN_STORE_SALE", // ID genérico para ventas en tienda
+      storeName: "Venta en Tienda",
+      userId: "IN_STORE_SALE", 
       items: items,
       totalAmount: totalAmount,
       shippingCost: 0,
+      couponCode: couponCode || null,
+      couponDiscount: couponDiscount,
+      manualDiscount: manualDiscount,
+      finalTotal: finalTotal,
       status: "DELIVERED",
       createdAt: Date.now(),
       type: "IN_STORE",
-      inventoryDeducted: true, // Se descuenta al momento de la venta
+      inventoryDeducted: true,
       userName: userName || "Cliente en tienda",
       userNationalId: userNationalId || "",
       userPhoneNumber: userPhoneNumber || "",
@@ -84,7 +103,6 @@ export async function createManualSale(storeId: string, formData: FormData) {
         const invDocRef = doc(db, "Inventory", item.inventoryId);
 
         if (item.variantId) {
-            // Producto con variaciones
             const variantIndex = invDocData.variants.findIndex(v => v.id === item.variantId);
             if (variantIndex === -1) {
                 throw new Error(`Variante "${item.variantName}" para el producto "${item.productName}" no encontrada.`);
@@ -108,7 +126,6 @@ export async function createManualSale(storeId: string, formData: FormData) {
             });
 
         } else {
-            // Producto sin variaciones
             if (invDocData.currentStock < item.quantity) {
               throw new Error(`Stock insuficiente para ${item.productName}. Disponible: ${invDocData.currentStock}, Solicitado: ${item.quantity}`);
             }

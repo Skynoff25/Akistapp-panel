@@ -14,6 +14,8 @@ import Loader from '@/components/ui/loader';
 import { where } from 'firebase/firestore';
 import { PromotionalCarousel } from '@/components/products/promotional-carousel';
 import { StoreKpis } from '@/components/dashboard/store-kpis';
+import { DailyClosureReport } from '@/components/dashboard/daily-closure-report';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 function StatCard({ title, value, icon: Icon, loading }: { title: string, value: string | number, icon: React.ElementType, loading: boolean }) {
   return (
@@ -55,49 +57,62 @@ export default function StoreDashboardPage() {
         description={`¡Bienvenido, ${appUser?.name || 'Gerente'}!`}
       />
 
-      {/* NUEVA SECCIÓN DE KPIs OPERATIVOS */}
-      <StoreKpis storeId={storeId} />
+      <Tabs defaultValue="overview" className="space-y-8">
+        <TabsList className="no-print">
+            <TabsTrigger value="overview">Resumen Operativo</TabsTrigger>
+            <TabsTrigger value="closure">Cierre de Ventas (Diario)</TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard 
-            title="Estado de la Tienda" 
-            value={store?.isOpen ? 'Abierta' : 'Cerrada'} 
-            icon={StoreIcon} 
-            loading={storeLoading} 
-        />
-        <StatCard 
-            title="Productos en Tienda" 
-            value={`${storeProducts.length} / ${store?.maxProducts || '...'}`}
-            icon={Package} 
-            loading={productsLoading || storeLoading} 
-        />
-        <StatCard 
-            title="Precio Promedio" 
-            value={`$${averagePrice.toFixed(2)}`} 
-            icon={DollarSign} 
-            loading={productsLoading} 
-        />
-      </div>
+        <TabsContent value="overview" className="space-y-8">
+            {/* KPIs OPERATIVOS */}
+            <StoreKpis storeId={storeId} />
 
-      <PromotionalCarousel products={storeProducts} />
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <StatCard 
+                    title="Estado de la Tienda" 
+                    value={store?.isOpen ? 'Abierta' : 'Cerrada'} 
+                    icon={StoreIcon} 
+                    loading={storeLoading} 
+                />
+                <StatCard 
+                    title="Productos en Tienda" 
+                    value={`${storeProducts.length} / ${store?.maxProducts || '...'}`}
+                    icon={Package} 
+                    loading={productsLoading || storeLoading} 
+                />
+                <StatCard 
+                    title="Precio Promedio" 
+                    value={`$${averagePrice.toFixed(2)}`} 
+                    icon={DollarSign} 
+                    loading={productsLoading} 
+                />
+            </div>
 
-       <div className="mt-8">
-        <Card>
-            <CardHeader>
-                <CardTitle>Primeros Pasos</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">
-                    Este es tu panel de administración de la tienda. Esto es lo que puedes hacer:
-                </p>
-                <ul className="list-disc pl-5 mt-4 space-y-2 text-sm text-muted-foreground">
-                    <li>Navega usando la barra lateral a la izquierda.</li>
-                    <li><span className="font-semibold text-foreground">Gestionar Mi Tienda:</span> Actualiza la imagen y el estado de apertura de tu tienda.</li>
-                    <li><span className="font-semibold text-foreground">Gestionar Mis Productos:</span> Añade productos del catálogo global a tu tienda y gestiona su precio, disponibilidad e imagen.</li>
-                </ul>
-            </CardContent>
-        </Card>
-      </div>
+            <PromotionalCarousel products={storeProducts} />
+
+            <div className="mt-8 no-print">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Primeros Pasos</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">
+                            Este es tu panel de administración de la tienda. Esto es lo que puedes hacer:
+                        </p>
+                        <ul className="list-disc pl-5 mt-4 space-y-2 text-sm text-muted-foreground">
+                            <li>Navega usando la barra lateral a la izquierda.</li>
+                            <li><span className="font-semibold text-foreground">Gestionar Mi Tienda:</span> Actualiza la imagen y el estado de apertura de tu tienda.</li>
+                            <li><span className="font-semibold text-foreground">Gestionar Mis Productos:</span> Añade productos del catálogo global a tu tienda y gestiona su precio, disponibilidad e imagen.</li>
+                        </ul>
+                    </CardContent>
+                </Card>
+            </div>
+        </TabsContent>
+
+        <TabsContent value="closure">
+            <DailyClosureReport storeId={storeId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

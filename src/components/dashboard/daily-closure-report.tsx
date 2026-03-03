@@ -18,7 +18,8 @@ import {
     TableCell, 
     TableHead, 
     TableHeader, 
-    TableRow 
+    TableRow,
+    TableFooter
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Printer, Download, ShoppingCart, Calculator, FileText, AlertCircle } from 'lucide-react';
@@ -150,7 +151,6 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
         </div>
       </div>
 
-      {/* Tarjetas de Resumen */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 no-print">
         <Card className="bg-primary/5 border-primary/20">
             <CardHeader className="pb-2">
@@ -178,7 +178,6 @@ export function DailyClosureReport({ storeId }: DailyClosureReportProps) {
         </Card>
       </div>
 
-      {/* Tabla de Consolidación */}
       <Card className="print:shadow-none print:border-none">
         <CardHeader className="print:pb-6">
             <div className="flex justify-between items-start">

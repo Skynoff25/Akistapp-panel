@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit, Search, FileText, MessageCircle, Percent } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Search, FileText, MessageCircle, Percent, RotateCcw } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +61,7 @@ const statusTranslations: Record<OrderStatus, string> = {
   READY: "Listo para Recoger/Enviar",
   DELIVERED: "Entregado",
   CANCELLED: "Cancelado",
+  RETURNED: "Devuelto (Stock Reintegrado)",
 };
 
 const statusColors: Record<OrderStatus, string> = {
@@ -69,6 +70,7 @@ const statusColors: Record<OrderStatus, string> = {
     READY: "bg-purple-500",
     DELIVERED: "bg-green-500",
     CANCELLED: "bg-red-500",
+    RETURNED: "bg-gray-500",
 };
 
 function ManualDiscountDialog({ order, storeId, open, onOpenChange, onSuccess }: {
@@ -229,7 +231,7 @@ function UpdateStatusSelect({ storeId, orderId, currentStatus, onUpdate }: { sto
 
     return (
         <div className="flex items-center gap-2">
-            <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)} disabled={currentStatus === 'DELIVERED' || currentStatus === 'CANCELLED'}>
+            <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)} disabled={currentStatus === 'RETURNED'}>
                 <SelectTrigger className="w-[200px]"><SelectValue placeholder="Cambiar estado" /></SelectTrigger>
                 <SelectContent>{Object.keys(statusTranslations).map(s => (<SelectItem key={s} value={s}>{statusTranslations[s as OrderStatus]}</SelectItem>))}</SelectContent>
             </Select>
@@ -272,6 +274,19 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   const handleViewReceipt = (order: Order) => { setSelectedOrder(order); setReceiptOpen(true); };
   const handleApplyDiscount = (order: Order) => { setSelectedOrder(order); setDiscountOpen(true); };
   
+  const handleProcessReturn = async (order: Order) => {
+    if (confirm("¿Estás seguro de procesar esta devolución? El inventario será reintegrado y la venta será anulada.")) {
+        const formData = new FormData();
+        formData.append('status', 'RETURNED');
+        const result = await updateOrderStatus(storeId, order.id, formData);
+        if (result.error) toast({ variant: 'destructive', title: 'Error', description: result.error });
+        else {
+            toast({ title: 'Devolución Procesada', description: 'Inventario reintegrado exitosamente.' });
+            refetch();
+        }
+    }
+  };
+
   const handleReportSuccess = () => {
     toast({ title: "Denuncia Enviada", description: "Enviada al administrador para revisión." });
   };
@@ -287,7 +302,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
 
   return (
     <>
-      <PageHeader title="Gestión de Pedidos" description="Administra los pedidos entrantes." />
+      <PageHeader title="Gestión de Pedidos" description="Administra los pedidos entrantes y procesa devoluciones." />
 
       <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 mb-4 p-4 bg-muted/50 rounded-lg">
         <div className="relative flex-grow w-full sm:w-auto">
@@ -321,11 +336,11 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
               <TableRow><TableCell colSpan={7} className="h-24 text-center">No se encontraron pedidos.</TableCell></TableRow>
             ) : (
               filteredAndSortedOrders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow key={order.id} className={order.status === 'RETURNED' ? 'bg-muted/20' : ''}>
                   <TableCell className="font-medium">#{order.id.substring(0, 7)}</TableCell>
                   <TableCell>{format(new Date(order.createdAt), 'dd/MM/yy')}</TableCell>
                   <TableCell>{order.userName || 'N/A'}</TableCell>
-                  <TableCell className="font-bold">
+                  <TableCell className={cn("font-bold", order.status === 'RETURNED' && "line-through text-muted-foreground")}>
                     ${(order.finalTotal || (order.totalAmount + order.shippingCost)).toFixed(2)}
                     {order.manualDiscount ? <span className="ml-1 text-[10px] text-destructive">(-${order.manualDiscount})</span> : null}
                   </TableCell>
@@ -352,6 +367,11 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
                                     <DropdownMenuItem onSelect={() => handleApplyDiscount(order)}><Percent className="mr-2 h-4 w-4 text-primary" /> Aplicar Descuento</DropdownMenuItem>
                                     <DropdownMenuItem onSelect={() => handleEdit(order)}><Edit className="mr-2 h-4 w-4" /> Editar Items</DropdownMenuItem>
                                 </>
+                            )}
+                            {order.status === 'DELIVERED' && (
+                                <DropdownMenuItem onSelect={() => handleProcessReturn(order)} className="text-orange-600">
+                                    <RotateCcw className="mr-2 h-4 w-4" /> Procesar Devolución
+                                </DropdownMenuItem>
                             )}
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -386,4 +406,8 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
       </Dialog>
     </>
   );
+}
+
+function cn(...inputs: any[]) {
+    return inputs.filter(Boolean).join(" ");
 }

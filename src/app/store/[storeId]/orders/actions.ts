@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import type { CartItemSnapshot, Order, StoreProduct } from "@/lib/types";
 
 const updateOrderStatusSchema = z.object({
-  status: z.enum(["PENDING", "CONFIRMED", "READY", "DELIVERED", "CANCELLED"]),
+  status: z.enum(["PENDING", "CONFIRMED", "READY", "DELIVERED", "CANCELLED", "RETURNED"]),
 });
 
 export async function updateOrderStatus(storeId: string, orderId: string, formData: FormData) {
@@ -25,14 +25,13 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
 
   try {
     const orderRef = doc(db, "Orders", orderId);
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) throw new Error("El pedido no existe.");
+    const order = orderSnap.data() as Order;
+
+    const batch = writeBatch(db);
 
     if (status === "DELIVERED") {
-      const batch = writeBatch(db);
-      const orderSnap = await getDoc(orderRef);
-      if (!orderSnap.exists()) throw new Error("El pedido no existe.");
-
-      const order = orderSnap.data() as Order;
-      
       if (!order.inventoryDeducted) {
         const inventoryIds = order.items.map(item => item.inventoryId).filter(Boolean);
         if (inventoryIds.length > 0) {
@@ -44,17 +43,62 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
                 const invDoc = inventoryMap.get(item.inventoryId);
                 if (invDoc) {
                     const inventoryRef = doc(db, 'Inventory', item.inventoryId);
-                    const newStock = (invDoc.currentStock || 0) - item.quantity;
-                    batch.update(inventoryRef, { currentStock: newStock < 0 ? 0 : newStock });
+                    
+                    if (item.variantId && invDoc.variants) {
+                        const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
+                        if (variantIndex !== -1) {
+                            const updatedVariants = [...invDoc.variants];
+                            updatedVariants[variantIndex].stock = Math.max(0, updatedVariants[variantIndex].stock - item.quantity);
+                            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
+                            batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
+                        }
+                    } else {
+                        const newStock = (invDoc.currentStock || 0) - item.quantity;
+                        batch.update(inventoryRef, { currentStock: newStock < 0 ? 0 : newStock });
+                    }
                 }
             }
         }
-        batch.update(orderRef, { status: status, inventoryDeducted: true });
+        batch.update(orderRef, { status: status, inventoryDeducted: true, inventoryRestored: false });
       } else {
         batch.update(orderRef, { status: status });
       }
-
       await batch.commit();
+
+    } else if (status === "RETURNED") {
+        // Solo reintegramos si el inventario fue descontado previamente y no ha sido ya restaurado
+        if (order.inventoryDeducted && !order.inventoryRestored) {
+            const inventoryIds = order.items.map(item => item.inventoryId).filter(Boolean);
+            if (inventoryIds.length > 0) {
+                const inventoryQuery = query(collection(db, 'Inventory'), where(documentId(), 'in', inventoryIds));
+                const inventorySnap = await getDocs(inventoryQuery);
+                const inventoryMap = new Map(inventorySnap.docs.map(doc => [doc.id, doc.data() as StoreProduct]));
+                
+                for (const item of order.items) {
+                    const invDoc = inventoryMap.get(item.inventoryId);
+                    if (invDoc) {
+                        const inventoryRef = doc(db, 'Inventory', item.inventoryId);
+                        
+                        if (item.variantId && invDoc.variants) {
+                            const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
+                            if (variantIndex !== -1) {
+                                const updatedVariants = [...invDoc.variants];
+                                updatedVariants[variantIndex].stock += item.quantity;
+                                const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
+                                batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
+                            }
+                        } else {
+                            const newStock = (invDoc.currentStock || 0) + item.quantity;
+                            batch.update(inventoryRef, { currentStock: newStock });
+                        }
+                    }
+                }
+            }
+            batch.update(orderRef, { status: status, inventoryRestored: true });
+        } else {
+            batch.update(orderRef, { status: status });
+        }
+        await batch.commit();
 
     } else {
       await updateDoc(orderRef, { status });
@@ -62,6 +106,7 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
 
     revalidatePath(`/store/${storeId}/orders`);
     revalidatePath(`/store/${storeId}/my-products`);
+    revalidatePath(`/store/${storeId}/finance`);
     return { message: "El estado del pedido ha sido actualizado." };
   } catch (e: any) {
     console.error(e);
@@ -103,6 +148,9 @@ const updateOrderItemsSchema = z.object({
         quantity: z.number().int().min(1),
         price: z.number(),
         image: z.string(),
+        costPriceUsd: z.number(),
+        variantId: z.string().optional(),
+        variantName: z.string().optional(),
       })).parse(JSON.parse(str));
     } catch (e) {
       ctx.addIssue({ code: 'custom', message: 'Invalid JSON for items' });

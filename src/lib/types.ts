@@ -158,7 +158,7 @@ export interface CartItemSnapshot {
     variantName?: string;
 }
 
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED';
 export type OrderType = 'ONLINE' | 'IN_STORE';
 
 export interface Order {
@@ -173,6 +173,7 @@ export interface Order {
     createdAt: number;
     type: OrderType;
     inventoryDeducted?: boolean;
+    inventoryRestored?: boolean; // New flag for returns
 
     // --- New Discount Fields ---
     couponCode?: string;

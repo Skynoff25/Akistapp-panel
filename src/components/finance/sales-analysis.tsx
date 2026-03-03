@@ -7,7 +7,7 @@ import type { Order } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, subDays } from 'date-fns';
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-center';
 import { cn } from '@/lib/utils';
 
 interface SalesAnalysisProps {
@@ -52,9 +52,10 @@ export function SalesAnalysis({ storeId }: SalesAnalysisProps) {
   const [rangeKey, setRangeKey] = useState<keyof typeof dateRanges>('thisMonth');
   const selectedRange = dateRanges[rangeKey];
 
+  // Filtramos solo pedidos DELIVERED para análisis financiero real
   const { data: orders, loading } = useFirestoreQuery<Order>('Orders', [
     where('storeId', '==', storeId),
-    where('type', '==', 'IN_STORE'), // Only analyze in-store sales for now
+    where('status', '==', 'DELIVERED'),
     where('createdAt', '>=', selectedRange.start.getTime()),
     where('createdAt', '<=', selectedRange.end.getTime()),
     orderBy('createdAt', 'desc')
@@ -79,14 +80,14 @@ export function SalesAnalysis({ storeId }: SalesAnalysisProps) {
     let analyzedOrdersCount = 0;
 
     for (const order of orders) {
-      // Only include orders with the necessary financial data
-      if (order.tasaOficial && order.tasaParalela && order.items.every(item => typeof item.costPriceUsd === 'number')) {
-        totalSalesOfficial += order.totalAmount;
-        totalRealValue += (order.totalAmount * order.tasaOficial) / order.tasaParalela;
+      // Solo incluimos órdenes con datos financieros suficientes
+      if (order.tasaOficial && order.tasaParalela) {
+        totalSalesOfficial += order.finalTotal || order.totalAmount;
+        totalRealValue += ((order.finalTotal || order.totalAmount) * order.tasaOficial) / order.tasaParalela;
         analyzedOrdersCount++;
         
         for (const item of order.items) {
-          totalCost += item.costPriceUsd * item.quantity;
+          totalCost += (item.costPriceUsd || 0) * item.quantity;
           totalItemsSold += item.quantity;
         }
       }
@@ -108,7 +109,7 @@ export function SalesAnalysis({ storeId }: SalesAnalysisProps) {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <div>
                 <CardTitle>Análisis de Ventas</CardTitle>
-                <CardDescription>Rentabilidad de las ventas registradas en el punto de venta.</CardDescription>
+                <CardDescription>Rentabilidad real de ventas entregadas (Excluye cancelados y devueltos).</CardDescription>
             </div>
             <Select value={rangeKey} onValueChange={(v) => setRangeKey(v as any)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
@@ -129,8 +130,8 @@ export function SalesAnalysis({ storeId }: SalesAnalysisProps) {
             </div>
         ) : (analysis.analyzedOrdersCount === 0 ? (
             <p className="text-muted-foreground text-center py-10">
-                No hay ventas con datos financieros suficientes en este período para analizar.
-                <span className="block text-xs mt-2">Asegúrate de registrar las ventas desde el Punto de Venta con las tasas del día.</span>
+                No hay ventas confirmadas en este período para analizar.
+                <span className="block text-xs mt-2">Los pedidos deben estar en estado "Entregado" para reflejarse aquí.</span>
             </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -153,7 +154,7 @@ export function SalesAnalysis({ storeId }: SalesAnalysisProps) {
                <StatBox 
                 title="Ventas Totales (Oficial)"
                 value={`$${analysis.totalSalesOfficial.toFixed(2)}`}
-                help="Suma de los totales de venta marcados en la app."
+                help="Suma de los totales cobrados en la app (con descuentos)."
               />
                <StatBox 
                 title="Artículos Vendidos"

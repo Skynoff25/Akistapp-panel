@@ -7,7 +7,7 @@ import type { Order } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, subDays } from 'date-fns';
-import { Loader2, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-center';
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SalesAnalysisProps {

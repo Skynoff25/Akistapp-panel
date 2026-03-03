@@ -58,12 +58,24 @@ export default function StoreDashboardPage() {
       />
 
       <Tabs defaultValue="overview" className="space-y-8">
-        <TabsList className="no-print">
-            <TabsTrigger value="overview">Resumen Operativo</TabsTrigger>
-            <TabsTrigger value="closure">Cierre de Ventas (Diario)</TabsTrigger>
-        </TabsList>
+        <div className="flex justify-center sm:justify-start overflow-x-auto pb-2 no-print">
+            <TabsList className="grid w-full grid-cols-2 max-w-[500px] h-14 p-1.5 bg-muted/50 rounded-xl border border-border/50">
+                <TabsTrigger 
+                    value="overview" 
+                    className="rounded-lg text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md"
+                >
+                    Resumen Operativo
+                </TabsTrigger>
+                <TabsTrigger 
+                    value="closure" 
+                    className="rounded-lg text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-md"
+                >
+                    Cierre de Ventas (Diario)
+                </TabsTrigger>
+            </TabsList>
+        </div>
 
-        <TabsContent value="overview" className="space-y-8">
+        <TabsContent value="overview" className="space-y-8 animate-in fade-in-50 duration-500">
             {/* KPIs OPERATIVOS */}
             <StoreKpis storeId={storeId} />
 
@@ -91,12 +103,12 @@ export default function StoreDashboardPage() {
             <PromotionalCarousel products={storeProducts} />
 
             <div className="mt-8 no-print">
-                <Card>
+                <Card className="border-dashed bg-muted/20">
                     <CardHeader>
-                        <CardTitle>Primeros Pasos</CardTitle>
+                        <CardTitle className="text-lg">Primeros Pasos</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">
+                        <p className="text-muted-foreground text-sm">
                             Este es tu panel de administración de la tienda. Esto es lo que puedes hacer:
                         </p>
                         <ul className="list-disc pl-5 mt-4 space-y-2 text-sm text-muted-foreground">
@@ -109,7 +121,7 @@ export default function StoreDashboardPage() {
             </div>
         </TabsContent>
 
-        <TabsContent value="closure">
+        <TabsContent value="closure" className="animate-in fade-in-50 duration-500">
             <DailyClosureReport storeId={storeId} />
         </TabsContent>
       </Tabs>

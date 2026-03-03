@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
@@ -48,6 +47,7 @@ function FinanceProductRow({ product, tasaOficial, tasaParalela }: FinanceProduc
                 return {
                     price: variant.price,
                     stock: variant.stock,
+                    costPriceUsd: variant.costPriceUsd || product.costPriceUsd || 0,
                     name: `${product.name} (${variant.name})`,
                     isVariant: true
                 };
@@ -56,6 +56,7 @@ function FinanceProductRow({ product, tasaOficial, tasaParalela }: FinanceProduc
         return {
             price: product.promotionalPrice || product.price,
             stock: product.currentStock,
+            costPriceUsd: product.costPriceUsd || 0,
             name: product.name,
             isVariant: false
         };
@@ -65,11 +66,11 @@ function FinanceProductRow({ product, tasaOficial, tasaParalela }: FinanceProduc
         const precioVenta = currentData.price;
         const precioVes = precioVenta * tasaOficial;
         const valorRealUsd = precioVes / tasaParalela;
-        const gananciaReal = valorRealUsd - (product.costPriceUsd || 0);
+        const gananciaReal = valorRealUsd - currentData.costPriceUsd;
 
         const precioVesCashea = precioVes * (1 - CASHEA_COMMISSION);
         const valorRealCashea = precioVesCashea / tasaParalela;
-        const gananciaRealCashea = valorRealCashea - (product.costPriceUsd || 0);
+        const gananciaRealCashea = valorRealCashea - currentData.costPriceUsd;
 
         return {
             precioVenta,
@@ -79,7 +80,7 @@ function FinanceProductRow({ product, tasaOficial, tasaParalela }: FinanceProduc
             gananciaRealCashea,
             isLoss: gananciaReal < 0
         };
-    }, [currentData.price, product.costPriceUsd, tasaOficial, tasaParalela]);
+    }, [currentData.price, currentData.costPriceUsd, tasaOficial, tasaParalela]);
 
     return (
         <TableRow className={cn(metrics.isLoss && "bg-destructive/5 hover:bg-destructive/10")}>
@@ -121,7 +122,7 @@ function FinanceProductRow({ product, tasaOficial, tasaParalela }: FinanceProduc
             <TableCell className="font-mono text-xs">${metrics.precioVenta.toFixed(2)}</TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">{metrics.precioVes.toFixed(2)} Bs</TableCell>
             <TableCell className="font-mono text-xs font-semibold">${metrics.valorRealUsd.toFixed(2)}</TableCell>
-            <TableCell className="font-mono text-xs text-muted-foreground">${(product.costPriceUsd || 0).toFixed(2)}</TableCell>
+            <TableCell className="font-mono text-xs text-muted-foreground">${currentData.costPriceUsd.toFixed(2)}</TableCell>
             <TableCell className={cn("font-mono text-xs font-bold", metrics.gananciaReal >= 0 ? 'text-green-600' : 'text-destructive')}>
                 ${metrics.gananciaReal.toFixed(2)}
                 {metrics.isLoss && (
@@ -222,9 +223,16 @@ export default function FinanceClient({ storeId }: { storeId: string }) {
         // 2. Filtro de pérdidas
         if (showOnlyLosses) {
             // Evaluamos la variante principal o el producto base
-            const price = p.promotionalPrice || p.price;
+            let price = p.promotionalPrice || p.price;
+            let cost = p.costPriceUsd || 0;
+
+            if (p.hasVariations && p.variants?.length > 0) {
+                // If variant losses exist, show the product
+                return p.variants.some(v => ((v.price * localTasaOficial) / localTasaParalela) < v.costPriceUsd);
+            }
+
             const valorRealUsd = (price * localTasaOficial) / localTasaParalela;
-            return valorRealUsd < (p.costPriceUsd || 0);
+            return valorRealUsd < cost;
         }
 
         return true;

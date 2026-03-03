@@ -40,6 +40,7 @@ const variantSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio."),
   price: z.coerce.number().min(0, "El precio debe ser positivo."),
   stock: z.coerce.number().int("El stock debe ser un número entero.").min(0, "El stock no puede ser negativo."),
+  costPriceUsd: z.coerce.number().min(0, "El costo no puede ser negativo.").default(0),
   sku: z.string().optional(),
 });
 
@@ -96,6 +97,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   const [attr2Values, setAttr2Values] = useState("");
   const [batchPrice, setBatchPrice] = useState<number>(0);
   const [batchStock, setBatchStock] = useState<number>(1);
+  const [batchCost, setBatchCost] = useState<number>(0);
 
   const form = useForm<StoreProductFormValues>({
     resolver: zodResolver(storeProductSchema),
@@ -141,6 +143,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             isGenericBrand: product.isGenericBrand || false,
         });
         if (product.price > 0 && batchPrice === 0) setBatchPrice(product.price);
+        if (product.costPriceUsd && product.costPriceUsd > 0 && batchCost === 0) setBatchCost(product.costPriceUsd);
     }
   }, [product, form]);
 
@@ -162,6 +165,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                 name: `${attr1Name}: ${v1}`,
                 price: batchPrice,
                 stock: batchStock,
+                costPriceUsd: batchCost,
             });
         });
     } else {
@@ -172,6 +176,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                     name: `${attr1Name}: ${v1} / ${attr2Name}: ${v2}`,
                     price: batchPrice,
                     stock: batchStock,
+                    costPriceUsd: batchCost,
                 });
             });
         });
@@ -189,7 +194,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       case 'clothing': names = ['XS', 'S', 'M', 'L', 'XL', 'XXL']; break;
       case 'pants': for (let i = 28; i <= 42; i += 2) names.push(`Talla ${i}`); break;
     }
-    names.forEach(name => append({ id: crypto.randomUUID(), name, price: batchPrice, stock: batchStock }));
+    names.forEach(name => append({ id: crypto.randomUUID(), name, price: batchPrice, stock: batchStock, costPriceUsd: batchCost }));
     toast({ description: `Añadidas ${names.length} variantes.` });
   };
 
@@ -302,34 +307,42 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                 </div>
                             </div>
                             <Separator />
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase font-bold">Precio sugerido</Label>
+                                    <Label className="text-[10px] uppercase font-bold">Precio sug.</Label>
                                     <Input type="number" value={batchPrice} onChange={e => setBatchPrice(Number(e.target.value))} className="h-8 text-xs" />
                                 </div>
                                 <div className="space-y-1">
-                                    <Label className="text-[10px] uppercase font-bold">Stock sugerido</Label>
+                                    <Label className="text-[10px] uppercase font-bold">Stock sug.</Label>
                                     <Input type="number" value={batchStock} onChange={e => setBatchStock(Number(e.target.value))} className="h-8 text-xs" />
                                 </div>
+                                <div className="space-y-1">
+                                    <Label className="text-[10px] uppercase font-bold">Costo sug.</Label>
+                                    <Input type="number" value={batchCost} onChange={e => setBatchCost(Number(e.target.value))} className="h-8 text-xs" />
+                                </div>
                                 <div className="flex items-end">
-                                    <Button type="button" onClick={generateCombinations} className="w-full h-8 text-xs">Generar Combinaciones</Button>
+                                    <Button type="button" onClick={generateCombinations} className="w-full h-8 text-xs">Generar</Button>
                                 </div>
                             </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-md border border-dashed">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-3 bg-muted/30 rounded-md border border-dashed">
                             <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Precio Base Sugerido</Label>
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">PVP Sugerido</Label>
                             <Input type="number" className="h-8 text-xs" value={batchPrice} onChange={(e) => setBatchPrice(Number(e.target.value))} />
                             </div>
                             <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Stock Base Sugerido</Label>
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Stock Sugerido</Label>
                             <Input type="number" className="h-8 text-xs" value={batchStock} onChange={(e) => setBatchStock(Number(e.target.value))} />
                             </div>
                             <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Presets Rápidos</Label>
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Costo Sugerido</Label>
+                            <Input type="number" className="h-8 text-xs" value={batchCost} onChange={(e) => setBatchCost(Number(e.target.value))} />
+                            </div>
+                            <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Presets</Label>
                             <Select onValueChange={(v) => generateBatchPresets(v as any)}>
-                                <SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Añadir Lote..." /></SelectTrigger>
+                                <SelectTrigger className="h-8 text-xs bg-background"><SelectValue placeholder="Lote..." /></SelectTrigger>
                                 <SelectContent>
                                 <SelectItem value="shoes">Zapatos (35-45)</SelectItem>
                                 <SelectItem value="clothing">Ropa (XS-XXL)</SelectItem>
@@ -351,7 +364,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     control={form.control}
                                     name={`variants.${index}.name`}
                                     render={({ field }) => (
-                                        <FormItem className="col-span-5">
+                                        <FormItem className="col-span-4">
                                             <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Variante</FormLabel>
                                             <FormControl><Input className="h-8 text-xs" placeholder="Ej: Rojo / XL" {...field} /></FormControl>
                                             <FormMessage />
@@ -362,8 +375,19 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     control={form.control}
                                     name={`variants.${index}.price`}
                                     render={({ field }) => (
-                                        <FormItem className="col-span-3">
-                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Precio ($)</FormLabel>
+                                        <FormItem className="col-span-2">
+                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">PVP ($)</FormLabel>
+                                            <FormControl><Input className="h-8 text-xs" type="number" step="0.01" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`variants.${index}.costPriceUsd`}
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-2">
+                                            <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Costo ($)</FormLabel>
                                             <FormControl><Input className="h-8 text-xs" type="number" step="0.01" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -386,7 +410,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                 </div>
                             </div>
                          ))}
-                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: batchPrice, stock: batchStock })} className="w-full border-dashed mt-2">
+                         <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: batchPrice, stock: batchStock, costPriceUsd: batchCost })} className="w-full border-dashed mt-2">
                             <PlusCircle className="mr-2 h-4 w-4" /> Añadir Variante Manual
                         </Button>
                     </div>
@@ -454,6 +478,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
           <FormField control={form.control} name="costPriceUsd" render={({ field }) => (
                 <FormItem>
                 <FormLabel>Costo de Reposición (USD)</FormLabel>
+                <FormDescription className="text-[10px]">Costo base si no usas variantes.</FormDescription>
                 <FormControl>
                     <div className="relative">
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>

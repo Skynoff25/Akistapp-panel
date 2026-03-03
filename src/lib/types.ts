@@ -61,6 +61,7 @@ export interface ProductVariant {
   name: string; // "Large", "Red", "1L"
   price: number;
   stock: number;
+  costPriceUsd: number; // Added variant-specific cost
   sku?: string;
 }
 
@@ -75,7 +76,7 @@ export interface StoreProduct {
     storeSpecificImage?: string;
     description?: string;
     disclaimer?: string;
-    costPriceUsd?: number;
+    costPriceUsd?: number; // Base cost for simple products
     casheaEligible?: boolean;
     name: string;
     brand: string;

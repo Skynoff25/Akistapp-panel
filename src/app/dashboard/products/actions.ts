@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, doc, updateDoc, deleteDoc, getDoc, query, where, getCountFromServer } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
 import { uploadImage } from "@/lib/storage";
+import { generateSearchTags } from "@/lib/utils";
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -14,6 +15,7 @@ const productSchema = z.object({
   image: z.any().optional(),
   imageUrl: z.string().optional(),
   tags: z.string().optional(),
+  isGenericBrand: z.coerce.boolean().default(false),
 });
 
 export async function createProduct(formData: FormData) {
@@ -35,10 +37,15 @@ export async function createProduct(formData: FormData) {
             finalImageUrl = await uploadImage(image, "store_products");
         }
 
+        // Generar etiquetas automáticas para búsqueda optimizada
+        const autoTags = generateSearchTags(productData.name, productData.brand, productData.category);
+        const manualTags = tags ? tags.split(',').map(tag => tag.trim().toLowerCase()).filter(t => t) : [];
+        const finalTags = Array.from(new Set([...autoTags, ...manualTags]));
+
         await addDoc(collection(db, "Products"), {
             ...productData,
             normalizedName: productData.name.toLowerCase(),
-            tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+            tags: finalTags,
             image: finalImageUrl,
             isRecommended: false,
         });
@@ -76,11 +83,16 @@ export async function updateProduct(id: string, formData: FormData) {
         if (!imageUrl && image instanceof File && image.size > 0) {
             finalImageUrl = await uploadImage(image, "store_products");
         }
+
+        // Generar etiquetas automáticas para búsqueda optimizada
+        const autoTags = generateSearchTags(productData.name, productData.brand, productData.category);
+        const manualTags = tags ? tags.split(',').map(tag => tag.trim().toLowerCase()).filter(t => t) : [];
+        const finalTags = Array.from(new Set([...autoTags, ...manualTags]));
         
         await updateDoc(productRef, {
             ...productData,
             normalizedName: productData.name.toLowerCase(),
-            tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+            tags: finalTags,
             image: finalImageUrl,
         });
         revalidatePath("/dashboard/products");
@@ -96,7 +108,7 @@ export async function toggleProductRecommendation(productId: string, isRecommend
         const productRef = doc(db, "Products", productId);
         await updateDoc(productRef, { isRecommended });
         revalidatePath("/dashboard/products");
-        return { success: true, message: `Producto ${isRecommended ? 'añadido a' : 'eliminado de'} recomendados.` };
+        return { success: true, message: `Producto ${isRecommended ? 'añadido a' : 'eliminar de'} recomendados.` };
     } catch (e) {
         return { error: "No se pudo actualizar el estado de recomendación." };
     }

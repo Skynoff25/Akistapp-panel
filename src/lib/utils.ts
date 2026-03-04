@@ -20,6 +20,7 @@ export function getImageUrl(
 
 /**
  * Genera un array de etiquetas de búsqueda optimizadas para Firestore array-contains.
+ * Implementa N-Grams (prefijos) para permitir búsquedas parciales desde 3 caracteres.
  * Normaliza texto, elimina acentos, caracteres especiales y palabras vacías.
  */
 export function generateSearchTags(name: string, brand: string, category: string): string[] {
@@ -40,14 +41,28 @@ export function generateSearchTags(name: string, brand: string, category: string
   const combinedText = `${name} ${brand} ${category}`;
   const normalizedText = normalize(combinedText);
   
-  // Dividimos en palabras y filtramos
+  // Dividimos en palabras
   const words = normalizedText.split(/\s+/);
   
-  const tags = words.filter(word => 
-    word.length > 1 && // Ignorar letras sueltas
-    !stopWords.has(word) // Ignorar palabras vacías
-  );
+  const tags = new Set<string>();
+
+  words.forEach(word => {
+    // Si es una stop word o está vacía, la ignoramos
+    if (!word || stopWords.has(word)) return;
+
+    // Generamos prefijos (N-Grams) desde 3 caracteres hasta el final de la palabra
+    // Ej: "zapatos" -> "zap", "zapa", "zapat", "zapato", "zapatos"
+    if (word.length >= 3) {
+        for (let i = 3; i <= word.length; i++) {
+            tags.add(word.substring(0, i));
+        }
+    } else if (word.length > 0) {
+        // Para palabras cortas (1-2 letras) que no son stop words (ej: "lg", "hp", "xi"), 
+        // las añadimos completas para que sean encontrables.
+        tags.add(word);
+    }
+  });
 
   // Retornamos array de strings únicos
-  return Array.from(new Set(tags));
+  return Array.from(tags);
 }

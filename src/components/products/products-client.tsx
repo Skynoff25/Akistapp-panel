@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { usePaginatedQuery } from '@/hooks/use-paginated-query';
-import { orderBy } from 'firebase/firestore';
+import { orderBy, where, QueryConstraint } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import Loader from '@/components/ui/loader';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -38,23 +39,42 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { PageHeader } from '../ui/page-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Star, StarOff } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Star, StarOff, Search } from 'lucide-react';
 import { ProductForm } from './product-form';
 import { useToast } from '@/hooks/use-toast';
 import { deleteProduct, toggleProductRecommendation } from '@/app/dashboard/products/actions';
 import { getImageUrl } from '@/lib/utils';
+import { useEffect, useMemo } from 'react';
 
 interface ProductsClientProps {
   isAdmin: boolean;
 }
 
 export default function ProductsClient({ isAdmin }: ProductsClientProps) {
-  const { data: products, loading, error, refetch, nextPage, prevPage, hasMore, currentPage } = usePaginatedQuery<Product>('Products', [orderBy('name', 'asc')], 20);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const { toast } = useToast();
-  
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const queryConstraints = useMemo(() => {
+    const constraints: QueryConstraint[] = [orderBy('normalizedName', 'asc')];
+    if (debouncedSearch) {
+        const normalized = debouncedSearch.toLowerCase().trim();
+        constraints.push(where('normalizedName', '>=', normalized));
+        constraints.push(where('normalizedName', '<=', normalized + '\uf8ff'));
+    }
+    return constraints;
+  }, [debouncedSearch]);
+
+  const { data: products, loading, error, refetch, nextPage, prevPage, hasMore, currentPage } = usePaginatedQuery<Product>('Products', queryConstraints, 20);
+
   const handleAddNew = () => {
     setSelectedProduct(null);
     setDialogOpen(true);
@@ -110,6 +130,17 @@ export default function ProductsClient({ isAdmin }: ProductsClientProps) {
             </Button>
          )}
       </PageHeader>
+      
+      <div className="mb-6 relative max-w-md">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+                placeholder="Buscar producto por nombre..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 bg-card"
+            />
+      </div>
+
       <div className="bg-card rounded-lg shadow-sm">
         <Table>
           <TableHeader>

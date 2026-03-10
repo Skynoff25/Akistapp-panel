@@ -250,7 +250,6 @@ export interface ApprovalRequest {
   details: {
     productId: string;
     productName: string;
-    [key: string]: any;
   };
   createdAt: number;
   resolvedAt?: number;

@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster"
 export const metadata: Metadata = {
   title: 'Panel de Administración de Akistapp',
   description: 'Panel de administración para Akistapp',
+  manifest: '/manifest.json',
   icons: {
     icon: '/akistapp_logo.png',
   },

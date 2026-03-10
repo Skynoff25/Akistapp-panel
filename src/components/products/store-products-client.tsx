@@ -57,17 +57,54 @@ function AddProductDialog({
   onSuccess: () => void;
   existingProductIds: string[];
 }) {
-  const { data: globalProducts, loading } = useFirestoreQuery<Product>('Products');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [globalProducts, setGlobalProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    import('firebase/firestore').then(({ collection, query, orderBy, where, limit, getDocs }) => {
+        import('@/lib/firebase').then(({ db }) => {
+            setLoading(true);
+            let q;
+            if (debouncedSearch) {
+                const normalized = debouncedSearch.toLowerCase().trim();
+                q = query(
+                    collection(db, 'Products'), 
+                    orderBy('normalizedName'), 
+                    where('normalizedName', '>=', normalized), 
+                    where('normalizedName', '<=', normalized + '\uf8ff'), 
+                    limit(20)
+                );
+            } else {
+                q = query(collection(db, 'Products'), limit(20));
+            }
+
+            getDocs(q).then(snapshot => {
+                const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+                setGlobalProducts(products);
+                setLoading(false);
+            }).catch(err => {
+                console.error(err);
+                setLoading(false);
+            });
+        });
+    });
+  }, [debouncedSearch]);
+
   const [isSubmitting, setSubmitting] = useState<string | null>(null);
   const { toast } = useToast();
 
   const filteredProducts = useMemo(() => {
-    if (!globalProducts) return [];
     return globalProducts.filter(
-      p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) && !existingProductIds.includes(p.id)
+      p => !existingProductIds.includes(p.id)
     );
-  }, [globalProducts, searchTerm, existingProductIds]);
+  }, [globalProducts, existingProductIds]);
 
   const handleAddProduct = async (productId: string) => {
     setSubmitting(productId);

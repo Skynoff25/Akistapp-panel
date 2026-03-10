@@ -54,7 +54,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
                 <p className="text-muted-foreground">
-                    Este es tu panel de administración de Akista. Esto es lo que puedes hacer:
+                    Este es tu panel de administración de Akistapp. Esto es lo que puedes hacer:
                 </p>
                 <ul className="list-disc pl-5 mt-4 space-y-2 text-sm text-muted-foreground">
                     <li>Navega usando la barra lateral a la izquierda.</li>

@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from 'react';
-import { useFirestoreSubscription } from '@/hooks/use-firestore-subscription';
+import { usePaginatedQuery } from '@/hooks/use-paginated-query';
+import { orderBy } from 'firebase/firestore';
 import type { AppUser } from '@/lib/types';
 import Loader from '@/components/ui/loader';
 import {
@@ -56,7 +57,7 @@ const getInitials = (name?: string | null) => {
 }
 
 export default function UsersClient() {
-  const { data: users, loading, error } = useFirestoreSubscription<AppUser>('Users');
+  const { data: users, loading, error, nextPage, prevPage, hasMore, currentPage, refetch } = usePaginatedQuery<AppUser>('Users', [orderBy('createdAt', 'desc')], 20);
   
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
@@ -74,6 +75,7 @@ export default function UsersClient() {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
       } else {
         toast({ title: 'Usuario eliminado', description: 'El usuario ha sido eliminado correctamente.' });
+        refetch();
       }
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un error inesperado.' });
@@ -91,6 +93,7 @@ export default function UsersClient() {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
       } else {
         toast({ title: 'Éxito', description: result.message });
+        refetch();
       }
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Ocurrió un error.' });
@@ -191,19 +194,31 @@ export default function UsersClient() {
             ))}
           </TableBody>
         </Table>
+        
+        <div className="flex items-center justify-end space-x-2 p-4 border-t">
+          <Button variant="outline" size="sm" onClick={prevPage} disabled={currentPage === 0 || loading}>
+            Anterior
+          </Button>
+          <div className="text-sm text-muted-foreground mx-2">
+            Página {currentPage + 1}
+          </div>
+          <Button variant="outline" size="sm" onClick={nextPage} disabled={!hasMore || loading}>
+            Siguiente
+          </Button>
+        </div>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Crear Nuevo Usuario</DialogTitle></DialogHeader>
-          <UserForm onSuccess={() => setDialogOpen(false)} />
+          <UserForm onSuccess={() => { setDialogOpen(false); refetch(); }} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>Editar Usuario</DialogTitle></DialogHeader>
-          {editingUser && <UserForm initialData={editingUser} onSuccess={() => setEditingUser(null)} />}
+          {editingUser && <UserForm initialData={editingUser} onSuccess={() => { setEditingUser(null); refetch(); }} />}
         </DialogContent>
       </Dialog>
 

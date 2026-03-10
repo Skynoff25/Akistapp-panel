@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { Order, StoreProduct } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { limit, orderBy } from 'firebase/firestore';
 
 interface StoreKpisProps {
   storeId: string;
@@ -31,9 +32,12 @@ export function StoreKpis({ storeId }: StoreKpisProps) {
     where('createdAt', '>=', lastWeekTimestamp)
   ]);
 
-  // 2. Obtener inventario para Alertas Críticas
-  const { data: inventory, loading: inventoryLoading } = useFirestoreQuery<StoreProduct>('Inventory', [
-    where('storeId', '==', storeId)
+  // 2. Obtener inventario para Alertas Críticas (Optimizado a Max 5 lecturas)
+  const { data: criticalInventory, loading: inventoryLoading } = useFirestoreQuery<StoreProduct>('Inventory', [
+    where('storeId', '==', storeId),
+    where('currentStock', '<', 5),
+    orderBy('currentStock', 'asc'),
+    limit(5)
   ]);
 
   const stats = useMemo(() => {
@@ -43,10 +47,8 @@ export function StoreKpis({ storeId }: StoreKpisProps) {
     const ready = recentOrders.filter(o => o.status === 'READY').length;
 
     // --- Lógica de Inventario Crítico ---
-    const criticalItems = inventory
-        .filter(p => p.isAvailable && p.currentStock < 5)
-        .sort((a, b) => a.currentStock - b.currentStock)
-        .slice(0, 5);
+    // Ya vienen ordenados y limitados por la query, solo filtramos isAvailable
+    const criticalItems = criticalInventory.filter(p => p.isAvailable);
 
     // --- Lógica de Top 5 semanal ---
     const productSales: Record<string, { name: string, qty: number }> = {};
@@ -72,7 +74,7 @@ export function StoreKpis({ storeId }: StoreKpisProps) {
       criticalItems,
       topProducts
     };
-  }, [recentOrders, inventory]);
+  }, [recentOrders, criticalInventory]);
 
   if (ordersLoading || inventoryLoading) {
       return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-pulse">

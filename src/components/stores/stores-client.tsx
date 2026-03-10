@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useFirestoreSubscription } from '@/hooks/use-firestore-subscription';
+import { usePaginatedQuery } from '@/hooks/use-paginated-query';
+import { orderBy } from 'firebase/firestore';
 import type { Store } from '@/lib/types';
 import Loader from '@/components/ui/loader';
 import { Button } from '@/components/ui/button';
@@ -95,7 +96,7 @@ function ExpirationBadge({ expiresAt }: { expiresAt?: number }) {
 }
 
 export default function StoresClient() {
-  const { data: stores, loading, error } = useFirestoreSubscription<Store>('Stores');
+  const { data: stores, loading, error, nextPage, prevPage, hasMore, currentPage, refetch } = usePaginatedQuery<Store>('Stores', [orderBy('createdAt', 'desc')], 20);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
@@ -116,6 +117,7 @@ export default function StoresClient() {
     const result = await toggleStoreFeatured(store.id, newState);
     if (result.success) {
         toast({ title: "Estado Actualizado", description: result.message });
+        refetch();
     } else {
         toast({ variant: 'destructive', title: 'Error', description: result.error });
     }
@@ -132,6 +134,7 @@ export default function StoresClient() {
     toast({ title: "Tienda Eliminada", description: result.message });
     setAlertOpen(false);
     setSelectedStore(null);
+    refetch();
   };
 
   if (loading) return <Loader className="h-[50vh]" />;
@@ -225,12 +228,24 @@ export default function StoresClient() {
             ))}
           </TableBody>
         </Table>
+
+        <div className="flex items-center justify-end space-x-2 p-4 border-t">
+          <Button variant="outline" size="sm" onClick={prevPage} disabled={currentPage === 0 || loading}>
+            Anterior
+          </Button>
+          <div className="text-sm text-muted-foreground mx-2">
+            Página {currentPage + 1}
+          </div>
+          <Button variant="outline" size="sm" onClick={nextPage} disabled={!hasMore || loading}>
+            Siguiente
+          </Button>
+        </div>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader><DialogTitle>{selectedStore ? 'Gestionar Tienda' : 'Crear Nueva Tienda'}</DialogTitle></DialogHeader>
-          <StoreForm store={selectedStore} onSuccess={() => setDialogOpen(false)} />
+          <StoreForm store={selectedStore} onSuccess={() => { setDialogOpen(false); refetch(); }} />
         </DialogContent>
       </Dialog>
       

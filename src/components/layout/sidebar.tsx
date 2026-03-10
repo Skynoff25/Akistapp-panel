@@ -37,7 +37,7 @@ const navItems = [
 
 const NavItem = ({ href, label, icon: Icon, badgeCount }: typeof navItems[0] & { badgeCount?: number }) => {
   const pathname = usePathname();
-  const isActive = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard');
+  const isActive = pathname?.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard');
 
   return (
     <Link href={href} passHref>
@@ -103,7 +103,7 @@ export default function Sidebar() {
       <div className="flex-shrink-0">
         <div className="flex items-center gap-2 mb-8 px-2">
           <Image
-              src="/logo.png"
+              src="/akistapp_logo.png"
               alt="AkistApp Logo"
               width={40}
               height={40}

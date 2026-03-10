@@ -20,7 +20,8 @@ import {
     Megaphone,
     Banknote,
     Scaling,
-    Ticket
+    Ticket,
+    ShieldAlert
 } from 'lucide-react';
 import { useDocument } from '@/hooks/use-document';
 import type { Store as StoreType } from '@/lib/types';
@@ -57,15 +58,18 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
         return () => unsubscribe();
     }, [storeId]);
 
+    const isEmployee = appUser?.rol === 'store_employee';
+
     const navItems = [
         { href: `/store/${storeId}`, label: 'Dashboard', icon: LayoutDashboard, enabled: true },
-        { href: `/store/${storeId}/my-store`, label: 'Mi Tienda', icon: Store, enabled: true },
+        { href: `/store/${storeId}/my-store`, label: 'Mi Tienda', icon: Store, enabled: !isEmployee },
         { href: `/store/${storeId}/my-products`, label: 'Mis Productos', icon: Package, enabled: true },
         { href: `/store/${storeId}/orders`, label: 'Pedidos', icon: ShoppingCart, enabled: true, badge: pendingCount },
-        { href: `/store/${storeId}/promotions`, label: 'Promociones', icon: Megaphone, enabled: true },
-        { href: `/store/${storeId}/coupons`, label: 'Cupones', icon: Ticket, enabled: true },
+        { href: `/store/${storeId}/promotions`, label: 'Promociones', icon: Megaphone, enabled: !isEmployee },
+        { href: `/store/${storeId}/coupons`, label: 'Cupones', icon: Ticket, enabled: !isEmployee },
         { href: `/store/${storeId}/pos`, label: 'Punto de Venta', icon: Banknote, enabled: store?.hasPos ?? false },
-        { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling, enabled: store?.hasFinanceModule ?? false },
+        { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling, enabled: (store?.hasFinanceModule ?? false) && !isEmployee },
+        { href: `/store/${storeId}/approvals`, label: 'Aprobaciones', icon: ShieldAlert, enabled: true },
     ];
 
     const handleLogout = async () => {
@@ -98,7 +102,7 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
         )}
         <div className="flex items-center gap-2 mb-8 px-2">
           <Image
-              src="/logo.png"
+              src="/akistapp_logo.png"
               alt="AkistApp Logo"
               width={40}
               height={40}
@@ -116,7 +120,7 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
       <nav className="flex-grow space-y-1 overflow-y-auto">
         {navItems.map((item) => {
             if (!item.enabled) return null;
-            const isActive = pathname.startsWith(item.href) && (item.href !== `/store/${storeId}` || pathname === `/store/${storeId}`);
+            const isActive = pathname?.startsWith(item.href) && (item.href !== `/store/${storeId}` || pathname === `/store/${storeId}`);
             return (
                 <Link key={item.href} href={item.href} passHref>
                     <Button

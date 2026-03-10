@@ -1,73 +1,61 @@
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import { useFirestoreQuery } from '@/hooks/use-firestore-query';
-import { where } from 'firebase/firestore';
-import { startOfDay, endOfDay } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { startOfDay } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, DollarSign, CheckCircle2, UserCheck, RefreshCw, AlertCircle } from 'lucide-react';
-import type { Order, Store, AppUser } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { getAdminKpisStats } from '@/app/dashboard/admin-actions';
+import { useToast } from '@/hooks/use-toast';
 
 export function AdminKpis() {
-  const startOfToday = startOfDay(new Date()).getTime();
+  const { toast } = useToast();
+  const [stats, setStats] = useState({
+    gmvToday: 0,
+    dailyIncomeEstimated: 0,
+    completionRate: 100,
+    activeUsersCount: 0,
+    ordersCount: 0
+  });
   
-  const { data: todayOrders, loading: ordersLoading, refetch: refetchOrders } = useFirestoreQuery<Order>('Orders', [
-    where('createdAt', '>=', startOfToday)
-  ]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  const { data: stores, loading: storesLoading, refetch: refetchStores } = useFirestoreQuery<Store>('Stores');
-  
-  const { data: activeUsers, loading: usersLoading, refetch: refetchUsers } = useFirestoreQuery<AppUser>('Users', [
-    where('lastLoginAt', '>=', startOfToday)
-  ]);
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await Promise.all([refetchOrders(), refetchStores(), refetchUsers()]);
-    setIsRefreshing(false);
+  const fetchStats = async () => {
+    setIsLoading(true);
+    const startOfTodayMs = startOfDay(new Date()).getTime();
+    try {
+      const res = await getAdminKpisStats(startOfTodayMs);
+      if (res.success && res.data) {
+          setStats(res.data);
+          setLastUpdated(new Date());
+      } else {
+          toast({ variant: 'destructive', title: 'Error', description: res.error || 'Failed to load KPIs' });
+      }
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Error', description: err.message });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
-  const stats = useMemo(() => {
-    // 1. GMV Today
-    const gmvToday = todayOrders.reduce((acc, order) => acc + (order.totalAmount || 0), 0);
-
-    // 2. Estimated Own Income (Suscripciones prorrateadas)
-    const planPrices = { BASIC: 5, STANDARD: 15, PREMIUM: 50 };
-    const monthlyIncome = stores.reduce((acc, store) => acc + (planPrices[store.subscriptionPlan] || 0), 0);
-    const dailyIncomeEstimated = monthlyIncome / 30;
-
-    // 3. Order Completion Rate (DELIVERED / (DELIVERED + CANCELLED))
-    const completed = todayOrders.filter(o => o.status === 'DELIVERED').length;
-    const cancelled = todayOrders.filter(o => o.status === 'CANCELLED').length;
-    const totalFinished = completed + cancelled;
-    const completionRate = totalFinished > 0 ? (completed / totalFinished) * 100 : 100;
-
-    return {
-      gmvToday,
-      dailyIncomeEstimated,
-      completionRate,
-      activeUsersCount: activeUsers.length,
-      ordersCount: todayOrders.length
-    };
-  }, [todayOrders, stores, activeUsers]);
-
-  const isLoading = ordersLoading || storesLoading || usersLoading || isRefreshing;
+  useEffect(() => {
+    fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold flex items-center gap-2">
           KPIs de Hoy
-          <span className="text-xs font-normal text-muted-foreground italic">(Actualizado: {new Date().toLocaleTimeString()})</span>
+          <span className="text-xs font-normal text-muted-foreground italic">(Actualizado: {lastUpdated.toLocaleTimeString()})</span>
         </h3>
         <Button 
             variant="outline" 
             size="sm" 
-            onClick={handleRefresh} 
+            onClick={fetchStats} 
             disabled={isLoading}
             className="gap-2"
         >

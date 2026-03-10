@@ -6,6 +6,9 @@ import { Toaster } from "@/components/ui/toaster"
 export const metadata: Metadata = {
   title: 'Panel de Administración de Akistapp',
   description: 'Panel de administración para Akistapp',
+  icons: {
+    icon: '/akistapp_logo.png',
+  },
 };
 
 export default function RootLayout({

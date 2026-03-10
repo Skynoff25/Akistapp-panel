@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useMemo } from 'react';
-import { useFirestoreQuery } from '@/hooks/use-firestore-query';
-import { where, orderBy } from 'firebase/firestore';
-import type { Order } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useState, useEffect } from 'react';
 import { startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Package } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { cn } from '@/lib/utils';
+import { getSalesAnalysisStats } from '@/app/dashboard/sales-actions';
+import { useToast } from '@/hooks/use-toast';
 
 interface SalesAnalysisProps {
   storeId: string;
@@ -52,56 +51,39 @@ export function SalesAnalysis({ storeId }: SalesAnalysisProps) {
   const [rangeKey, setRangeKey] = useState<keyof typeof dateRanges>('thisMonth');
   const selectedRange = dateRanges[rangeKey];
 
-  // Filtramos solo pedidos DELIVERED para análisis financiero real
-  const { data: orders, loading } = useFirestoreQuery<Order>('Orders', [
-    where('storeId', '==', storeId),
-    where('status', '==', 'DELIVERED'),
-    where('createdAt', '>=', selectedRange.start.getTime()),
-    where('createdAt', '<=', selectedRange.end.getTime()),
-    orderBy('createdAt', 'desc')
-  ]);
+  const [analysis, setAnalysis] = useState({
+    totalCost: 0,
+    totalRealValue: 0,
+    netProfit: 0,
+    totalSalesOfficial: 0,
+    totalItemsSold: 0,
+    analyzedOrdersCount: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const analysis = useMemo(() => {
-    if (!orders || orders.length === 0) {
-      return {
-        totalCost: 0,
-        totalRealValue: 0,
-        netProfit: 0,
-        totalSalesOfficial: 0,
-        totalItemsSold: 0,
-        analyzedOrdersCount: 0,
-      };
-    }
-
-    let totalCost = 0;
-    let totalRealValue = 0;
-    let totalSalesOfficial = 0;
-    let totalItemsSold = 0;
-    let analyzedOrdersCount = 0;
-
-    for (const order of orders) {
-      // Solo incluimos órdenes con datos financieros suficientes
-      if (order.tasaOficial && order.tasaParalela) {
-        totalSalesOfficial += order.finalTotal || order.totalAmount;
-        totalRealValue += ((order.finalTotal || order.totalAmount) * order.tasaOficial) / order.tasaParalela;
-        analyzedOrdersCount++;
-        
-        for (const item of order.items) {
-          totalCost += (item.costPriceUsd || 0) * item.quantity;
-          totalItemsSold += item.quantity;
+  useEffect(() => {
+    let mounted = true;
+    const fetchAnalysis = async () => {
+      setLoading(true);
+      try {
+        const res = await getSalesAnalysisStats(storeId, selectedRange.start.getTime(), selectedRange.end.getTime());
+        if (mounted) {
+          if (res.success && res.data) {
+            setAnalysis(res.data);
+          } else {
+            toast({ variant: 'destructive', title: 'Error', description: res.error || 'Failed to analyze sales' });
+          }
         }
+      } catch (err: any) {
+        if (mounted) toast({ variant: 'destructive', title: 'Error', description: err.message });
+      } finally {
+        if (mounted) setLoading(false);
       }
-    }
-
-    return {
-      totalCost,
-      totalRealValue,
-      netProfit: totalRealValue - totalCost,
-      totalSalesOfficial,
-      totalItemsSold,
-      analyzedOrdersCount,
     };
-  }, [orders]);
+    fetchAnalysis();
+    return () => { mounted = false; };
+  }, [storeId, selectedRange.start, selectedRange.end]);
   
   return (
     <Card>

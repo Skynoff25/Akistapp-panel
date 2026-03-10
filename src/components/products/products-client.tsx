@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useFirestoreQuery } from '@/hooks/use-firestore-query';
+import { usePaginatedQuery } from '@/hooks/use-paginated-query';
+import { orderBy } from 'firebase/firestore';
 import type { Product } from '@/lib/types';
 import Loader from '@/components/ui/loader';
 import {
@@ -48,7 +49,7 @@ interface ProductsClientProps {
 }
 
 export default function ProductsClient({ isAdmin }: ProductsClientProps) {
-  const { data: products, loading, error, refetch } = useFirestoreQuery<Product>('Products');
+  const { data: products, loading, error, refetch, nextPage, prevPage, hasMore, currentPage } = usePaginatedQuery<Product>('Products', [orderBy('name', 'asc')], 20);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -185,6 +186,18 @@ export default function ProductsClient({ isAdmin }: ProductsClientProps) {
             ))}
           </TableBody>
         </Table>
+
+        <div className="flex items-center justify-end space-x-2 p-4 border-t">
+          <Button variant="outline" size="sm" onClick={prevPage} disabled={currentPage === 0 || loading}>
+            Anterior
+          </Button>
+          <div className="text-sm text-muted-foreground mx-2">
+            Página {currentPage + 1}
+          </div>
+          <Button variant="outline" size="sm" onClick={nextPage} disabled={!hasMore || loading}>
+            Siguiente
+          </Button>
+        </div>
       </div>
 
       {isAdmin && (

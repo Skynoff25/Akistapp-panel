@@ -58,7 +58,7 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
     if (Notification.permission === 'granted') {
       new Notification('¡Nueva Orden Recibida! 🚀', {
         body: `${order.userName || 'Un cliente'} ha realizado un pedido de $${order.totalAmount.toFixed(2)}`,
-        icon: '/logo.png',
+        icon: '/akistapp_logo.png',
         tag: order.id,
       });
     }

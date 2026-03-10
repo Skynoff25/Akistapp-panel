@@ -234,3 +234,29 @@ export interface StoreCoupon {
   expirationDate: number;
   createdAt: number;
 }
+
+export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface ApprovalRequest {
+  id: string;
+  storeId: string;
+  type: 'DELETE_PRODUCT'; 
+  status: ApprovalStatus;
+  requestedBy: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  details: {
+    productId: string;
+    productName: string;
+    [key: string]: any;
+  };
+  createdAt: number;
+  resolvedAt?: number;
+  resolvedBy?: {
+    id: string;
+    name: string;
+  };
+  comments?: string;
+}

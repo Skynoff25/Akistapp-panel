@@ -70,7 +70,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
             <div className="flex justify-center items-center mb-4">
                 <Image
-                    src="/logo.png"
+                    src="/akistapp_logo.png"
                     alt="AkistApp Logo"
                     width={56}
                     height={56}

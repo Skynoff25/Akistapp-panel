@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { addProductToStore, removeProductFromStore } from '@/app/store/[storeId]/my-products/actions';
+import { createApprovalRequest } from '@/app/store/[storeId]/approvals/actions';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { StoreProductForm } from './store-product-form';
@@ -164,11 +165,27 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
 
   const confirmDelete = async () => {
     if (selectedProduct) {
-        const result = await removeProductFromStore(storeId, selectedProduct.id);
-        if (result.error) {
-            toast({ variant: 'destructive', title: 'Error', description: result.error });
+        if (appUser?.rol === 'store_employee') {
+            const result = await createApprovalRequest(storeId, {
+                id: appUser.id,
+                name: appUser.name || 'Empleado',
+                email: appUser.email || ''
+            }, {
+                productId: selectedProduct.id,
+                productName: selectedProduct.name,
+            });
+            if (result.error) {
+                toast({ variant: 'destructive', title: 'Error', description: result.error });
+            } else {
+                toast({ title: 'Solicitud Enviada', description: result.message });
+            }
         } else {
-            toast({ title: 'Éxito', description: result.message });
+            const result = await removeProductFromStore(storeId, selectedProduct.id);
+            if (result.error) {
+                toast({ variant: 'destructive', title: 'Error', description: result.error });
+            } else {
+                toast({ title: 'Éxito', description: result.message });
+            }
         }
         setAlertOpen(false);
     }
@@ -257,12 +274,10 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
                                 <Edit className="mr-2 h-4 w-4" />
                                 <span>Gestionar</span>
                             </DropdownMenuItem>
-                            {canManageProducts && (
-                                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDelete(product)}>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Eliminar</span>
-                                </DropdownMenuItem>
-                            )}
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => handleDelete(product)}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Eliminar</span>
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </TableCell>

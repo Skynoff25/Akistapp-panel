@@ -30,6 +30,7 @@ import { useEffect, useState } from "react";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
 import { Copy, Link, Upload, PackageSearch } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HelpTip } from "@/components/ui/help-tip";
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -40,6 +41,7 @@ const productSchema = z.object({
   imageUrl: z.string().optional(),
   tags: z.string().optional(),
   isGenericBrand: z.boolean().default(false),
+  unit: z.enum(['UNIT', 'KG', 'GR', 'LB']).default('UNIT'),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -64,6 +66,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
       imageUrl: "",
       tags: "",
       isGenericBrand: false,
+      unit: "UNIT",
     },
   });
 
@@ -86,6 +89,7 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         imageUrl: product.image?.startsWith('http') ? product.image : "",
         tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
         isGenericBrand: product.isGenericBrand || false,
+        unit: product.unit || "UNIT",
       });
     }
   }, [product, form]);
@@ -188,9 +192,10 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/10">
               <div className="space-y-0.5">
-                <FormLabel className="text-sm font-medium flex items-center gap-2">
+                <FormLabel className="text-sm font-medium flex items-center gap-1.5">
                   <PackageSearch className="h-4 w-4" />
                   ¿Producto genérico / marca variable?
+                  <HelpTip text="Activa para frutas, verduras, o productos sin marca fija.\nLa app mostrará este campo como 'Genérico' en vez de una marca específica." />
                 </FormLabel>
                 <FormDescription className="text-xs">Si la marca no es relevante o varía constantemente.</FormDescription>
               </div>
@@ -229,6 +234,34 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="unit"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-1.5">
+                Unidad de Medida
+                <HelpTip text="Define cómo se vende este producto.\nUNIT = por pieza (default)\nKG / GR / LB = por peso\nAfecta el POS y el stock (permite decimales)." />
+              </FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una unidad" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="UNIT">Por Unidad (default)</SelectItem>
+                  <SelectItem value="KG">Kilogramo (kg)</SelectItem>
+                  <SelectItem value="GR">Gramo (gr)</SelectItem>
+                  <SelectItem value="LB">Libra (lb)</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription className="text-xs">Para frutas, verduras o productos a granel, selecciona la unidad de peso.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}

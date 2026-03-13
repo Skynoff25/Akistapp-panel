@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { startOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -21,7 +20,8 @@ import {
     Banknote,
     Scaling,
     Ticket,
-    ShieldAlert
+    ShieldAlert,
+    HelpCircle
 } from 'lucide-react';
 import { useDocument } from '@/hooks/use-document';
 import type { Store as StoreType } from '@/lib/types';
@@ -41,12 +41,10 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
 
     useEffect(() => {
         if (!storeId) return;
-        const startOfToday = startOfDay(new Date()).getTime();
         const q = query(
             collection(db, 'Orders'),
             where('storeId', '==', storeId),
-            where('status', '==', 'PENDING'),
-            where('createdAt', '>=', startOfToday)
+            where('status', '==', 'PENDING')
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -70,6 +68,7 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
         { href: `/store/${storeId}/pos`, label: 'Punto de Venta', icon: Banknote, enabled: store?.hasPos ?? false },
         { href: `/store/${storeId}/finance`, label: 'Finanzas Reales', icon: Scaling, enabled: (store?.hasFinanceModule ?? false) && !isEmployee },
         { href: `/store/${storeId}/approvals`, label: 'Aprobaciones', icon: ShieldAlert, enabled: true },
+        { href: `/store/${storeId}/help`, label: 'Centro de Ayuda', icon: HelpCircle, enabled: true },
     ];
 
     const handleLogout = async () => {

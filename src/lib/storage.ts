@@ -1,4 +1,4 @@
-'use server';
+//  NOTE: This module uses the Firebase client SDK and must run in the browser (authenticated context).
 
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';

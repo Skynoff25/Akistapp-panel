@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
 import { where } from "firebase/firestore";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -16,7 +16,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit, Search, FileText, MessageCircle, Percent, RotateCcw } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Search, FileText, MessageCircle, Percent, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { HelpTip } from "@/components/ui/help-tip";
+
+const ITEMS_PER_PAGE = 15;
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -255,6 +258,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredAndSortedOrders = useMemo(() => {
     if (!orders) return [];
@@ -268,6 +272,15 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
     });
     return processedOrders;
   }, [orders, sortOrder, statusFilter, searchTerm]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedOrders.length / ITEMS_PER_PAGE));
+  const paginatedOrders = filteredAndSortedOrders.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleViewDetails = (order: Order) => { setSelectedOrder(order); setDetailsOpen(true); }
   const handleEdit = (order: Order) => { setSelectedOrder(order); setEditDialogOpen(true); };
@@ -327,7 +340,13 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
               <TableHead>Cliente</TableHead>
               <TableHead>Total Final</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Gestión</TableHead>
+              <TableHead className="flex items-center gap-1.5">
+                Gestión
+                <HelpTip
+                  text="Flujo de estados:\nPENDIENTE → CONFIRMADO → LISTO → ENTREGADO\nCambia el estado con el selector y pulsa OK para guardar.\nEl estado DEVUELTO solo se activa desde el menú \u22EE."
+                  side="bottom"
+                />
+              </TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -335,7 +354,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
             {filteredAndSortedOrders.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="h-24 text-center">No se encontraron pedidos.</TableCell></TableRow>
             ) : (
-              filteredAndSortedOrders.map((order) => (
+              paginatedOrders.map((order) => (
                 <TableRow key={order.id} className={order.status === 'RETURNED' ? 'bg-muted/20' : ''}>
                   <TableCell className="font-medium">#{order.id.substring(0, 7)}</TableCell>
                   <TableCell>{format(new Date(order.createdAt), 'dd/MM/yy')}</TableCell>
@@ -371,6 +390,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
                             {order.status === 'DELIVERED' && (
                                 <DropdownMenuItem onSelect={() => handleProcessReturn(order)} className="text-orange-600">
                                     <RotateCcw className="mr-2 h-4 w-4" /> Procesar Devolución
+                                    <HelpTip text="Revierte el inventario automáticamente.\nSolo disponible en pedidos ENTREGADOS.\nEsta acción es irreversible." side="left" className="ml-auto" />
                                 </DropdownMenuItem>
                             )}
                         </DropdownMenuContent>
@@ -381,6 +401,38 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <p className="text-sm text-muted-foreground">
+              Página {currentPage} de {totalPages}
+              <span className="ml-2 text-xs">
+                ({(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredAndSortedOrders.length)} de {filteredAndSortedOrders.length})
+              </span>
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="gap-1"
+              >
+                <ChevronLeft className="h-4 w-4" /> Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="gap-1"
+              >
+                Siguiente <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <OrderDetailsDialog 

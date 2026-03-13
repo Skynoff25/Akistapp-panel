@@ -6,10 +6,9 @@ import { db } from '@/lib/firebase';
 import { doc, updateDoc, getDoc, deleteField } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Store } from '@/lib/types';
-import { uploadImage } from '@/lib/storage';
 
 const updateMyStoreSchema = z.object({
-  imageUrl: z.any().optional(),
+  imageUrl: z.string().optional(), // URL string — upload done client-side
   isOpen: z.enum(['true', 'false']).transform(v => v === 'true'),
   allowPickup: z.enum(['true', 'false']).transform(v => v === 'true'),
   allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
@@ -39,14 +38,11 @@ export async function updateMyStore(storeId: string, formData: FormData) {
     }
     
     const store = storeSnap.data() as Store;
-    const { imageUrl: imageFile, ...dataFromForm } = validatedFields.data;
+    const { imageUrl: newImageUrl, ...dataFromForm } = validatedFields.data;
     const dataToUpdate: { [key: string]: any } = { ...dataFromForm };
 
-    let finalImageUrl = store.imageUrl;
-    if (imageFile instanceof File && imageFile.size > 0) {
-        finalImageUrl = await uploadImage(imageFile, 'store_profile');
-    }
-    dataToUpdate.imageUrl = finalImageUrl;
+    // Use the uploaded URL if provided, otherwise keep the existing one
+    dataToUpdate.imageUrl = newImageUrl || store.imageUrl;
 
     // Server-side guard to ensure BASIC plan cannot have these options enabled.
     if (store.subscriptionPlan === 'BASIC') {

@@ -16,6 +16,7 @@ const productSchema = z.object({
   imageUrl: z.string().optional(),
   tags: z.string().optional(),
   isGenericBrand: z.coerce.boolean().default(false),
+  unit: z.enum(['KG', 'GR', 'LB', 'UNIT']).default('UNIT'),
 });
 
 export async function createProduct(formData: FormData) {

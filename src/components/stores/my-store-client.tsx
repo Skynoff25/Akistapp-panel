@@ -31,6 +31,7 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { getImageUrl } from "@/lib/utils";
+import { uploadImage } from "@/lib/storage";
 
 const myStoreSchema = z.object({
   imageUrl: z.any().optional(),
@@ -85,9 +86,18 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
 
   const onSubmit = async (data: MyStoreFormValues) => {
     const formData = new FormData();
-    if (data.imageUrl instanceof File) {
-        formData.append('imageUrl', data.imageUrl);
+
+    // Upload image client-side (where Firebase Auth session exists)
+    if (data.imageUrl instanceof File && data.imageUrl.size > 0) {
+      try {
+        const url = await uploadImage(data.imageUrl, 'store_profile');
+        formData.append('imageUrl', url);
+      } catch (e) {
+        toast({ variant: 'destructive', title: 'Error al subir imagen', description: 'No se pudo cargar la imagen. Intenta de nuevo.' });
+        return;
+      }
     }
+
     formData.append('isOpen', String(data.isOpen));
     formData.append('allowPickup', String(data.allowPickup));
     formData.append('allowDelivery', String(data.allowDelivery));
@@ -97,7 +107,6 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
     if (data.deliveryFee !== undefined) {
         formData.append('deliveryFee', String(data.deliveryFee));
     }
-
 
     const result = await updateMyStore(storeId, formData);
     

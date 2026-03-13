@@ -10,12 +10,13 @@ const saleItemSchema = z.array(z.object({
     inventoryId: z.string(),
     productId: z.string(),
     productName: z.string(),
-    quantity: z.number().int().min(1),
+    quantity: z.number().positive(), // Allows decimals for weight-based products (e.g. 0.350 kg)
     price: z.number().min(0),
     image: z.string(),
     costPriceUsd: z.number().min(0),
     variantId: z.string().optional(),
     variantName: z.string().optional(),
+    unit: z.string().optional(),
 }));
 
 const createManualSaleSchema = z.object({

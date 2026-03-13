@@ -88,6 +88,7 @@ export async function addProductToStore(formData: FormData) {
       hasVariations: false,
       variants: [],
       priceRange: null,
+      unit: productData.unit || 'UNIT',
     });
 
     revalidatePath(`/store/${storeId}/my-products`);
@@ -109,7 +110,8 @@ const variantSchema = z.array(z.object({
 const updateStoreProductSchema = z.object({
   price: z.coerce.number().min(0, 'El precio no puede ser negativo.').optional(),
   promotionalPrice: z.coerce.number().min(0, "El precio debe ser positivo").optional().nullable(),
-  currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
+  // Stock allows decimals for weight-based products (e.g. 5.500 kg). Int constraint only for UNIT.
+  currentStock: z.coerce.number().min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.enum(['true', 'false']).transform(v => v === 'true'),
   storeSpecificImage: z.any().optional(),
   storeSpecificImageUrl: z.string().optional(),
@@ -119,6 +121,7 @@ const updateStoreProductSchema = z.object({
   casheaEligible: z.enum(['true', 'false']).transform(v => v === 'true'),
   hasVariations: z.enum(['true', 'false']).transform(v => v === 'true'),
   variants: z.string().optional(),
+  unit: z.enum(['KG', 'GR', 'LB', 'UNIT']).optional(),
 });
 
 

@@ -29,6 +29,7 @@ import { useAuth } from "@/context/auth-context";
 import { useEffect, useState } from "react";
 import { Label } from "../ui/label";
 import { PlusCircle, Trash2, Wand2, Zap, Link, Upload, Copy, Layers, PackageSearch } from "lucide-react";
+import { HelpTip } from "@/components/ui/help-tip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
@@ -47,7 +48,8 @@ const variantSchema = z.object({
 const storeProductSchema = z.object({
   price: z.coerce.number().min(0, "El precio no puede ser negativo.").optional(),
   promotionalPrice: z.coerce.number().min(0, "El precio promocional no puede ser negativo.").optional().nullable(),
-  currentStock: z.coerce.number().int('El stock debe ser un número entero.').min(0, 'El stock no puede ser negativo.').optional(),
+  // Decimal allowed for weight-based units (KG, GR, LB)
+  currentStock: z.coerce.number().min(0, 'El stock no puede ser negativo.').optional(),
   isAvailable: z.boolean(),
   storeSpecificImage: z.any().optional(),
   storeSpecificImageUrl: z.string().optional(),
@@ -58,6 +60,7 @@ const storeProductSchema = z.object({
   hasVariations: z.boolean(),
   variants: z.array(variantSchema).optional(),
   isGenericBrand: z.boolean().default(false),
+  unit: z.enum(['UNIT', 'KG', 'GR', 'LB']).default('UNIT'),
 }).superRefine((data, ctx) => {
     if (data.hasVariations) {
         if (!data.variants || data.variants.length === 0) {
@@ -115,6 +118,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
       hasVariations: false,
       variants: [],
       isGenericBrand: false,
+      unit: "UNIT",
     },
   });
 
@@ -124,6 +128,10 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   });
 
   const hasVariations = form.watch("hasVariations");
+  const currentUnit = form.watch("unit");
+  const isWeightUnit = currentUnit === 'KG' || currentUnit === 'GR' || currentUnit === 'LB';
+  const unitLabel = currentUnit === 'KG' ? 'kg' : currentUnit === 'GR' ? 'gr' : currentUnit === 'LB' ? 'lb' : 'uds';
+  const stockStep = isWeightUnit ? '0.001' : '1';
 
   useEffect(() => {
     if (product) {
@@ -141,6 +149,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             hasVariations: product.hasVariations || false,
             variants: product.variants || [],
             isGenericBrand: product.isGenericBrand || false,
+            unit: product.unit || "UNIT",
         });
         if (product.price > 0 && batchPrice === 0) setBatchPrice(product.price);
         if (product.costPriceUsd && product.costPriceUsd > 0 && batchCost === 0) setBatchCost(product.costPriceUsd);
@@ -216,7 +225,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
 
     const result = await updateStoreProduct(storeId, product.id, formData);
     if (result?.errors) {
-        const msg = result.errors._form ? result.errors._form.join(", ") : "Error al actualizar";
+        const msg = (result.errors as any)._form ? (result.errors as any)._form.join(", ") : "Error al actualizar";
         form.setError("root.serverError", { message: msg });
     } else {
         toast({ title: "Producto Actualizado", description: `"${product.name}" actualizado.` });
@@ -249,13 +258,44 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
 
         <FormField
           control={form.control}
+          name="unit"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/10">
+              <div className="space-y-0.5">
+                <FormLabel className="text-sm font-medium flex items-center gap-1.5">
+                  Unidad de Medida
+                  <HelpTip text="KG/GR/LB: para frutas, verduras o productos a granel.\nEl precio y stock aceptarán decimales.\nEl POS mostrará el precio como $/kg." />
+                </FormLabel>
+                <FormDescription className="text-xs">Para frutas, verduras o productos a granel.</FormDescription>
+              </div>
+              <Select onValueChange={field.onChange} value={field.value} disabled={hasVariations}>
+                <FormControl>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="UNIT">Por Unidad</SelectItem>
+                  <SelectItem value="KG">Kilogramo (kg)</SelectItem>
+                  <SelectItem value="GR">Gramo (gr)</SelectItem>
+                  <SelectItem value="LB">Libra (lb)</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="hasVariations"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-muted/20">
               <div className="space-y-0.5">
-                <FormLabel className="text-base flex items-center gap-2">
+                <FormLabel className="text-base flex items-center gap-1.5">
                   <Zap className="h-4 w-4 text-primary" />
                   Manejar Variantes / Combinaciones
+                  <HelpTip text="Activa si el producto tiene tallas, colores o presentaciones distintas.\nCada variante tiene su propio precio y stock.\nNo compatible con Unidad de Medida por peso." />
                 </FormLabel>
                 <FormDescription>Activa para gestionar tallas, colores o versiones.</FormDescription>
               </div>
@@ -421,7 +461,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                 <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="price" render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Precio Base</FormLabel>
+                        <FormLabel>Precio Base {isWeightUnit && <span className="text-muted-foreground font-normal text-xs">(por {unitLabel})</span>}</FormLabel>
                         <FormControl>
                             <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
@@ -433,7 +473,10 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                     )} />
                     <FormField control={form.control} name="promotionalPrice" render={({ field }) => (
                         <FormItem>
-                        <FormLabel>Precio Oferta</FormLabel>
+                        <FormLabel className="flex items-center gap-1.5">
+                          Precio Oferta {isWeightUnit && <span className="text-muted-foreground font-normal text-xs">(por {unitLabel})</span>}
+                          <HelpTip text="Precio temporal de descuento visible al cliente.\nDeja vacío para mostrar solo el precio base.\nEl precio base aparecerá tachado en la app." />
+                        </FormLabel>
                         <FormControl>
                             <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
@@ -446,8 +489,15 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                 </div>
                  <FormField control={form.control} name="currentStock" render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Stock Total</FormLabel>
-                    <FormControl><Input type="number" step="1" {...field} /></FormControl>
+                    <FormLabel className="flex items-center gap-1.5">
+                      Stock disponible {isWeightUnit ? `(${unitLabel})` : '(unidades)'}
+                      <HelpTip
+                        text={isWeightUnit
+                          ? `Ingresa el stock en ${unitLabel}. Acepta decimales (ej: 5.500).\nEl POS descontará la cantidad vendida automáticamente.`
+                          : "El stock se descuenta automáticamente con cada venta.\nPonlo en 0 si está agotado o desactiva Disponible."}
+                      />
+                    </FormLabel>
+                    <FormControl><Input type="number" step={stockStep} {...field} /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )} />
@@ -506,7 +556,10 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
             )} />
           <FormField control={form.control} name="casheaEligible" render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                <FormLabel className="text-sm">Cashea</FormLabel>
+                <FormLabel className="text-sm flex items-center gap-1.5">
+                  Cashea
+                  <HelpTip text="Marca este producto como elegible para financiamiento por Cashea.\nEl precio debe estar dentro de los límites de la plataforma.\nContacta a Cashea para obtener más información." side="left" />
+                </FormLabel>
                 <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
               </FormItem>
             )} />

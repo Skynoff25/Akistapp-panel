@@ -13,12 +13,15 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw, FileCheck, Tag, Percent } from 'lucide-react';
+import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw, FileCheck, Tag, Percent, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const POS_PAGE_SIZE = 20;
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { createManualSale } from '@/app/store/[storeId]/pos/actions';
 import { updateStoreParallelRate, fetchBcvRate } from '@/app/dashboard/rates-actions';
+import { HelpTip } from '@/components/ui/help-tip';
 import {
   Dialog,
   DialogContent,
@@ -44,6 +47,7 @@ interface CartItem {
   costPriceUsd: number;
   variantId?: string;
   variantName?: string;
+  unit?: string; // 'KG' | 'GR' | 'LB' | 'UNIT'
 }
 
 interface CustomerInfo {
@@ -212,10 +216,21 @@ export default function PosClient({ storeId }: { storeId: string }) {
     setIsSyncing(false);
   };
 
+  const [posPage, setPosPage] = useState(1);
+
   const filteredInventory = useMemo(() => {
     if (!inventory) return [];
     return inventory.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [inventory, searchTerm]);
+
+  // Reset to page 1 on search
+  useEffect(() => { setPosPage(1); }, [searchTerm]);
+
+  const posTotalPages = Math.max(1, Math.ceil(filteredInventory.length / POS_PAGE_SIZE));
+  const paginatedInventory = filteredInventory.slice(
+    (posPage - 1) * POS_PAGE_SIZE,
+    posPage * POS_PAGE_SIZE
+  );
 
   const cartSubtotal = useMemo(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -263,17 +278,21 @@ export default function PosClient({ storeId }: { storeId: string }) {
   };
 
   const addBaseProductToCart = (product: StoreProduct) => {
+    const isWeightUnit = product.unit && product.unit !== 'UNIT';
+    const defaultQty = isWeightUnit ? 0.1 : 1;
+    const cartStep = isWeightUnit ? 0.1 : 1;
     setCart(prevCart => {
       const cartItemId = product.id;
       const existingItem = prevCart.find(item => item.cartItemId === cartItemId);
       if (existingItem) {
-        if (existingItem.quantity < product.currentStock) {
-          return prevCart.map(item =>
-            item.cartItemId === cartItemId ? { ...item, quantity: item.quantity + 1 } : item
-          );
+        const newQty = parseFloat((existingItem.quantity + cartStep).toFixed(3));
+        if (newQty > product.currentStock) {
+          toast({ variant: 'destructive', title: 'Stock insuficiente' });
+          return prevCart;
         }
-        toast({ variant: 'destructive', title: 'Stock insuficiente' });
-        return prevCart;
+        return prevCart.map(item =>
+          item.cartItemId === cartItemId ? { ...item, quantity: newQty } : item
+        );
       }
       return [
         ...prevCart,
@@ -284,10 +303,11 @@ export default function PosClient({ storeId }: { storeId: string }) {
           name: product.name,
           productName: product.name,
           price: product.promotionalPrice || product.price,
-          quantity: 1,
+          quantity: defaultQty,
           image: getImageUrl(product.storeSpecificImage || product.globalImage, product.productId, 40, 40),
           stock: product.currentStock,
           costPriceUsd: product.costPriceUsd || 0,
+          unit: product.unit || 'UNIT',
         },
       ];
     });
@@ -321,6 +341,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
           costPriceUsd: product.costPriceUsd || 0,
           variantId: variant.id,
           variantName: variant.name,
+          unit: 'UNIT', // Variants are always per unit
         },
       ];
     });
@@ -341,16 +362,17 @@ export default function PosClient({ storeId }: { storeId: string }) {
     setCart(prevCart => {
       const itemToUpdate = prevCart.find(item => item.cartItemId === cartItemId);
       if (!itemToUpdate) return prevCart;
-
-      if (newQuantity <= 0) {
+      const isWeight = itemToUpdate.unit && itemToUpdate.unit !== 'UNIT';
+      const rounded = isWeight ? parseFloat(newQuantity.toFixed(3)) : Math.round(newQuantity);
+      if (rounded <= 0) {
         return prevCart.filter(item => item.cartItemId !== cartItemId);
       }
-      if (newQuantity > itemToUpdate.stock) {
+      if (rounded > itemToUpdate.stock) {
         toast({ variant: 'destructive', title: 'Stock insuficiente' });
         return prevCart;
       }
       return prevCart.map(item =>
-        item.cartItemId === cartItemId ? { ...item, quantity: newQuantity } : item
+        item.cartItemId === cartItemId ? { ...item, quantity: rounded } : item
       );
     });
   };
@@ -375,6 +397,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
         costPriceUsd: item.costPriceUsd,
         variantId: item.variantId,
         variantName: item.variantName,
+        unit: item.unit,
     }));
     
     const formData = new FormData();
@@ -452,7 +475,10 @@ export default function PosClient({ storeId }: { storeId: string }) {
                 <Input id="tasa-oficial-pos" type="number" value={localTasaOficial} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="tasa-paralela-pos">Tasa de Reposición (Paralelo) - Tu Tienda</Label>
+                <Label htmlFor="tasa-paralela-pos" className="flex items-center gap-1.5">
+                  Tasa de Reposición (Paralelo) - Tu Tienda
+                  <HelpTip text="Tasa paralela exclusiva de tu tienda.\nSe usa para calcular el costo real de reposición en USD en tus reportes.\nActualiza regularmente para que las finanzas sean precisas." side="bottom" />
+                </Label>
                 <Input id="tasa-paralela-pos" type="number" value={localTasaParalela} onChange={e => handleParaleloChange(e.target.value)} placeholder="40.00"/>
             </div>
         </CardContent>
@@ -473,37 +499,67 @@ export default function PosClient({ storeId }: { storeId: string }) {
                         />
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <ScrollArea className="h-[60vh]">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Producto</TableHead>
-                                    <TableHead>Stock</TableHead>
-                                    <TableHead>Precio</TableHead>
-                                    <TableHead className="text-right">Acción</TableHead>
+                <CardContent className="p-0">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Producto</TableHead>
+                                <TableHead>Stock</TableHead>
+                                <TableHead>Precio</TableHead>
+                                <TableHead className="text-right">Acción</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedInventory.length === 0 ? (
+                                <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No hay productos disponibles.</TableCell></TableRow>
+                            ) : paginatedInventory.map(p => (
+                                <TableRow key={p.id}>
+                                    <TableCell className="flex items-center gap-2">
+                                        <Image src={getImageUrl(p.storeSpecificImage || p.globalImage, p.productId, 40, 40)} alt={p.name} width={40} height={40} className="rounded-md object-cover" />
+                                        <div>
+                                          <p>{p.name}</p>
+                                          {p.unit && p.unit !== 'UNIT' && (
+                                            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">{p.unit}</span>
+                                          )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      {p.unit && p.unit !== 'UNIT'
+                                        ? `${p.currentStock} ${p.unit.toLowerCase()}`
+                                        : p.currentStock}
+                                    </TableCell>
+                                    <TableCell>
+                                      {p.priceRange
+                                        ? p.priceRange
+                                        : `$${(p.promotionalPrice || p.price).toFixed(2)}${p.unit && p.unit !== 'UNIT' ? `/${p.unit.toLowerCase()}` : ''}`}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button size="sm" onClick={() => handleProductClick(p)} disabled={p.currentStock <= 0}>
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            {p.hasVariations ? 'Opciones' : 'Añadir'}
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredInventory.map(p => (
-                                    <TableRow key={p.id}>
-                                        <TableCell className="flex items-center gap-2">
-                                            <Image src={getImageUrl(p.storeSpecificImage || p.globalImage, p.productId, 40, 40)} alt={p.name} width={40} height={40} className="rounded-md object-cover" />
-                                            {p.name}
-                                        </TableCell>
-                                        <TableCell>{p.currentStock}</TableCell>
-                                        <TableCell>{p.priceRange ? p.priceRange : `$${(p.promotionalPrice || p.price).toFixed(2)}`}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button size="sm" onClick={() => handleProductClick(p)} disabled={p.currentStock <= 0}>
-                                                <PlusCircle className="mr-2 h-4 w-4" />
-                                                {p.hasVariations ? 'Opciones' : 'Añadir'}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
+                            ))}
+                        </TableBody>
+                    </Table>
+
+                    {posTotalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-2 border-t text-sm">
+                            <span className="text-xs text-muted-foreground">
+                                {(posPage - 1) * POS_PAGE_SIZE + 1}–{Math.min(posPage * POS_PAGE_SIZE, filteredInventory.length)} de {filteredInventory.length}
+                            </span>
+                            <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPosPage(p => Math.max(1, p - 1))} disabled={posPage === 1}>
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <span className="flex items-center text-xs px-1">{posPage}/{posTotalPages}</span>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPosPage(p => Math.min(posTotalPages, p + 1))} disabled={posPage === posTotalPages}>
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
@@ -523,11 +579,28 @@ export default function PosClient({ storeId }: { storeId: string }) {
                                         <Image src={item.image} alt={item.name} width={48} height={48} className="rounded-md" />
                                         <div className="flex-grow">
                                             <p className="font-medium text-xs leading-tight">{item.name}</p>
-                                            <p className="text-[10px] text-muted-foreground">${item.price.toFixed(2)}</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                              ${item.price.toFixed(2)}{item.unit && item.unit !== 'UNIT' ? `/${item.unit.toLowerCase()}` : ''}
+                                            </p>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}><MinusCircle className="h-4 w-4" /></Button>
-                                                <Input type="number" value={item.quantity} onChange={e => updateQuantity(item.cartItemId, parseInt(e.target.value) || 0)} className="h-7 w-12 text-center p-1 text-xs" />
-                                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}><PlusCircle className="h-4 w-4" /></Button>
+                                                {(() => {
+                                                  const isWeight = item.unit && item.unit !== 'UNIT';
+                                                  const step = isWeight ? 0.1 : 1;
+                                                  return (
+                                                    <>
+                                                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, parseFloat((item.quantity - step).toFixed(3)))}><MinusCircle className="h-4 w-4" /></Button>
+                                                      <Input
+                                                        type="number"
+                                                        value={item.quantity}
+                                                        step={isWeight ? 0.001 : 1}
+                                                        onChange={e => updateQuantity(item.cartItemId, parseFloat(e.target.value) || 0)}
+                                                        className="h-7 w-16 text-center p-1 text-xs"
+                                                      />
+                                                      <span className="text-[10px] text-muted-foreground">{item.unit && item.unit !== 'UNIT' ? item.unit.toLowerCase() : ''}</span>
+                                                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.cartItemId, parseFloat((item.quantity + step).toFixed(3)))}><PlusCircle className="h-4 w-4" /></Button>
+                                                    </>
+                                                  );
+                                                })()}
                                             </div>
                                         </div>
                                         <p className="font-semibold text-xs">${(item.price * item.quantity).toFixed(2)}</p>
@@ -542,7 +615,10 @@ export default function PosClient({ storeId }: { storeId: string }) {
                     {/* --- Sección de Descuentos --- */}
                     <div className="space-y-3 bg-muted/30 p-3 rounded-lg border border-dashed">
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Tag className="h-3 w-3"/> Cupón de Descuento</Label>
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                              <Tag className="h-3 w-3"/> Cupón de Descuento
+                              <HelpTip text="Código creado en la sección 'Cupones'.\nPuede ser porcentaje (%) o monto fijo ($).\nSe aplica al subtotal del carrito." />
+                            </Label>
                             <div className="flex gap-2">
                                 <Input 
                                     placeholder="CÓDIGO" 
@@ -563,7 +639,10 @@ export default function PosClient({ storeId }: { storeId: string }) {
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Percent className="h-3 w-3"/> Descuento Manual ($)</Label>
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                              <Percent className="h-3 w-3"/> Descuento Manual ($)
+                              <HelpTip text="Monto libre en $ que se resta del total.\nQueda registrado en el historial de la venta.\nNo requiere código de cupón." />
+                            </Label>
                             <Input 
                                 type="number" 
                                 step="0.01" 

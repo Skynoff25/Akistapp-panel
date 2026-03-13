@@ -43,6 +43,8 @@ export interface Store {
   tasaParalela?: number;
 }
 
+export type ProductUnit = 'KG' | 'GR' | 'LB' | 'UNIT';
+
 export interface Product {
   id: string; // from productId
   name: string;
@@ -53,7 +55,8 @@ export interface Product {
   image: string;
   tags: string[];
   isRecommended?: boolean;
-  isGenericBrand?: boolean; // New generic brand field
+  isGenericBrand?: boolean;
+  unit?: ProductUnit; // Unit of measure: KG, GR, LB, or UNIT (default)
 }
 
 export interface ProductVariant {
@@ -71,12 +74,12 @@ export interface StoreProduct {
     productId: string;
     price: number;
     promotionalPrice?: number;
-    currentStock: number; 
+    currentStock: number;
     isAvailable: boolean;
     storeSpecificImage?: string;
     description?: string;
     disclaimer?: string;
-    costPriceUsd?: number; // Base cost for simple products
+    costPriceUsd?: number;
     casheaEligible?: boolean;
     name: string;
     brand: string;
@@ -84,9 +87,10 @@ export interface StoreProduct {
     globalImage: string;
     storeName: string;
     storeAddress: string;
-    isGenericBrand?: boolean; // New generic brand field
+    isGenericBrand?: boolean;
+    unit?: ProductUnit; // Unit of measure: KG, GR, LB, or UNIT (default)
 
-    // New variation fields
+    // Variation fields
     hasVariations: boolean;
     variants: ProductVariant[];
     priceRange?: string | null;
@@ -149,13 +153,13 @@ export interface CartItemSnapshot {
     inventoryId: string; // ID del documento en la colección 'Inventory'
     productId: string;
     productName: string;
-    quantity: number;
+    quantity: number; // Can be decimal for weight-based products (e.g. 0.350 kg)
     price: number;
     image: string;
     costPriceUsd: number;
-    // New variation fields
     variantId?: string;
     variantName?: string;
+    unit?: ProductUnit; // Unit of measure for weight-based products
 }
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED';

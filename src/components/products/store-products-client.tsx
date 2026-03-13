@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { PageHeader } from '../ui/page-header';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Search, X } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -39,6 +39,8 @@ import { useAuth } from '@/context/auth-context';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { where } from 'firebase/firestore';
 import { getImageUrl } from '@/lib/utils';
+
+const ITEMS_PER_PAGE = 10;
 
 interface StoreProductsClientProps {
   storeId: string;
@@ -86,7 +88,7 @@ function AddProductDialog({
             }
 
             getDocs(q).then(snapshot => {
-                const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+                const products = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Product));
                 setGlobalProducts(products);
                 setLoading(false);
             }).catch(err => {
@@ -186,9 +188,31 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
   const [isEditFormOpen, setEditFormOpen] = useState(false);
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<StoreProduct | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
   
   const existingProductIds = useMemo(() => storeProducts.map(p => p.productId), [storeProducts]);
+
+  // Filter by search term
+  const filteredProducts = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return storeProducts;
+    return storeProducts.filter(p =>
+      p.name?.toLowerCase().includes(term) ||
+      p.category?.toLowerCase().includes(term)
+    );
+  }, [storeProducts, searchTerm]);
+
+  // Reset to first page when search changes
+  useEffect(() => { setCurrentPage(1); }, [searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
 
   const handleEdit = (product: StoreProduct) => {
     setSelectedProduct(product);
@@ -244,6 +268,22 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
             </Button>
         )}
       </PageHeader>
+
+      {/* Search bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-grow max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre o categoría..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <span className="text-sm text-muted-foreground">
+          {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''}
+        </span>
+      </div>
       <div className="bg-card rounded-lg shadow-sm">
         <Table>
           <TableHeader>
@@ -257,13 +297,13 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
             </TableRow>
           </TableHeader>
           <TableBody>
-            {storeProducts.length === 0 ? (
+            {paginatedProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  No tienes productos en tu tienda todavía.
+                  {searchTerm ? 'No se encontraron productos con ese nombre.' : 'No tienes productos en tu tienda todavía.'}
                 </TableCell>
               </TableRow>
-            ) : storeProducts.map((product) => (
+            ) : paginatedProducts.map((product) => (
               <TableRow key={product.id}>
                 <TableCell>
                   <Image
@@ -281,16 +321,16 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
                         <span className="font-semibold text-sm">{product.priceRange || 'N/A'}</span>
                     ) : product.promotionalPrice && product.promotionalPrice > 0 ? (
                         <div className="flex items-baseline gap-2">
-                        <span className="font-semibold text-destructive">${product.promotionalPrice.toFixed(2)}</span>
-                        <span className="text-xs text-muted-foreground line-through">${product.price.toFixed(2)}</span>
+                        <span className="font-semibold text-destructive">${(product.promotionalPrice || 0).toFixed(2)}</span>
+                        <span className="text-xs text-muted-foreground line-through">${(product.price || 0).toFixed(2)}</span>
                         </div>
                     ) : (
-                        `$${product.price.toFixed(2)}`
+                        `$${(product.price || 0).toFixed(2)}`
                     )}
                 </TableCell>
                 <TableCell>
-                    <Badge variant={product.currentStock > 0 ? 'outline' : 'destructive'}>
-                        {product.currentStock} en stock
+                    <Badge variant={(product.currentStock ?? 0) > 0 ? 'outline' : 'destructive'}>
+                        {product.currentStock ?? 0} en stock
                     </Badge>
                 </TableCell>
                 <TableCell>
@@ -322,6 +362,38 @@ export default function StoreProductsClient({ storeId }: StoreProductsClientProp
             ))}
           </TableBody>
         </Table>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <p className="text-sm text-muted-foreground">
+              Página {currentPage} de {totalPages}
+              <span className="ml-2 text-xs">
+                ({(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} de {filteredProducts.length})
+              </span>
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="gap-1"
+              >
+                <ChevronLeft className="h-4 w-4" /> Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="gap-1"
+              >
+                Siguiente <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
         <AddProductDialog 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/auth-context';
 import { Toaster } from "@/components/ui/toaster"
+import { SwUpdater } from '@/components/sw-updater';
 
 export const metadata: Metadata = {
   title: 'Panel de Administración de Akistapp',
@@ -28,6 +29,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <SwUpdater />
         <Toaster />
       </body>
     </html>

@@ -93,14 +93,17 @@ export function PromotionForm({ promotion, onSuccess }: PromotionFormProps) {
     const result = await action(formData);
 
     if (result?.errors) {
-      Object.entries(result.errors).forEach(([key, value]) => {
-        form.setError(key as keyof PromotionFormValues, {
-          message: (value as string[]).join(", "),
-        });
+      const fieldErrors = result.errors as Record<string, string[]>;
+      Object.entries(fieldErrors).forEach(([key, value]) => {
+        if (key !== '_form') {
+          form.setError(key as keyof PromotionFormValues, {
+            message: value.join(", "),
+          });
+        }
       });
-       if(result.errors._form) {
-          form.setError("root.serverError", { message: result.errors._form.join(", ") });
-       }
+      if (fieldErrors._form) {
+        form.setError("root.serverError", { message: fieldErrors._form.join(", ") });
+      }
     } else {
       toast({
         title: promotion ? "Promoción Actualizada" : "Promoción Creada",

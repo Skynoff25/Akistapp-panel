@@ -1,5 +1,6 @@
 import MyStoreClient from "@/components/stores/my-store-client";
 
-export default function MyStorePage({ params }: { params: { storeId: string } }) {
-  return <MyStoreClient storeId={params.storeId} />;
+export default async function MyStorePage({ params }: { params: Promise<{ storeId: string }> }) {
+  const { storeId } = await params;
+  return <MyStoreClient storeId={storeId} />;
 }

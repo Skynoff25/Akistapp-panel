@@ -13,6 +13,8 @@ export async function getAdminKpisStats(startOfTodayMs: number) {
         // But for Stores and Users, we definitely just count.
         
         // --- 1. Today's Orders & GMV ---
+        if (!adminDb) throw new Error("Firestore Admin not initialized");
+
         const ordersSnapshot = await adminDb.collection('Orders')
             .where('createdAt', '>=', startOfTodayMs)
             .get();
@@ -34,6 +36,7 @@ export async function getAdminKpisStats(startOfTodayMs: number) {
 
         // --- 2. Active Users Today ---
         // Using count() to avoid fetching all user documents
+        if (!adminDb) throw new Error("Firestore Admin not initialized");
         const activeUsersQuery = adminDb.collection('Users').where('lastLoginAt', '>=', startOfTodayMs);
         const activeUsersCountSnap = await activeUsersQuery.count().get();
         const activeUsersCount = activeUsersCountSnap.data().count;
@@ -41,6 +44,7 @@ export async function getAdminKpisStats(startOfTodayMs: number) {
         // --- 3. Estimated Daily Income (Stores) ---
         // We still need the store plans. We could fetch just the `subscriptionPlan` field to save bandwidth, but read cost remains 1 per doc.
         // However, fetching a few hundred stores is fine.
+        if (!adminDb) throw new Error("Firestore Admin not initialized");
         const storesSnapshot = await adminDb.collection('Stores').select('subscriptionPlan').get();
         const planPrices: Record<string, number> = { BASIC: 5, STANDARD: 15, PREMIUM: 50 };
         let monthlyIncome = 0;

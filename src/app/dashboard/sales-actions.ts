@@ -4,6 +4,8 @@ import { adminDb } from '@/lib/firebase-admin';
 
 export async function getSalesAnalysisStats(storeId: string, startMs: number, endMs: number) {
   try {
+    if (!adminDb) throw new Error("Firestore Admin not initialized");
+
     const ordersSnapshot = await adminDb.collection('Orders')
       .where('storeId', '==', storeId)
       .where('status', '==', 'DELIVERED')

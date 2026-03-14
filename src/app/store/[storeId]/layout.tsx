@@ -15,7 +15,8 @@ export default function StoreDashboardLayout({
   children: React.ReactNode;
 }) {
   const params = useParams();
-  const storeId = params.storeId as string;
+  const storeId = params?.storeId as string;
+  if (!storeId) return null;
   const { data: store } = useDocument<Store>(`Stores/${storeId}`);
 
   const checkPlanStatus = () => {

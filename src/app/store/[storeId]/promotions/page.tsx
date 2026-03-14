@@ -1,5 +1,6 @@
 import StorePromotionsClient from "@/components/promotions/store-promotions-client";
 
-export default function StorePromotionsPage({ params }: { params: { storeId: string } }) {
-  return <StorePromotionsClient storeId={params.storeId} />;
+export default async function StorePromotionsPage({ params }: { params: Promise<{ storeId: string }> }) {
+  const { storeId } = await params;
+  return <StorePromotionsClient storeId={storeId} />;
 }

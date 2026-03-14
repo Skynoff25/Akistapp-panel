@@ -38,7 +38,7 @@ export async function sendPushNotification(formData: FormData) {
 
     const response = await adminMessaging.sendEachForMulticast({
       tokens: tokens.map(t => t.token),
-      notification: { title, message },
+      notification: { title, body: message },
     });
     
     const invalidTokens: string[] = [];

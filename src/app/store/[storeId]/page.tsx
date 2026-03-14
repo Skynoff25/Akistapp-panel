@@ -35,7 +35,8 @@ function StatCard({ title, value, icon: Icon, loading }: { title: string, value:
 
 export default function StoreDashboardPage() {
   const params = useParams();
-  const storeId = params.storeId as string;
+  const storeId = params?.storeId as string;
+  if (!storeId) return <Loader text="Cargando tienda..." />;
   const { appUser } = useAuth();
   const { data: store, loading: storeLoading } = useDocument<Store>(`Stores/${storeId}`);
   const { data: storeProducts, loading: productsLoading } = useFirestoreQuery<StoreProduct>('Inventory', [where('storeId', '==', storeId)]);

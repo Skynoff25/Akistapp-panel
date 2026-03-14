@@ -1,5 +1,6 @@
 import FinanceClient from "@/components/finance/finance-client";
 
-export default function FinancePage({ params }: { params: { storeId: string } }) {
-  return <FinanceClient storeId={params.storeId} />;
+export default async function FinancePage({ params }: { params: Promise<{ storeId: string }> }) {
+  const { storeId } = await params;
+  return <FinanceClient storeId={storeId} />;
 }

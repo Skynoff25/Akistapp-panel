@@ -63,7 +63,7 @@ export default function DashboardPage() {
                     <li><span className="font-semibold text-foreground">Ver Productos:</span> Navega por el catálogo global con búsqueda instantánea y sin consumo de datos.</li>
                     <li><span className="font-semibold text-foreground">Finanzas y Cupones:</span> Monitorea las ventas del día, el rendimiento de las tiendas y crea códigos de descuento.</li>
                     <li><span className="font-semibold text-foreground">Ver Usuarios:</span> Mira una lista de todos los administradores, gerentes y consumidores en la aplicación.</li>
-                    <li><span className="font-semibold text-foreground">💡 Instalar como App:</span> Si usas Google Chrome, puedes instalar este panel desde la barra de direcciones para usarlo más rápido y resistente a caídas de internet.</li>
+
                 </ul>
             </CardContent>
         </Card>

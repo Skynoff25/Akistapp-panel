@@ -28,7 +28,7 @@ export function AdminKpis() {
     try {
       const res = await getAdminKpisStats(startOfTodayMs);
       if (res.success && res.data) {
-          setStats(res.data);
+          setStats(prev => ({ ...prev, ...res.data }));
           setLastUpdated(new Date());
       } else {
           toast({ variant: 'destructive', title: 'Error', description: res.error || 'Failed to load KPIs' });
@@ -72,7 +72,7 @@ export function AdminKpis() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.gmvToday.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${(stats.gmvToday || 0).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Suma de pedidos de hoy</p>
           </CardContent>
         </Card>
@@ -84,7 +84,7 @@ export function AdminKpis() {
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.dailyIncomeEstimated.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${(stats.dailyIncomeEstimated || 0).toFixed(2)}</div>
             <p className="text-xs text-muted-foreground">Basado en suscripciones / día</p>
           </CardContent>
         </Card>
@@ -101,7 +101,7 @@ export function AdminKpis() {
           </CardHeader>
           <CardContent>
             <div className={cn("text-2xl font-bold", stats.completionRate < 80 && stats.ordersCount > 0 ? "text-destructive" : "")}>
-                {stats.completionRate.toFixed(1)}%
+                {(stats.completionRate || 0).toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
                 {stats.completionRate < 80 && stats.ordersCount > 0 ? "¡Bajo el 80%! Revisa logística." : "Salud del flujo de pedidos"}

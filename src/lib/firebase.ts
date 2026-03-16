@@ -16,21 +16,7 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Activar la persistencia de datos (Offline Resilience - Phase 1)
-// Verifica si estamos del lado del cliente antes de invocar IndexedDB.
-if (typeof window !== "undefined") {
-    try {
-        enableMultiTabIndexedDbPersistence(db).catch((err) => {
-            if (err.code == 'failed-precondition') {
-                console.warn('Persistencia múltiple falló: Múltiples pestañas abiertas no compartibles en navegadores antiguos.');
-            } else if (err.code == 'unimplemented') {
-                console.warn('Este navegador no soporta IndexedDB local persistente.');
-            }
-        });
-    } catch (e) {
-        console.warn("No se pudo inicializar la persistencia", e);
-    }
-}
+
 
 const storage = getStorage(app);
 

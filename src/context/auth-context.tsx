@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 description: data.blockedReason || 'Tu cuenta ha sido suspendida. Contacta a soporte.',
             });
           } else {
-            setAppUser({ ...data });
+            setAppUser({ id: userDocSnap.id, ...data });
             // Update last login
             updateDoc(userDocRef, { lastLoginAt: Date.now() }).catch(() => {});
           }

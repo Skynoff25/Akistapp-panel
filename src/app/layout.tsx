@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/auth-context';
 import { Toaster } from "@/components/ui/toaster"
+import { PWACleaner } from '@/components/pwa-cleaner';
 
 export const metadata: Metadata = {
   title: 'Panel de Administración de Akistapp',

@@ -1,4 +1,4 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   typescript: {
@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
         hostname: '**',
       },
     ],
+  },
+  generateBuildId: async () => {
+    return `build-${Date.now()}`;
   },
 };
 

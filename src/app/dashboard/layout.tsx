@@ -1,8 +1,7 @@
-
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import Sidebar from '@/components/layout/sidebar';
 import DashboardHeader from '@/components/layout/dashboard-header';
-
-export const dynamic = 'force-dynamic';
 
 export default function DashboardLayout({
   children,

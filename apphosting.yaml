@@ -39,5 +39,5 @@ env:
     availability: [BUILD, RUNTIME]
 
   - variable: NEXT_PRIVATE_FIREBASE_PROJECT_ID
-    secret:   "akistappve"
+    value:   "akistappve"
     availability: [BUILD, RUNTIME]

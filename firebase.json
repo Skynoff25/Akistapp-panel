@@ -1,7 +1,7 @@
 {
   "apphosting": [
     {
-      "backendId": "akistapp-back",
+      "backendId": "akistappve-panel-react",
       "rootDir": "/",
       "alwaysDeployFromSource": true,
       "ignore": [
@@ -89,7 +89,7 @@
       {
         "source": "**",
         "run": {
-          "serviceId": "akistapp-back",
+          "serviceId": "akistappve-panel-react",
           "region": "us-east4"
         }
       }

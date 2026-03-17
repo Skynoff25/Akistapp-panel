@@ -68,12 +68,14 @@ export default function LoginPage() {
     <main className="flex items-center justify-center min-h-screen bg-background">
       <Card className="w-full max-w-sm mx-4">
         <CardHeader className="text-center">
-            <div className="flex justify-center items-center mb-4">
+            <div className="flex justify-center items-center mb-6">
                 <Image
-                    src="/akistapp_logo.png"
+                    src="/logo.png"
                     alt="AkistApp Logo"
-                    width={56}
-                    height={56}
+                    width={180}
+                    height={180}
+                    className="object-contain"
+                    priority
                 />
             </div>
           <CardTitle className="text-2xl font-bold">AkistApp Admin</CardTitle>

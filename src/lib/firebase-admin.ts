@@ -20,8 +20,10 @@ if (!admin.apps.length) {
       
     } else {
       // Fallback a las credenciales por defecto (útil para cuando lo subas a producción en Vercel/GCP)
-      app = admin.initializeApp();
-      console.log('Firebase Admin inicializado con Application Default Credentials.');
+      app = admin.initializeApp({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.NEXT_PRIVATE_FIREBASE_PROJECT_ID || 'akistappve'
+      });
+      console.log('Firebase Admin inicializado con Application Default Credentials y projectId.');
     }
   } catch (error) {
     console.error('Error al inicializar Firebase Admin:', error);

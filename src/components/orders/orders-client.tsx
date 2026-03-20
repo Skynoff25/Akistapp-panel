@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useFirestoreQuery } from "@/hooks/use-firestore-query";
+import { useDocument } from "@/hooks/use-document";
 import { where } from "firebase/firestore";
-import type { Order, OrderStatus } from "@/lib/types";
+import type { Order, OrderStatus, Store, PaymentMethod } from "@/lib/types";
 import { PageHeader } from "../ui/page-header";
 import Loader from "../ui/loader";
 import {
@@ -130,12 +131,14 @@ function ManualDiscountDialog({ order, storeId, open, onOpenChange, onSuccess }:
 
 function OrderDetailsDialog({ 
     order, 
+    store,
     open, 
     onOpenChange, 
     onReportSuccess,
     onApplyDiscount
 }: { 
     order: Order | null; 
+    store: Store | null;
     open: boolean; 
     onOpenChange: (open: boolean) => void; 
     onReportSuccess: () => void;
@@ -144,6 +147,7 @@ function OrderDetailsDialog({
     if (!order) return null;
     const { appUser } = useAuth();
     const [isReportDialogOpen, setReportDialogOpen] = useState(false);
+    const activePaymentMethods = store?.paymentMethods?.filter(pm => pm.isActive) || [];
     
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -164,6 +168,18 @@ function OrderDetailsDialog({
                     </div>
                     {order.deliveryMethod === 'DELIVERY' && <div><span className="font-semibold">Dirección:</span> {order.deliveryAddress}</div>}
                     {order.comments && <div><span className="font-semibold">Comentarios:</span> {order.comments}</div>}
+
+                    {order.paymentMessage && (
+                        <div className="col-span-2 mt-2 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-md">
+                            <p className="font-semibold flex items-center gap-2">
+                                <FileText className="h-4 w-4" /> Pago Reportado por Cliente
+                            </p>
+                            <p className="text-sm mt-1"><span className="font-medium">Referencia/Mensaje:</span> {order.paymentMessage}</p>
+                            {order.paymentMethod && (
+                                <p className="text-sm"><span className="font-medium">Método seleccionado:</span> {order.paymentMethod.type}</p>
+                            )}
+                        </div>
+                    )}
                     
                     <h4 className="font-semibold mt-4">Artículos del Pedido</h4>
                     <Table>
@@ -191,6 +207,26 @@ function OrderDetailsDialog({
                         {order.manualDiscount && order.manualDiscount > 0 && <div className="text-destructive"><span className="font-semibold">Descuento Manual:</span> -${order.manualDiscount.toFixed(2)}</div>}
                         <div className="text-xl font-bold pt-2 border-t"><span className="mr-2">TOTAL FINAL:</span> ${order.finalTotal?.toFixed(2) || (order.totalAmount + order.shippingCost).toFixed(2)}</div>
                     </div>
+
+                    {order.status === 'PENDING' && activePaymentMethods.length > 0 && (
+                        <div className="mt-4 border rounded-lg overflow-hidden">
+                            <div className="bg-blue-50 text-blue-800 p-3 text-sm font-medium border-b border-blue-100 flex items-start gap-2">
+                                <MessageCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                                <p>Antes de realizar el pago contáctate con la empresa para corroborar los montos.</p>
+                            </div>
+                            <div className="p-4 bg-muted/10 space-y-3">
+                                <h5 className="font-semibold text-sm uppercase text-muted-foreground">Métodos de Pago Disponibles</h5>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {activePaymentMethods.map(pm => (
+                                        <div key={pm.id} className="p-3 bg-card border rounded-md">
+                                            <p className="font-semibold text-sm">{pm.type}</p>
+                                            <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{pm.details}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
                  <DialogFooter className="flex-col sm:flex-row gap-2">
                     {order.status === 'PENDING' && (
@@ -248,6 +284,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
   const { data: orders, loading, error, refetch } = useFirestoreQuery<Order>("Orders", [
     where("storeId", "==", storeId),
   ]);
+  const { data: store } = useDocument<Store>(`Stores/${storeId}`);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setDetailsOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
@@ -356,7 +393,16 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
             ) : (
               paginatedOrders.map((order) => (
                 <TableRow key={order.id} className={order.status === 'RETURNED' ? 'bg-muted/20' : ''}>
-                  <TableCell className="font-medium">#{order.id.substring(0, 7)}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col gap-1 items-start">
+                      <span>#{order.id.substring(0, 7)}</span>
+                      {order.paymentMessage && (
+                        <Badge variant="secondary" className="px-1 py-0 text-[10px] bg-green-100 hover:bg-green-200 text-green-800 border-green-200 whitespace-nowrap">
+                          Pago Reportado
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{format(new Date(order.createdAt), 'dd/MM/yy')}</TableCell>
                   <TableCell>{order.userName || 'N/A'}</TableCell>
                   <TableCell className={cn("font-bold", order.status === 'RETURNED' && "line-through text-muted-foreground")}>
@@ -437,6 +483,7 @@ export default function OrdersClient({ storeId }: OrdersClientProps) {
 
       <OrderDetailsDialog 
         order={selectedOrder} 
+        store={store || null}
         open={isDetailsOpen} 
         onOpenChange={setDetailsOpen} 
         onReportSuccess={handleReportSuccess} 

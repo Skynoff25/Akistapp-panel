@@ -14,6 +14,8 @@ const updateMyStoreSchema = z.object({
   allowDelivery: z.enum(['true', 'false']).transform(v => v === 'true'),
   deliveryType: z.enum(['FIXED', 'AGREEMENT']).optional(),
   deliveryFee: z.coerce.number().min(0, "La tarifa debe ser positiva.").optional(),
+  phone: z.string().optional(),
+  paymentMethods: z.string().optional(),
 });
 
 export async function updateMyStore(storeId: string, formData: FormData) {
@@ -38,11 +40,20 @@ export async function updateMyStore(storeId: string, formData: FormData) {
     }
     
     const store = storeSnap.data() as Store;
-    const { imageUrl: newImageUrl, ...dataFromForm } = validatedFields.data;
+    const { imageUrl: newImageUrl, paymentMethods, ...dataFromForm } = validatedFields.data;
     const dataToUpdate: { [key: string]: any } = { ...dataFromForm };
 
     // Use the uploaded URL if provided, otherwise keep the existing one
     dataToUpdate.imageUrl = newImageUrl || store.imageUrl;
+    
+    // Parse payment methods
+    if (paymentMethods) {
+        try {
+            dataToUpdate.paymentMethods = JSON.parse(paymentMethods);
+        } catch(e) {
+            console.error("Invalid payment methods payload");
+        }
+    }
 
     // Server-side guard to ensure BASIC plan cannot have these options enabled.
     if (store.subscriptionPlan === 'BASIC') {

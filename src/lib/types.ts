@@ -2,6 +2,13 @@ import type { Timestamp } from "firebase/firestore";
 
 export type SubscriptionPlan = 'BASIC' | 'STANDARD' | 'PREMIUM';
 
+export interface PaymentMethod {
+  id: string;
+  type: string; // e.g., 'Zelle', 'Pago Móvil', 'Efectivo', 'Transferencia'
+  details: string; // e.g., 'zelle@ejemplo.com', 'Banco:..., CI:..., Telf:...'
+  isActive: boolean;
+}
+
 export interface Store {
   id: string;
   name: string;
@@ -41,6 +48,9 @@ export interface Store {
 
   // Exchange rates specific to this store
   tasaParalela?: number;
+
+  // Formas de Pago
+  paymentMethods?: PaymentMethod[];
 }
 
 export type ProductUnit = 'KG' | 'GR' | 'LB' | 'UNIT';
@@ -193,6 +203,11 @@ export interface Order {
     deliveryMethod?: 'PICKUP' | 'DELIVERY';
     deliveryAddress?: string;
     comments?: string;
+
+    // --- Metodos de Pago ---
+    paymentMethod?: PaymentMethod;
+    paymentMessage?: string;
+
     userName?: string;
     userEmail?: string;
     userPhoneNumber?: string;

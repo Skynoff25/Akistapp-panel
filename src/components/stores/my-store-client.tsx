@@ -16,7 +16,7 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import type { Store } from "@/lib/types";
+import type { Store, PaymentMethod } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { PageHeader } from "../ui/page-header";
 import { useDocument } from "@/hooks/use-document";
@@ -28,8 +28,9 @@ import { Switch } from "../ui/switch";
 import Image from "next/image";
 import { Label } from "../ui/label";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, PlusCircle, Trash, Edit } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { getImageUrl } from "@/lib/utils";
 import { uploadImage } from "@/lib/storage";
 
@@ -40,6 +41,7 @@ const myStoreSchema = z.object({
   allowDelivery: z.boolean(),
   deliveryType: z.enum(['FIXED', 'AGREEMENT']).default('AGREEMENT'),
   deliveryFee: z.coerce.number().min(0).default(0),
+  phone: z.string().min(1, 'El teléfono es obligatorio'),
 });
 
 type MyStoreFormValues = z.infer<typeof myStoreSchema>;
@@ -54,6 +56,12 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
   const { data: store, loading, error } = useDocument<Store>(`Stores/${storeId}`);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [isPaymentMethodModalOpen, setPaymentMethodModalOpen] = useState(false);
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [pmType, setPmType] = useState('Zelle');
+  const [pmDetails, setPmDetails] = useState('');
+
   const form = useForm<MyStoreFormValues>({
     resolver: zodResolver(myStoreSchema),
     defaultValues: {
@@ -63,6 +71,7 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
       allowDelivery: store?.allowDelivery || false,
       deliveryType: store?.deliveryType || 'AGREEMENT',
       deliveryFee: store?.deliveryFee || 0,
+      phone: store?.phone || "",
     },
   });
 
@@ -80,7 +89,9 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
         allowDelivery: store.allowDelivery,
         deliveryType: store.deliveryType || 'AGREEMENT',
         deliveryFee: store.deliveryFee || 0,
+        phone: store.phone || "",
       });
+      setPaymentMethods(store.paymentMethods || []);
     }
   }, [store, form]);
 
@@ -107,6 +118,10 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
     if (data.deliveryFee !== undefined) {
         formData.append('deliveryFee', String(data.deliveryFee));
     }
+    if (data.phone) {
+        formData.append('phone', data.phone);
+    }
+    formData.append('paymentMethods', JSON.stringify(paymentMethods));
 
     const result = await updateMyStore(storeId, formData);
     
@@ -150,6 +165,19 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                             <Label htmlFor="storeAddress">Dirección</Label>
                             <Input id="storeAddress" value={`${store.address}, ${store.city}, ${store.zipcode}`} disabled />
                         </div>
+                        <FormField
+                            control={form.control}
+                            name="phone"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Teléfono de Contacto</FormLabel>
+                                    <FormControl>
+                                        <Input disabled={!canEdit} placeholder="+58 414 1234567" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </CardContent>
                 </Card>
 
@@ -332,6 +360,70 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                     </CardContent>
                 </Card>
                 
+                {/* Payment Methods Card */}
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>Métodos de Pago</CardTitle>
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            disabled={!canEdit}
+                            onClick={() => {
+                                setEditingPaymentMethod(null);
+                                setPmType('Zelle');
+                                setPmDetails('');
+                                setPaymentMethodModalOpen(true);
+                            }}
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" /> Agregar
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        {paymentMethods.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-4 border rounded-md border-dashed">No has configurado ningún método de pago.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {paymentMethods.map(pm => (
+                                    <div key={pm.id} className={`flex items-start justify-between p-3 border rounded-md ${!pm.isActive ? 'opacity-50 bg-muted/50' : ''}`}>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <h5 className="font-semibold">{pm.type}</h5>
+                                                {!pm.isActive && <span className="text-xs border px-1.5 py-0.5 rounded-full text-muted-foreground">Inactivo</span>}
+                                            </div>
+                                            <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{pm.details}</p>
+                                        </div>
+                                        {canEdit && (
+                                            <div className="flex items-center gap-2 ml-4">
+                                                <Switch 
+                                                    checked={pm.isActive} 
+                                                    onCheckedChange={(checked) => {
+                                                        const updated = paymentMethods.map(p => p.id === pm.id ? { ...p, isActive: checked } : p);
+                                                        setPaymentMethods(updated);
+                                                    }}
+                                                />
+                                                <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                    setEditingPaymentMethod(pm);
+                                                    setPmType(pm.type);
+                                                    setPmDetails(pm.details);
+                                                    setPaymentMethodModalOpen(true);
+                                                }}>
+                                                    <Edit className="h-4 w-4 text-blue-600" />
+                                                </Button>
+                                                <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                    setPaymentMethods(paymentMethods.filter(p => p.id !== pm.id));
+                                                }}>
+                                                    <Trash className="h-4 w-4 text-red-600" />
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+                
                 {canEdit ? (
                     <Button type="submit" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting ? "Guardando..." : "Guardar Cambios"}
@@ -369,6 +461,45 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
              </Card>
         </div>
       </div>
+
+      <Dialog open={isPaymentMethodModalOpen} onOpenChange={setPaymentMethodModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{editingPaymentMethod ? 'Editar Método de Pago' : 'Nuevo Método de Pago'}</DialogTitle>
+                <DialogDescription>
+                    Agrega la información necesaria (Ej. correo, cuenta, teléfono) para que los clientes puedan realizar el pago.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label>Tipo de Pago</Label>
+                    <Input placeholder="Ej. Zelle, Pago Móvil, Banesco..." value={pmType} onChange={e => setPmType(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label>Detalles o Instrucciones</Label>
+                    <textarea 
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Ej. Correo: admin@tienda.com&#10;Nombre: Tienda CA" 
+                        value={pmDetails} 
+                        onChange={e => setPmDetails(e.target.value)}
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setPaymentMethodModalOpen(false)}>Cancelar</Button>
+                <Button onClick={() => {
+                    if (!pmType || !pmDetails) return toast({ variant: 'destructive', description: 'Todos los campos son obligatorios' });
+                    
+                    if (editingPaymentMethod) {
+                        setPaymentMethods(paymentMethods.map(pm => pm.id === editingPaymentMethod.id ? { ...pm, type: pmType, details: pmDetails } : pm));
+                    } else {
+                        setPaymentMethods([...paymentMethods, { id: crypto.randomUUID(), type: pmType, details: pmDetails, isActive: true }]);
+                    }
+                    setPaymentMethodModalOpen(false);
+                }}>Guardar</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -177,6 +177,21 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
           </div>
         </div>
 
+        {store?.paymentMethods && store.paymentMethods.length > 0 && order.status === 'PENDING' && (
+            <div className="border-t pt-6 mb-6">
+                <h3 className="text-sm font-bold uppercase text-slate-900 mb-2">Información para el Pago</h3>
+                <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2 rounded border border-slate-100 italic">Antes de realizar el pago contactate con la empresa para corroborar los montos.</p>
+                <div className="grid grid-cols-2 gap-4">
+                    {store.paymentMethods.filter(pm => pm.isActive).map(pm => (
+                        <div key={pm.id} className="text-[10px] bg-slate-50 p-3 border border-slate-100 rounded-md">
+                            <span className="font-bold text-slate-800 block text-xs mb-1">{pm.type}</span>
+                            <span className="text-slate-600 whitespace-pre-wrap leading-tight block">{pm.details}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
         <div className="border-t pt-6 text-center">
           <p className="text-[11px] font-bold text-slate-600 mb-1">
             ESTE DOCUMENTO ES UN COMPROBANTE DE PEDIDO INTERNO.

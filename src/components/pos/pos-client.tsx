@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Label } from '../ui/label';
 import { OrderReceipt } from '../orders/order-receipt';
 import { Separator } from '../ui/separator';
@@ -698,6 +699,16 @@ export default function PosClient({ storeId }: { storeId: string }) {
                         )}
                     </div>
                     
+                    {store?.paymentMethods && store.paymentMethods.length > 0 && (
+                        <Alert className="bg-blue-50/50 border-blue-200">
+                            <Tag className="h-4 w-4 text-blue-600" />
+                            <AlertTitle className="text-blue-800 text-xs font-semibold">Métodos de Pago</AlertTitle>
+                            <AlertDescription className="text-blue-700 text-[10px]">
+                                El recibo mostrará sus métodos activos. Recuerde al cliente: "Antes de realizar el pago contáctate con la empresa para corroborar los montos".
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     <Button className="w-full py-6 text-base font-bold shadow-lg" onClick={handleCompleteSale} disabled={isSubmitting || cart.length === 0}>
                         {isSubmitting ? "REGISTRANDO..." : "COMPLETAR VENTA"}
                     </Button>

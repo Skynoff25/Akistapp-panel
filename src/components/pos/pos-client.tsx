@@ -164,11 +164,26 @@ export default function PosClient({ storeId }: { storeId: string }) {
   
   const { data: inventory, loading, error, refetch } = useFirestoreQuery<StoreProduct>('Inventory', [
     where('storeId', '==', storeId),
-    where('isAvailable', '==', true),
   ]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+      setIsClient(true);
+      const saved = localStorage.getItem(`pos_cart_${storeId}`);
+      if (saved) {
+          try { setCart(JSON.parse(saved)); } catch(e) {}
+      }
+  }, [storeId]);
+
+  useEffect(() => {
+      if (isClient) {
+          localStorage.setItem(`pos_cart_${storeId}`, JSON.stringify(cart));
+      }
+  }, [cart, storeId, isClient]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({ name: '', nationalId: '', phone: '' });
   const [isCustomerDialogOpen, setCustomerDialogOpen] = useState(false);
@@ -514,7 +529,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
                             {paginatedInventory.length === 0 ? (
                                 <TableRow><TableCell colSpan={4} className="h-24 text-center text-muted-foreground">No hay productos disponibles.</TableCell></TableRow>
                             ) : paginatedInventory.map(p => (
-                                <TableRow key={p.id}>
+                                <TableRow key={p.id} className={!p.isAvailable ? "opacity-50 grayscale" : ""}>
                                     <TableCell className="flex items-center gap-2">
                                         <Image src={getImageUrl(p.storeSpecificImage || p.globalImage, p.productId, 40, 40)} alt={p.name} width={40} height={40} className="rounded-md object-cover" />
                                         <div>
@@ -535,7 +550,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
                                         : `$${(p.promotionalPrice || p.price).toFixed(2)}${p.unit && p.unit !== 'UNIT' ? `/${p.unit.toLowerCase()}` : ''}`}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button size="sm" onClick={() => handleProductClick(p)} disabled={p.currentStock <= 0}>
+                                        <Button size="sm" onClick={() => handleProductClick(p)} disabled={p.currentStock <= 0 || !p.isAvailable}>
                                             <PlusCircle className="mr-2 h-4 w-4" />
                                             {p.hasVariations ? 'Opciones' : 'Añadir'}
                                         </Button>

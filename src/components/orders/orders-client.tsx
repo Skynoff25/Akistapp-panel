@@ -189,9 +189,11 @@ function OrderDetailsDialog({
                                 const uniqueKey = item.variantId ? `${item.inventoryId}-${item.variantId}` : item.inventoryId;
                                 return (
                                 <TableRow key={`${uniqueKey}-${index}`}>
-                                    <TableCell className="flex items-center gap-2">
-                                        <Image src={getImageUrl(item.image, item.productId, 40, 40)} alt={item.productName} width={40} height={40} className="rounded-md object-cover" />
-                                        <div><p className="font-medium">{item.productName}</p>{item.variantName && <p className="text-sm text-muted-foreground">{item.variantName}</p>}</div>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Image src={getImageUrl(item.image, item.productId, 40, 40)} alt={item.productName} width={40} height={40} className="rounded-md object-cover" />
+                                            <div><p className="font-medium">{item.productName}</p>{item.variantName && <p className="text-sm text-muted-foreground">{item.variantName}</p>}</div>
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-center">{item.quantity}</TableCell>
                                     <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
@@ -255,6 +257,10 @@ function UpdateStatusSelect({ storeId, orderId, currentStatus, onUpdate }: { sto
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
 
+    useEffect(() => {
+        setStatus(currentStatus);
+    }, [currentStatus]);
+
     const handleUpdate = async () => {
         setIsSubmitting(true);
         const formData = new FormData();
@@ -270,11 +276,11 @@ function UpdateStatusSelect({ storeId, orderId, currentStatus, onUpdate }: { sto
 
     return (
         <div className="flex items-center gap-2">
-            <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)} disabled={currentStatus === 'RETURNED'}>
+            <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)} disabled={currentStatus === 'RETURNED' || currentStatus === 'CANCELLED'}>
                 <SelectTrigger className="w-[200px]"><SelectValue placeholder="Cambiar estado" /></SelectTrigger>
                 <SelectContent>{Object.keys(statusTranslations).map(s => (<SelectItem key={s} value={s}>{statusTranslations[s as OrderStatus]}</SelectItem>))}</SelectContent>
             </Select>
-            <Button onClick={handleUpdate} disabled={isSubmitting || status === currentStatus}>{isSubmitting ? '...' : 'OK'}</Button>
+            <Button onClick={handleUpdate} disabled={isSubmitting || status === currentStatus || currentStatus === 'RETURNED' || currentStatus === 'CANCELLED'}>{isSubmitting ? '...' : 'OK'}</Button>
         </div>
     );
 }

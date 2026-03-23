@@ -33,29 +33,39 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
 
     if (status === "DELIVERED") {
       if (!order.inventoryDeducted) {
-        const inventoryIds = order.items.map(item => item.inventoryId).filter(Boolean);
-        if (inventoryIds.length > 0) {
-            const inventoryQuery = query(collection(db, 'Inventory'), where(documentId(), 'in', inventoryIds));
-            const inventorySnap = await getDocs(inventoryQuery);
-            const inventoryMap = new Map(inventorySnap.docs.map(doc => [doc.id, doc.data() as StoreProduct]));
+        for (const item of order.items) {
+            let invDocSnap;
+            let invDocId = item.inventoryId || (item as any).id; // Fallback for app orders
             
-            for (const item of order.items) {
-                const invDoc = inventoryMap.get(item.inventoryId);
-                if (invDoc) {
-                    const inventoryRef = doc(db, 'Inventory', item.inventoryId);
-                    
-                    if (item.variantId && invDoc.variants) {
-                        const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
-                        if (variantIndex !== -1) {
-                            const updatedVariants = [...invDoc.variants];
-                            updatedVariants[variantIndex].stock = Math.max(0, updatedVariants[variantIndex].stock - item.quantity);
-                            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
-                            batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
-                        }
-                    } else {
-                        const newStock = (invDoc.currentStock || 0) - item.quantity;
-                        batch.update(inventoryRef, { currentStock: newStock < 0 ? 0 : newStock });
+            if (invDocId) {
+                invDocSnap = await getDoc(doc(db, 'Inventory', invDocId));
+            } 
+            if (!invDocSnap || !invDocSnap.exists()) {
+                if (item.productId) {
+                    const q = query(collection(db, 'Inventory'), where('storeId', '==', storeId), where('productId', '==', item.productId));
+                    const snap = await getDocs(q);
+                    if (!snap.empty) {
+                        invDocSnap = snap.docs[0];
+                        invDocId = invDocSnap.id;
                     }
+                }
+            }
+
+            if (invDocSnap && invDocSnap.exists()) {
+                const invDoc = invDocSnap.data() as StoreProduct;
+                const inventoryRef = doc(db, 'Inventory', invDocId);
+                
+                if (item.variantId && invDoc.variants) {
+                    const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
+                    if (variantIndex !== -1) {
+                        const updatedVariants = [...invDoc.variants];
+                        updatedVariants[variantIndex].stock = Math.max(0, updatedVariants[variantIndex].stock - item.quantity);
+                        const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
+                        batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
+                    }
+                } else {
+                    const newStock = (invDoc.currentStock || 0) - item.quantity;
+                    batch.update(inventoryRef, { currentStock: newStock < 0 ? 0 : newStock });
                 }
             }
         }
@@ -68,29 +78,39 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
     } else if (status === "RETURNED") {
         // Solo reintegramos si el inventario fue descontado previamente y no ha sido ya restaurado
         if (order.inventoryDeducted && !order.inventoryRestored) {
-            const inventoryIds = order.items.map(item => item.inventoryId).filter(Boolean);
-            if (inventoryIds.length > 0) {
-                const inventoryQuery = query(collection(db, 'Inventory'), where(documentId(), 'in', inventoryIds));
-                const inventorySnap = await getDocs(inventoryQuery);
-                const inventoryMap = new Map(inventorySnap.docs.map(doc => [doc.id, doc.data() as StoreProduct]));
+            for (const item of order.items) {
+                let invDocSnap;
+                let invDocId = item.inventoryId || (item as any).id;
                 
-                for (const item of order.items) {
-                    const invDoc = inventoryMap.get(item.inventoryId);
-                    if (invDoc) {
-                        const inventoryRef = doc(db, 'Inventory', item.inventoryId);
-                        
-                        if (item.variantId && invDoc.variants) {
-                            const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
-                            if (variantIndex !== -1) {
-                                const updatedVariants = [...invDoc.variants];
-                                updatedVariants[variantIndex].stock += item.quantity;
-                                const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
-                                batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
-                            }
-                        } else {
-                            const newStock = (invDoc.currentStock || 0) + item.quantity;
-                            batch.update(inventoryRef, { currentStock: newStock });
+                if (invDocId) {
+                    invDocSnap = await getDoc(doc(db, 'Inventory', invDocId));
+                }
+                if (!invDocSnap || !invDocSnap.exists()) {
+                    if (item.productId) {
+                        const q = query(collection(db, 'Inventory'), where('storeId', '==', storeId), where('productId', '==', item.productId));
+                        const snap = await getDocs(q);
+                        if (!snap.empty) {
+                            invDocSnap = snap.docs[0];
+                            invDocId = invDocSnap.id;
                         }
+                    }
+                }
+
+                if (invDocSnap && invDocSnap.exists()) {
+                    const invDoc = invDocSnap.data() as StoreProduct;
+                    const inventoryRef = doc(db, 'Inventory', invDocId);
+                    
+                    if (item.variantId && invDoc.variants) {
+                        const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
+                        if (variantIndex !== -1) {
+                            const updatedVariants = [...invDoc.variants];
+                            updatedVariants[variantIndex].stock += item.quantity;
+                            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
+                            batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
+                        }
+                    } else {
+                        const newStock = (invDoc.currentStock || 0) + item.quantity;
+                        batch.update(inventoryRef, { currentStock: newStock });
                     }
                 }
             }

@@ -64,6 +64,12 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
     setIsSubmitting(true);
     const finalItems = items.filter(item => item.quantity > 0); // Eliminar artículos con cantidad 0
     
+    if (finalItems.length === 0) {
+        toast({ variant: 'destructive', title: 'Error', description: 'El pedido debe tener al menos un artículo.' });
+        setIsSubmitting(false);
+        return;
+    }
+    
     const formData = new FormData();
     formData.append('items', JSON.stringify(finalItems));
     

@@ -62,6 +62,9 @@ const storeProductSchema = z.object({
   isGenericBrand: z.boolean().default(false),
   unit: z.enum(['UNIT', 'KG', 'GR', 'LB']).default('UNIT'),
 }).superRefine((data, ctx) => {
+    if (data.unit === 'UNIT' && data.currentStock !== undefined && !Number.isInteger(data.currentStock)) {
+         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["currentStock"], message: "El stock debe ser un número entero para venta por unidad." });
+    }
     if (data.hasVariations) {
         if (!data.variants || data.variants.length === 0) {
             ctx.addIssue({
@@ -213,6 +216,9 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   };
 
   const onSubmit = async (data: StoreProductFormValues) => {
+    if (data.currentStock !== undefined) {
+        data.currentStock = Math.round(data.currentStock * 1000) / 1000;
+    }
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null && key !== 'storeSpecificImage' && key !== 'storeSpecificImageUrl') {

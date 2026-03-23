@@ -100,10 +100,12 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
             <p className="text-sm font-semibold">
                 {order.type === 'IN_STORE' ? 'Venta en Tienda (POS)' : 'Pedido Online'}
             </p>
-            <p className="text-xs">
-                {order.deliveryMethod === 'PICKUP' ? 'Retiro en Local' : 
-                 order.deliveryMethod === 'DELIVERY' ? 'Envío a Domicilio' : 'N/A'}
-            </p>
+            {order.type !== 'IN_STORE' && (
+                <p className="text-xs">
+                    {order.deliveryMethod === 'PICKUP' ? 'Retiro en Local' : 
+                     order.deliveryMethod === 'DELIVERY' ? 'Envío a Domicilio' : 'N/A'}
+                </p>
+            )}
           </div>
         </div>
 

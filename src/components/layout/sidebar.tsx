@@ -20,7 +20,8 @@ import {
     Megaphone,
     ShieldAlert,
     Bell,
-    ShoppingCart
+    ShoppingCart,
+    Settings
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -33,6 +34,7 @@ const navItems = [
   { href: '/dashboard/promotions', label: 'Promociones', icon: Megaphone },
   { href: '/dashboard/reports', label: 'Denuncias', icon: ShieldAlert },
   { href: '/dashboard/notifications', label: 'Notificaciones', icon: Bell },
+  { href: '/dashboard/settings', label: 'Configuración', icon: Settings },
 ];
 
 const NavItem = ({ href, label, icon: Icon, badgeCount }: typeof navItems[0] & { badgeCount?: number }) => {

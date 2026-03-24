@@ -278,3 +278,11 @@ export interface ApprovalRequest {
   };
   comments?: string;
 }
+
+export interface SystemConfig {
+  isAppBlocked: boolean;
+  blockMessage: string;
+  minAppVersion: string;
+  updateMessage: string;
+  storeUrl: string;
+}

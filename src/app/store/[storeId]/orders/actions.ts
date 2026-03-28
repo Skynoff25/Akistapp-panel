@@ -120,6 +120,51 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
         }
         await batch.commit();
 
+    } else if (status === "CANCELLED") {
+        // Reintegrar stock si fue descontado previamente (ej. ventas POS o app móvil)
+        if (order.inventoryDeducted && !order.inventoryRestored) {
+            for (const item of order.items) {
+                let invDocSnap;
+                let invDocId = item.inventoryId || (item as any).id;
+
+                if (invDocId) {
+                    invDocSnap = await getDoc(doc(db, 'Inventory', invDocId));
+                }
+                if (!invDocSnap || !invDocSnap.exists()) {
+                    if (item.productId) {
+                        const q = query(collection(db, 'Inventory'), where('storeId', '==', storeId), where('productId', '==', item.productId));
+                        const snap = await getDocs(q);
+                        if (!snap.empty) {
+                            invDocSnap = snap.docs[0];
+                            invDocId = invDocSnap.id;
+                        }
+                    }
+                }
+
+                if (invDocSnap && invDocSnap.exists()) {
+                    const invDoc = invDocSnap.data() as StoreProduct;
+                    const inventoryRef = doc(db, 'Inventory', invDocId);
+
+                    if (item.variantId && invDoc.variants) {
+                        const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
+                        if (variantIndex !== -1) {
+                            const updatedVariants = [...invDoc.variants];
+                            updatedVariants[variantIndex].stock += item.quantity;
+                            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
+                            batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
+                        }
+                    } else {
+                        const newStock = (invDoc.currentStock || 0) + item.quantity;
+                        batch.update(inventoryRef, { currentStock: newStock });
+                    }
+                }
+            }
+            batch.update(orderRef, { status, inventoryRestored: true });
+        } else {
+            batch.update(orderRef, { status });
+        }
+        await batch.commit();
+
     } else {
       await updateDoc(orderRef, { status });
     }

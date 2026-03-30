@@ -108,10 +108,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading || !areFirebaseCredentialsSet) return;
     
-    const isAuthPage = pathname === '/login';
+    const isPublicPage = pathname?.startsWith('/legal') || pathname === '/login';
+    const isLoginPage = pathname === '/login';
+    const isStorePanel = pathname?.startsWith('/store');
+    const isAdminPanel = pathname?.startsWith('/dashboard');
 
     if (!user) {
-      if (!isAuthPage) {
+      if (!isPublicPage) {
         router.push('/login');
       }
       return;
@@ -130,19 +133,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    const isStorePanel = pathname?.startsWith('/store');
-    const isAdminPanel = pathname?.startsWith('/dashboard');
-
-    if (isAuthPage) {
+    if (isLoginPage) {
         if (appUser.rol === 'admin') {
             router.push('/dashboard');
         } else if ((appUser.rol === 'store_manager' || appUser.rol === 'store_employee') && appUser.storeId) {
             router.push(`/store/${appUser.storeId}`);
         }
     } else { 
-        if (appUser.rol === 'admin' && !isAdminPanel && !isStorePanel) {
+        if (appUser.rol === 'admin' && !isAdminPanel && !isStorePanel && !isPublicPage) {
              router.push('/dashboard');
-        } else if ((appUser.rol === 'store_manager' || appUser.rol === 'store_employee') && !isStorePanel) {
+        } else if ((appUser.rol === 'store_manager' || appUser.rol === 'store_employee') && !isStorePanel && !isPublicPage) {
             if (appUser.storeId) {
                 router.push(`/store/${appUser.storeId}`);
             } else {
@@ -155,9 +155,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   }, [user, appUser, loading, pathname, router, toast]);
 
-  const isAuthPage = pathname === '/login';
+  const isPublicPage = pathname?.startsWith('/legal') || pathname === '/login';
 
-  if (loading && !isAuthPage) {
+  if (loading && !isPublicPage) {
     return (
       <div className="h-screen w-screen flex items-center justify-center">
         <Loader text="Autenticando..." />

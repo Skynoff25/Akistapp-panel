@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FileText, ShoppingBag, Users, AlertTriangle, Scale, Mail } from "lucide-react";
+import { FileText, ShoppingBag, Users, AlertTriangle, Scale, Mail, Building2, BookOpen } from "lucide-react";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -11,94 +11,76 @@ const sections = [
   {
     icon: ShoppingBag,
     title: "1. Descripción del Servicio",
-    content: `AkistApp es una plataforma digital que conecta a consumidores con tiendas y comercios locales en Venezuela. A través de nuestra aplicación móvil y panel de administración web, los negocios pueden publicar sus productos, gestionar pedidos e inventario, mientras los clientes pueden explorar, seleccionar y solicitar productos con opciones de retiro en tienda o envío a domicilio.
+    content: `AkistApp es un motor de búsqueda y directorio digital diseñado para conectar a consumidores con comercios locales en Venezuela. La plataforma permite a los usuarios buscar disponibilidad, ubicación y detalles de productos o servicios ofrecidos por terceros (los "Comercios Afiliados").
 
-**AkistApp actúa únicamente como intermediario tecnológico.** No somos vendedores directos de los productos publicados en la plataforma. La relación comercial (entrega, factura fiscal, garantía) se establece directamente entre el comprador y la tienda.
+Para acceder a ciertas funcionalidades es necesario crear una cuenta. Al descargar, acceder o utilizar nuestra aplicación móvil y panel web, usted acepta estar sujeto a los presentes Términos y Condiciones. Si no está de acuerdo con estos términos, le rogamos que no utilice nuestros servicios.`,
+  },
+  {
+    icon: Building2,
+    title: "2. Naturaleza de la Plataforma y Limitación de Responsabilidad",
+    content: `AkistApp actúa exclusivamente como un intermediario tecnológico e informativo.
 
-El servicio está disponible para usuarios en el territorio venezolano. Para acceder a todas las funcionalidades es necesario crear una cuenta y verificar tu dirección de correo electrónico.`
+**Ausencia de relación comercial directa:** Skynoff Technologies no es propietario, no vende, no revende ni controla los productos o servicios mostrados en la aplicación.
+
+**Transacciones:** Cualquier transacción, compra, reserva o pago se realiza de manera directa entre el Usuario y el Comercio Afiliado, fuera o dentro de los canales facilitados, eximiendo a AkistApp de cualquier responsabilidad sobre garantías, calidad, devoluciones o cumplimiento por parte del vendedor.
+
+**Exactitud de la información:** Aunque exigimos a los Comercios Afiliados mantener su inventario y precios actualizados, AkistApp no garantiza la disponibilidad en tiempo real ni la exactitud ininterrumpida de los precios mostrados en la plataforma.`,
   },
   {
     icon: Users,
-    title: "2. Roles y Responsabilidades",
-    content: `**Clientes:**
-• Deben ser mayores de 18 años o actuar bajo supervisión de un adulto responsable.
-• Son responsables de la exactitud de la información de entrega proporcionada.
-• Deben coordinar el pago directamente con la tienda a través de los métodos de pago publicados.
-• El incumplimiento del pago o la recepción de pedidos sin justificación puede resultar en la suspensión de la cuenta.
+    title: "3. Registro y Cuentas de Usuario",
+    content: `Para acceder a ciertas funciones se requerirá la creación de una cuenta.
 
-**Tiendas y Comercios:**
-• Son responsables de la exactitud de la información de sus productos (precios, stock, descripción).
-• Deben actualizar el inventario de forma oportuna para evitar pedidos de productos sin stock.
-• Son responsables de la entrega de los productos y la emisión de la factura fiscal correspondiente.
-• AkistApp no se hace responsable por disputas derivadas de la calidad, descripción o entrega de los productos.
+**Usuarios (Consumidores):** Se comprometen a proporcionar información veraz (como número de teléfono o correo electrónico) para garantizar la seguridad de la comunidad.
 
-**Administradores de Tienda:**
-• Son responsables de mantener seguros los accesos al panel de administración.
-• No deben compartir credenciales con personas no autorizadas.`
+**Comercios Afiliados:** Están sujetos a un proceso de validación y verificación. Se comprometen a no publicar productos ilícitos, falsificados o que infrinjan las leyes locales de la República Bolivariana de Venezuela.
+
+AkistApp se reserva el derecho de suspender o eliminar cuentas que violen estos términos, realicen spam o muestren comportamientos fraudulentos.`,
+  },
+  {
+    icon: BookOpen,
+    title: "4. Propiedad Intelectual",
+    content: `Todo el código fuente, diseño, interfaces y logotipos (incluyendo la marca AkistApp y Skynoff Technologies) son propiedad exclusiva de sus desarrolladores.
+
+Está prohibida la reproducción, ingeniería inversa o uso no autorizado de estos elementos.
+
+Las fotografías y logotipos de los Comercios Afiliados son propiedad de sus respectivos dueños, quienes otorgan a AkistApp una licencia de uso para su exhibición en el buscador.`,
   },
   {
     icon: FileText,
-    title: "3. Pedidos, Pagos y Cancelaciones",
-    content: `**Proceso de pedido:**
-1. El cliente selecciona productos y crea una orden desde la app.
-2. La tienda recibe la notificación y confirma (o rechaza) el pedido.
-3. Una vez confirmado, el cliente coordina el pago según los métodos indicados por la tienda.
-4. La tienda actualiza el estado del pedido: Confirmado → Listo → Entregado.
+    title: "5. Pedidos, Pagos y Cancelaciones",
+    content: `**Proceso de pedido:** El cliente selecciona productos y crea una orden. La tienda recibe la notificación, la confirma o rechaza. Una vez confirmada, el cliente coordina el pago según los métodos indicados por la tienda.
 
-**Precios y tasas de cambio:**
-Los precios se expresan en dólares estadounidenses (USD). La conversión a bolívares es referencial y puede variar. AkistApp no garantiza la exactitud de las tasas mostradas; la tienda y el cliente deben acordar el monto definitivo al momento del pago.
+**Precios y tasas:** Los precios se expresan en dólares estadounidenses (USD). AkistApp no garantiza la exactitud de las tasas de conversión mostradas; la tienda y el cliente deben acordar el monto definitivo al momento del pago.
 
-**Cancelaciones:**
-• Los pedidos en estado "Pendiente" pueden ser cancelados por la tienda o el cliente antes de la confirmación.
-• Una vez confirmado, la cancelación queda sujeta a la política de cada tienda.
-• Los pedidos cancelados que ya tenían inventario descontado tendrán el stock restituido automáticamente en el sistema.
+**Cancelaciones:** Los pedidos en estado "Pendiente" pueden ser cancelados antes de la confirmación. Una vez confirmado, la cancelación queda sujeta a la política de cada tienda.
 
-**Devoluciones:**
-Las devoluciones son gestionadas directamente con la tienda. AkistApp puede registrar la devolución en el sistema para efectos de inventario, pero no interviene en reembolsos monetarios.`
+**Devoluciones:** Las devoluciones son gestionadas directamente entre el usuario y la tienda. AkistApp puede registrar la devolución en el sistema para efectos de inventario pero no interviene en reembolsos monetarios.`,
   },
   {
     icon: AlertTriangle,
-    title: "4. Conductas Prohibidas",
-    content: `Está terminantemente prohibido:
+    title: "6. Modificaciones del Servicio y de los Términos",
+    content: `Nos reservamos el derecho de modificar, suspender o discontinuar cualquier aspecto de AkistApp en cualquier momento.
 
-• **Fraude:** crear pedidos falsos, usar información de terceros sin autorización, o proporcionar datos de contacto incorrectos deliberadamente.
-• **Abuso:** hostigar, amenazar o discriminar a otros usuarios, empleados de tiendas o personal de AkistApp.
-• **Manipulación:** intentar acceder a cuentas ajenas, manipular el sistema de inventario o modificar precios de manera no autorizada.
-• **Spam:** enviar mensajes masivos, publicitarios o inapropiados a través de los canales de comunicación del sistema.
-• **Uso comercial no autorizado:** revender acceso al panel o usar la plataforma para fines diferentes al comercio legítimo de productos.
-
-El incumplimiento de estas normas puede resultar en la suspensión temporal o permanente de la cuenta, y en casos graves, en acciones legales bajo la legislación venezolana aplicable.`
+Asimismo, estos Términos pueden ser actualizados periódicamente. Los cambios serán notificados a través de la aplicación. El uso continuo de la aplicación tras cualquier cambio constituye la aceptación de los nuevos términos.`,
   },
   {
     icon: Scale,
-    title: "5. Limitación de Responsabilidad",
-    content: `**AkistApp no garantiza:**
-• La disponibilidad ininterrumpida del servicio (sujeto a mantenimientos y fuerza mayor).
-• La exactitud de los precios o el stock publicados por las tiendas.
-• La calidad, autenticidad o estado de los productos comercializados por terceros.
-• La entrega de productos en los plazos indicados por las tiendas.
+    title: "7. Ley Aplicable y Jurisdicción",
+    content: `Estos términos se rigen por las leyes de la **República Bolivariana de Venezuela**, incluyendo la Ley de Mensajes de Datos y Firmas Electrónicas.
 
-**AkistApp no es responsable por:**
-• Pérdidas económicas derivadas de transacciones entre clientes y tiendas.
-• Daños causados por el uso incorrecto de la plataforma.
-• Incumplimientos contractuales entre las partes de una transacción comercial.
+Cualquier controversia será sometida a la jurisdicción de los **tribunales competentes en la ciudad de Anaco, Estado Anzoátegui**.
 
-En ningún caso la responsabilidad de AkistApp excederá el monto equivalente a las comisiones cobradas en la transacción específica que generó el daño.
-
-**Fuerza mayor:** AkistApp no será responsable por incumplimientos causados por eventos fuera de su control, incluyendo fallas de servicios de terceros (Firebase, Google), cortes de electricidad, restricciones gubernamentales u otras circunstancias de fuerza mayor.`
-  },
-  {
-    icon: FileText,
-    title: "6. Modificaciones y Ley Aplicable",
-    content: `**Modificaciones:** AkistApp se reserva el derecho de modificar estos Términos y Condiciones en cualquier momento. Los cambios serán notificados a través de la aplicación con al menos 15 días de anticipación. El uso continuado de la plataforma después de dicho período implica la aceptación de los nuevos términos.
-
-**Ley aplicable:** Estos términos se rigen por las leyes de la República Bolivariana de Venezuela. Cualquier disputa será sometida a los tribunales competentes de acuerdo con la legislación venezolana vigente, incluyendo la Ley de Mensajes de Datos y Firmas Electrónicas.
-
-**Idioma oficial:** En caso de conflicto entre versiones en idiomas distintos, la versión en español prevalecerá.
-
-**Contacto legal:** Para consultas legales, escríbenos a soporte@akistapp.com con el asunto "Consulta Legal".`
+**Contacto legal:** Para consultas legales, escríbenos a soporte@akistapp.com con el asunto "Consulta Legal".`,
   },
 ];
+
+function parseBold(text: string) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, k) =>
+    k % 2 === 1 ? <strong key={k} className="text-foreground font-semibold">{part}</strong> : part
+  );
+}
 
 export default function TermsPage() {
   return (
@@ -108,43 +90,38 @@ export default function TermsPage() {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
           <FileText className="h-8 w-8 text-primary" />
         </div>
-        <h1 className="text-4xl font-bold tracking-tight mb-3">Términos y Condiciones</h1>
+        <h1 className="text-4xl font-bold tracking-tight mb-3">Términos y Condiciones de Uso</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Al crear una cuenta o usar AkistApp aceptas estos términos. Por favor léelos con atención.
+          Al usar AkistApp aceptas estos términos. Por favor léelos con atención.
         </p>
-        <p className="text-sm text-muted-foreground mt-4">Última actualización: 29 de marzo de 2025</p>
+        <p className="text-sm text-muted-foreground mt-3 font-medium">
+          Desarrollado y operado por <span className="text-foreground">Skynoff Technologies</span>
+        </p>
       </div>
 
-      {/* Intro card */}
+      {/* Aviso */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-10">
         <p className="text-amber-900 text-sm leading-relaxed">
-          <span className="font-semibold">Importante:</span> AkistApp es una plataforma intermediaria. Las relaciones comerciales (precios, entrega, facturación y garantía) son directamente entre los clientes y las tiendas registradas. AkistApp no es parte vendedora en ninguna transacción.
+          <span className="font-semibold">Importante:</span> AkistApp actúa exclusivamente como intermediario tecnológico. Las relaciones comerciales (precios, entrega, facturación y garantía) son directamente entre el usuario y los Comercios Afiliados. Skynoff Technologies no es parte vendedora en ninguna transacción.
         </p>
       </div>
 
-      {/* Sections */}
-      <div className="space-y-8">
+      {/* Secciones */}
+      <div className="space-y-6">
         {sections.map((section, i) => {
           const Icon = section.icon;
           return (
             <div key={i} className="bg-white rounded-2xl border p-8 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10">
+                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 shrink-0">
                   <Icon className="h-5 w-5 text-primary" />
                 </div>
                 <h2 className="text-xl font-bold">{section.title}</h2>
               </div>
-              <div className="text-muted-foreground leading-relaxed space-y-3">
+              <div className="text-muted-foreground leading-relaxed space-y-2">
                 {section.content.split('\n').map((paragraph, j) => {
                   if (!paragraph.trim()) return null;
-                  const parts = paragraph.split(/\*\*(.*?)\*\*/g);
-                  return (
-                    <p key={j}>
-                      {parts.map((part, k) =>
-                        k % 2 === 1 ? <strong key={k} className="text-foreground">{part}</strong> : part
-                      )}
-                    </p>
-                  );
+                  return <p key={j}>{parseBold(paragraph)}</p>;
                 })}
               </div>
             </div>
@@ -152,10 +129,10 @@ export default function TermsPage() {
         })}
       </div>
 
-      {/* Contact */}
+      {/* CTA */}
       <div className="mt-12 text-center bg-slate-900 text-white rounded-2xl p-8">
         <h2 className="text-xl font-bold mb-2">¿Necesitas aclaraciones?</h2>
-        <p className="text-slate-400 mb-4">Contáctanos para resolver cualquier duda sobre estos términos.</p>
+        <p className="text-slate-400 mb-4">Nuestro equipo de soporte está disponible para resolver tus dudas.</p>
         <a
           href="mailto:soporte@akistapp.com"
           className="inline-flex items-center gap-2 bg-white text-slate-900 font-semibold px-6 py-3 rounded-xl hover:bg-slate-100 transition-colors"
@@ -164,7 +141,7 @@ export default function TermsPage() {
           soporte@akistapp.com
         </a>
         <p className="text-xs text-slate-500 mt-4">
-          También puedes leer nuestra{" "}
+          También puedes consultar nuestra{" "}
           <Link href="/legal/privacy-policy" className="underline text-slate-400 hover:text-white">Política de Privacidad</Link>
           {" "}o visitar el{" "}
           <Link href="/legal/help" className="underline text-slate-400 hover:text-white">Centro de Ayuda</Link>.

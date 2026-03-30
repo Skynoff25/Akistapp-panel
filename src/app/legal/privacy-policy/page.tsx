@@ -1,82 +1,91 @@
 import type { Metadata } from "next";
-import { Shield, Mail, Lock, Eye, Trash2, UserCheck } from "lucide-react";
+import { Shield, Mail, Lock, Eye, Trash2, UserCheck, Database } from "lucide-react";
 import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Política de Privacidad — AkistApp",
-  description: "Conoce cómo AkistApp recopila, usa y protege tu información personal.",
+  description: "En AkistApp valoramos y protegemos tu privacidad. Conoce cómo recopilamos y usamos tu información.",
 };
 
 const sections = [
   {
     icon: Eye,
     title: "1. Información que Recopilamos",
-    content: `Al registrarte y usar AkistApp recopilamos la siguiente información:
+    content: `Cuando utilizas AkistApp recopilamos la siguiente información:
 
-**Datos de identificación:** nombre completo, dirección de correo electrónico, número de teléfono y cédula de identidad o RIF (cuando los proporcionas voluntariamente).
+**Datos de cuenta:** Nombre completo, correo electrónico y/o número de teléfono (mediante validación), y cédula de identidad cuando la proporcionas voluntariamente.
 
-**Datos de uso:** historial de pedidos, tiendas favoritas, ciudad de residencia, y preferencias de entrega (domicilio o retiro en tienda).
+**Datos de uso:** Historial de búsquedas de productos y comercios visitados dentro de la app, con el fin de mejorar las recomendaciones locales y la experiencia de búsqueda.
 
-**Datos técnicos:** dirección IP, tipo de dispositivo, sistema operativo, versión de la aplicación y tokens de notificación push (FCM) para enviarte actualizaciones de tus pedidos.
-
-**Datos de ubicación:** ciudad seleccionada por el usuario para mostrar tiendas cercanas. No recopilamos ubicación GPS en tiempo real.`
+**Ubicación:** Si el usuario otorga el permiso, utilizamos la ubicación GPS (en primer plano) estrictamente para mostrar los comercios más cercanos a su posición. En la versión web del panel de administración, sólo se utiliza la ciudad seleccionada por el usuario, sin acceso a GPS.`,
   },
   {
     icon: Lock,
-    title: "2. Cómo Usamos tu Información",
-    content: `Usamos tu información para:
+    title: "2. Uso de la Información",
+    content: `No vendemos, alquilamos ni comercializamos su información personal a terceros.
 
-• **Procesar pedidos:** tus datos de contacto son compartidos con la tienda donde realizas la compra para coordinar la entrega.
-• **Comunicación:** enviarte notificaciones push sobre el estado de tus pedidos (confirmado, listo para recoger, entregado).
-• **Seguridad:** detectar y prevenir fraudes, bloquear cuentas que violen nuestros términos de uso.
-• **Mejora del servicio:** analizar patrones de uso anónimos para mejorar la experiencia en la plataforma.
-• **Soporte:** responder a consultas y resolver disputas entre compradores y tiendas.`
+Los datos se utilizan para:
+• **Personalizar** la experiencia de búsqueda y las recomendaciones de comercios locales.
+• **Procesar pedidos** y facilitar la coordinación entre compradores y tiendas.
+• **Mejorar la plataforma** y mantener la seguridad del sistema.
+• **Enviar notificaciones** push sobre el estado de sus pedidos (confirmado, listo, entregado).
+
+Los Comercios Afiliados solo recibirán la información necesaria del usuario si este decide establecer contacto directo a través de la aplicación (por ejemplo, al solicitar una orden o enviar un pedido a domicilio).`,
   },
   {
-    icon: Shield,
+    icon: Database,
     title: "3. Almacenamiento y Seguridad",
-    content: `**Firebase (Google):** toda tu información es almacenada en Google Firebase (Firestore y Firebase Auth), cumpliendo con los estándares de seguridad de Google Cloud Platform.
+    content: `La información es almacenada y procesada utilizando los estándares de seguridad de la industria y la infraestructura en la nube de Google Firebase, garantizando que sus credenciales y datos de contacto estén protegidos contra accesos no autorizados.
 
-**Cifrado:** los datos en tránsito están protegidos por TLS/SSL. Los datos en reposo son gestionados por Firebase con cifrado AES-256.
+**Firebase Auth:** Gestiona la autenticación de forma segura. Las contraseñas nunca son almacenadas en texto plano.
 
-**Acceso limitado:** solo el personal técnico autorizado de AkistApp y los administradores de las tiendas donde realizas compras tienen acceso a tu información, y únicamente en la medida necesaria para procesar tus pedidos.
+**Firebase Firestore:** Los datos en reposo están cifrados con AES-256 y los datos en tránsito están protegidos por TLS/SSL.
 
-**Contraseñas:** no almacenamos tu contraseña en texto plano; Firebase Auth gestiona la autenticación de forma segura.`
+**Acceso limitado:** Sólo personal técnico autorizado de Skynoff Technologies y los administradores de las tiendas donde realizas compras tienen acceso a tu información, en la medida estrictamente necesaria para prestar el servicio.`,
   },
   {
     icon: UserCheck,
-    title: "4. Tus Derechos (ARCO)",
+    title: "4. Tus Derechos",
     content: `Como usuario de AkistApp tienes los siguientes derechos sobre tu información personal:
 
-**Acceso:** puedes solicitar una copia de todos los datos que tenemos sobre ti.
-**Rectificación:** puedes corregir o actualizar tus datos en la sección "Perfil" de la aplicación.
-**Cancelación:** puedes solicitar la eliminación de tu cuenta y todos tus datos personales.
-**Oposición:** puedes oponerte al uso de tus datos para fines de marketing o análisis.
+**Acceso:** Puedes consultar los datos que tenemos sobre ti desde la sección "Perfil" de la aplicación.
 
-Para ejercer estos derechos, escríbenos a soporte@akistapp.com con el asunto "Solicitud ARCO". Responderemos en un plazo máximo de 15 días hábiles.`
+**Rectificación:** Puedes corregir o actualizar tus datos de nombre, teléfono y ubicación directamente en la app desde "Editar Perfil".
+
+**Eliminación:** Los usuarios tienen derecho a solicitar la eliminación definitiva de su cuenta y todos sus datos asociados en cualquier momento a través de la sección de configuración de la aplicación o contactando a nuestro soporte técnico.
+
+**Oposición:** Puedes oponerte al uso de tus datos para fines de personalización desactivando los permisos correspondientes en los ajustes de tu dispositivo.`,
   },
   {
     icon: Trash2,
     title: "5. Retención y Eliminación de Datos",
-    content: `**Datos de cuenta activa:** los mantenemos mientras tu cuenta esté activa y sea necesario para prestarte el servicio.
+    content: `**Datos de cuenta activa:** Los mantenemos mientras tu cuenta esté activa y sean necesarios para prestarte el servicio.
 
-**Historial de pedidos:** conservamos el historial de transacciones por un período de 5 años para cumplir con obligaciones fiscales y legales en Venezuela.
+**Historial de pedidos:** Conservamos el registro de transacciones por un período razonable para cumplir con obligaciones de soporte y, cuando aplique, legales.
 
-**Eliminación de cuenta:** al eliminar tu cuenta, tus datos personales se anonimizarán en un plazo de 30 días. Los registros de transacciones se conservarán en forma anonimizada conforme a lo indicado anteriormente.
+**Eliminación de cuenta:** Al solicitar la eliminación de tu cuenta, tus datos personales serán anonimizados o eliminados en un plazo máximo de 30 días. Los registros de transacciones completadas pueden mantenerse en forma anonimizada.
 
-**Datos técnicos:** los logs del sistema se eliminan automáticamente después de 90 días.`
+Para solicitar la eliminación de tu cuenta y datos, escríbenos a soporte@akistapp.com con el asunto "Eliminar Cuenta".`,
   },
   {
     icon: Mail,
-    title: "6. Terceros y Transferencias",
-    content: `**No vendemos tu información.** Sin embargo, compartimos datos limitados con:
+    title: "6. Terceros y Contacto",
+    content: `**No vendemos tu información.** Compartimos datos limitados únicamente con:
 
-• **Google Firebase:** plataforma de backend (autenticación, base de datos, notificaciones).
-• **Tiendas en AkistApp:** tus datos de contacto y dirección se comparten con la tienda donde realizas compras, solo para procesar tu pedido.
+• **Google Firebase (Google LLC):** Plataforma de backend para autenticación, base de datos y notificaciones push. Opera bajo los estándares de seguridad de Google Cloud y cumple con las regulaciones internacionales de protección de datos.
 
-No transferimos tus datos a países sin nivel adecuado de protección. Google Firebase opera bajo el marco de Privacy Shield y cumple con el RGPD.`
+• **Comercios Afiliados:** Tu información de contacto y dirección de entrega sólo se comparte con la tienda específica donde realizas una compra, y únicamente en el marco de esa transacción.
+
+**Contacto:** Para cualquier consulta sobre privacidad o para ejercer tus derechos, escríbenos a soporte@akistapp.com.`,
   },
 ];
+
+function parseBold(text: string) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return parts.map((part, k) =>
+    k % 2 === 1 ? <strong key={k} className="text-foreground font-semibold">{part}</strong> : part
+  );
+}
 
 export default function PrivacyPolicyPage() {
   return (
@@ -88,42 +97,38 @@ export default function PrivacyPolicyPage() {
         </div>
         <h1 className="text-4xl font-bold tracking-tight mb-3">Política de Privacidad</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          En AkistApp nos comprometemos a proteger tu privacidad. Esta política explica cómo recopilamos, usamos y protegemos tu información personal.
+          En AkistApp valoramos y protegemos su privacidad. Esta política explica cómo recopilamos y usamos su información.
         </p>
-        <p className="text-sm text-muted-foreground mt-4">Última actualización: 29 de marzo de 2025</p>
+        <p className="text-sm text-muted-foreground mt-3 font-medium">
+          Desarrollado y operado por <span className="text-foreground">Skynoff Technologies</span>
+        </p>
       </div>
 
-      {/* Intro card */}
+      {/* Resumen destacado */}
       <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-10">
         <p className="text-blue-900 text-sm leading-relaxed">
-          <span className="font-semibold">Resumen simple:</span> Recopilamos solo la información necesaria para que puedas comprar en tiendas locales a través de AkistApp. No vendemos tus datos. Puedes solicitar la eliminación de tu cuenta en cualquier momento escribiéndonos a{" "}
+          <span className="font-semibold">Resumen:</span> Recopilamos sólo la información necesaria para conectarte con comercios locales. No vendemos ni compartimos tus datos con terceros fuera de las tiendas donde realizas compras. Puedes solicitar la eliminación de tu cuenta en cualquier momento escribiéndonos a{" "}
           <a href="mailto:soporte@akistapp.com" className="underline font-medium">soporte@akistapp.com</a>.
         </p>
       </div>
 
-      {/* Sections */}
-      <div className="space-y-8">
+      {/* Secciones */}
+      <div className="space-y-6">
         {sections.map((section, i) => {
           const Icon = section.icon;
           return (
             <div key={i} className="bg-white rounded-2xl border p-8 shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10">
+                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 shrink-0">
                   <Icon className="h-5 w-5 text-primary" />
                 </div>
                 <h2 className="text-xl font-bold">{section.title}</h2>
               </div>
-              <div className="prose prose-slate max-w-none text-muted-foreground leading-relaxed">
+              <div className="text-muted-foreground leading-relaxed space-y-2">
                 {section.content.split('\n').map((paragraph, j) => {
-                  if (!paragraph.trim()) return <br key={j} />;
-                  // Bold markdown simulation
-                  const parts = paragraph.split(/\*\*(.*?)\*\*/g);
+                  if (!paragraph.trim()) return null;
                   return (
-                    <p key={j} className="mb-3 last:mb-0">
-                      {parts.map((part, k) =>
-                        k % 2 === 1 ? <strong key={k} className="text-foreground">{part}</strong> : part
-                      )}
-                    </p>
+                    <p key={j}>{parseBold(paragraph)}</p>
                   );
                 })}
               </div>
@@ -132,10 +137,10 @@ export default function PrivacyPolicyPage() {
         })}
       </div>
 
-      {/* Contact */}
+      {/* CTA contacto */}
       <div className="mt-12 text-center bg-slate-900 text-white rounded-2xl p-8">
-        <h2 className="text-xl font-bold mb-2">¿Tienes preguntas?</h2>
-        <p className="text-slate-400 mb-4">Nuestro equipo de privacidad está disponible para atender tus consultas.</p>
+        <h2 className="text-xl font-bold mb-2">¿Tienes preguntas sobre tu privacidad?</h2>
+        <p className="text-slate-400 mb-4">Nuestro equipo de soporte está disponible para atender tus consultas.</p>
         <a
           href="mailto:soporte@akistapp.com"
           className="inline-flex items-center gap-2 bg-white text-slate-900 font-semibold px-6 py-3 rounded-xl hover:bg-slate-100 transition-colors"
@@ -144,9 +149,9 @@ export default function PrivacyPolicyPage() {
           soporte@akistapp.com
         </a>
         <p className="text-xs text-slate-500 mt-4">
-          También puedes consultar nuestros{" "}
-          <Link href="/legal/terms" className="underline text-slate-400 hover:text-white">Términos de Uso</Link>
-          {" "}o el{" "}
+          También puedes leer nuestros{" "}
+          <Link href="/legal/terms" className="underline text-slate-400 hover:text-white">Términos y Condiciones</Link>
+          {" "}o visitar el{" "}
           <Link href="/legal/help" className="underline text-slate-400 hover:text-white">Centro de Ayuda</Link>.
         </p>
       </div>

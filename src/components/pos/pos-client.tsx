@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '@/context/auth-context';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
 import { useDocument } from '@/hooks/use-document';
 import { where, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
@@ -13,7 +14,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
-import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw, FileCheck, Tag, Percent, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, PlusCircle, MinusCircle, XCircle, ShoppingCart, RefreshCw, FileCheck, Tag, Percent, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 
 const POS_PAGE_SIZE = 20;
 import Image from 'next/image';
@@ -159,6 +160,8 @@ function CustomerInfoDialog({ open, onOpenChange, onSave, initialData }: {
 
 export default function PosClient({ storeId }: { storeId: string }) {
   const { toast } = useToast();
+  const { appUser } = useAuth();
+  const isEmployee = appUser?.rol === 'store_employee';
   const { data: globalRates, loading: ratesLoading } = useDocument<GlobalRates>("Config/rates");
   const { data: store, loading: storeLoading } = useDocument<Store>(`Stores/${storeId}`);
   
@@ -472,6 +475,32 @@ export default function PosClient({ storeId }: { storeId: string }) {
     <>
       <PageHeader title="Punto de Venta" description="Registra ventas manuales en tu tienda." />
       
+      {/* Bug #15: Advertencia tasa BCV desactualizada (>6h) */}
+      {(() => {
+        const rateIsStale = globalRates?.updatedAt
+          ? Date.now() - globalRates.updatedAt > 6 * 60 * 60 * 1000
+          : true;
+        if (!rateIsStale) return null;
+        return (
+          <Alert variant="destructive" className="mb-4 border-destructive/50 bg-destructive/10 animate-pulse">
+            <AlertTriangle className="h-5 w-5" />
+            <AlertTitle className="font-bold">⚠️ Tasa BCV posiblemente desactualizada</AlertTitle>
+            <AlertDescription className="flex items-center justify-between gap-4 flex-wrap">
+              <span>
+                La tasa oficial {globalRates?.updatedAt
+                  ? `no se ha actualizado en más de ${Math.floor((Date.now() - globalRates.updatedAt) / (60 * 60 * 1000))} horas`
+                  : 'nunca ha sido actualizada en esta sesión'}.
+                Las ventas podrían registrarse con un valor incorrecto.
+              </span>
+              <Button size="sm" variant="destructive" onClick={handleSyncBCV} disabled={isSyncing} className="shrink-0">
+                {isSyncing ? <RefreshCw className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                Actualizar ahora
+              </Button>
+            </AlertDescription>
+          </Alert>
+        );
+      })()}
+
       <Card className="mb-8 border-primary/20">
         <CardHeader>
             <div className="flex justify-between items-center">
@@ -655,17 +684,22 @@ export default function PosClient({ storeId }: { storeId: string }) {
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                            <Label className={`text-[10px] uppercase font-bold flex items-center gap-1 ${isEmployee ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
                               <Percent className="h-3 w-3"/> Descuento Manual ($)
-                              <HelpTip text="Monto libre en $ que se resta del total.\nQueda registrado en el historial de la venta.\nNo requiere código de cupón." />
+                              {isEmployee
+                                ? <HelpTip text="Solo el Gerente o Administrador puede aplicar descuentos manuales.\nUsa el campo de Cupón para códigos de descuento autorizados." />
+                                : <HelpTip text="Monto libre en $ que se resta del total.\nQueda registrado en el historial de la venta.\nNo requiere código de cupón." />
+                              }
                             </Label>
                             <Input 
                                 type="number" 
                                 step="0.01" 
-                                className="h-8 text-xs" 
-                                placeholder="0.00"
+                                className={`h-8 text-xs ${isEmployee ? 'cursor-not-allowed opacity-50' : ''}`}
+                                placeholder={isEmployee ? 'No disponible para Empleados' : '0.00'}
                                 value={manualDiscount || ''}
                                 onChange={e => setManualDiscount(parseFloat(e.target.value) || 0)}
+                                disabled={isEmployee}
+                                title={isEmployee ? 'Los empleados no pueden aplicar descuentos manuales' : undefined}
                             />
                         </div>
                     </div>

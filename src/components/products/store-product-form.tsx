@@ -42,7 +42,7 @@ const variantSchema = z.object({
   price: z.coerce.number().min(0, "El precio debe ser positivo."),
   stock: z.coerce.number().int("El stock debe ser un número entero.").min(0, "El stock no puede ser negativo."),
   costPriceUsd: z.coerce.number().min(0, "El costo no puede ser negativo.").default(0),
-  sku: z.string().optional(),
+  sku: z.string().optional().nullable(),
 });
 
 const storeProductSchema = z.object({
@@ -211,7 +211,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
   };
 
   const handleDuplicateVariant = (index: number) => {
-    const variantToCopy = fields[index];
+    const variantToCopy = form.getValues(`variants.${index}`);
     append({ ...variantToCopy, id: crypto.randomUUID(), name: `${variantToCopy.name} (Copia)` });
   };
 
@@ -231,17 +231,41 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
 
     const result = await updateStoreProduct(storeId, product.id, formData);
     if (result?.errors) {
-        const msg = (result.errors as any)._form ? (result.errors as any)._form.join(", ") : "Error al actualizar";
-        form.setError("root.serverError", { message: msg });
+        Object.entries(result.errors).forEach(([key, messages]) => {
+            const fieldError = messages as string[];
+            if (key === '_form') {
+                form.setError("root.serverError", { message: fieldError.join(", ") });
+            } else {
+                form.setError(key as any, { message: fieldError.join(", ") });
+            }
+        });
+        toast({ variant: 'destructive', title: 'Error', description: 'Por favor revisa los errores en el formulario.' });
     } else {
         toast({ title: "Producto Actualizado", description: `"${product.name}" actualizado.` });
         onSuccess();
     }
   };
 
+  const onError = (errors: any) => {
+    console.error("Errores de validación:", errors);
+    
+    // Extract error paths for the toast description
+    const errorMessages = Object.entries(errors).map(([key, value]: [string, any]) => {
+        if (key === 'variants') return 'Variantes (revisa los campos en rojo o asegúrate de que haya al menos una)';
+        if (value?.message) return `${key}: ${value.message}`;
+        return key;
+    }).join(", ");
+
+    toast({
+        variant: 'destructive',
+        title: 'Error de validación',
+        description: `Han fallado los siguientes campos ocultos o visibles: ${errorMessages.length > 0 ? errorMessages : 'Desconocido'}. Revísalos.`
+    });
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[75vh] overflow-y-auto p-1">
+      <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6 max-h-[75vh] overflow-y-auto p-1">
 
         <FormField
           control={form.control}
@@ -445,7 +469,7 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                                     render={({ field }) => (
                                         <FormItem className="col-span-2">
                                             <FormLabel className="text-[10px] uppercase text-muted-foreground font-semibold">Stock</FormLabel>
-                                            <FormControl><Input className="h-8 text-xs" type="number" step="1" {...field} /></FormControl>
+                                            <FormControl><Input className="h-8 text-xs" type="number" step="any" {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -459,6 +483,15 @@ export function StoreProductForm({ storeId, product, onSuccess }: StoreProductFo
                          <Button type="button" variant="outline" size="sm" onClick={() => append({ id: crypto.randomUUID(), name: '', price: batchPrice, stock: batchStock, costPriceUsd: batchCost })} className="w-full border-dashed mt-2">
                             <PlusCircle className="mr-2 h-4 w-4" /> Añadir Variante Manual
                         </Button>
+                        <FormField
+                            control={form.control}
+                            name="variants"
+                            render={() => (
+                                <FormItem>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>
                 </CardContent>
             </Card>

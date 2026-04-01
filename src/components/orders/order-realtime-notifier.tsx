@@ -26,9 +26,9 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
       if (!audioContext.current) {
         audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
-      
+
       const ctx = audioContext.current;
-      
+
       if (ctx.state === 'suspended') {
         ctx.resume();
       }
@@ -42,7 +42,7 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
       oscillator.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.1); // E5
-      
+
       gainNode.gain.setValueAtTime(0, ctx.currentTime);
       gainNode.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.05);
       gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
@@ -58,7 +58,7 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
     if (Notification.permission === 'granted') {
       new Notification('¡Nueva Orden Recibida! 🚀', {
         body: `${order.userName || 'Un cliente'} ha realizado un pedido de $${order.totalAmount.toFixed(2)}`,
-        icon: '/akistapp_logo.png',
+        icon: '/ic_launcher-playstore_ficha.png',
         tag: order.id,
       });
     }
@@ -66,7 +66,7 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
 
   const showUINotification = (order: Order) => {
     const ordersPath = storeId ? `/store/${storeId}/orders` : `/dashboard/orders`;
-    
+
     toast({
       title: "🚀 ¡Nuevo Pedido Recibido!",
       description: `${order.userName || 'Cliente'} - Total: $${order.totalAmount.toFixed(2)}`,
@@ -80,12 +80,12 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
 
   useEffect(() => {
     if (!enabled) {
-        isInitialLoad.current = true;
-        return;
+      isInitialLoad.current = true;
+      return;
     }
 
     const startOfToday = startOfDay(new Date()).getTime();
-    
+
     const constraints = [
       where('status', '==', 'PENDING'),
       where('createdAt', '>=', startOfToday),

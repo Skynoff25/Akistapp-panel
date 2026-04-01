@@ -170,7 +170,7 @@ function OrderDetailsDialog({
                     {order.comments && <div><span className="font-semibold">Comentarios:</span> {order.comments}</div>}
 
                     {order.paymentMessage && (
-                        <div className="col-span-2 mt-2 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-md">
+                        <div className="mt-2 p-3 bg-green-50 text-green-800 border-l-4 border-green-500 rounded-md">
                             <p className="font-semibold flex items-center gap-2">
                                 <FileText className="h-4 w-4" /> Pago Reportado por Cliente
                             </p>
@@ -182,26 +182,28 @@ function OrderDetailsDialog({
                     )}
                     
                     <h4 className="font-semibold mt-4">Artículos del Pedido</h4>
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-center">Cant.</TableHead><TableHead className="text-right">Precio Unit.</TableHead><TableHead className="text-right">Subtotal</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {order.items.map((item, index) => {
-                                const uniqueKey = item.variantId ? `${item.inventoryId}-${item.variantId}` : item.inventoryId;
-                                return (
-                                <TableRow key={`${uniqueKey}-${index}`}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Image src={getImageUrl(item.image, item.productId, 40, 40)} alt={item.productName} width={40} height={40} className="rounded-md object-cover" />
-                                            <div><p className="font-medium">{item.productName}</p>{item.variantName && <p className="text-sm text-muted-foreground">{item.variantName}</p>}</div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-center">{item.quantity}</TableCell>
-                                    <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                                    <TableCell className="text-right">${(item.price * item.quantity).toFixed(2)}</TableCell>
-                                </TableRow>
-                            )})}
-                        </TableBody>
-                    </Table>
+                    <div className="border rounded-md overflow-x-auto">
+                        <Table className="min-w-[500px]">
+                            <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-center">Cant.</TableHead><TableHead className="text-right">Precio Unit.</TableHead><TableHead className="text-right">Subtotal</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {order.items.map((item, index) => {
+                                    const uniqueKey = item.variantId ? `${item.inventoryId}-${item.variantId}` : item.inventoryId;
+                                    return (
+                                    <TableRow key={`${uniqueKey}-${index}`}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <Image src={getImageUrl(item.image, item.productId, 40, 40)} alt={item.productName} width={40} height={40} className="rounded-md object-cover flex-shrink-0" />
+                                                <div className="min-w-[120px]"><p className="font-medium line-clamp-2">{item.productName}</p>{item.variantName && <p className="text-sm text-muted-foreground line-clamp-1">{item.variantName}</p>}</div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">{item.quantity}</TableCell>
+                                        <TableCell className="text-right whitespace-nowrap">${item.price.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right whitespace-nowrap">${(item.price * item.quantity).toFixed(2)}</TableCell>
+                                    </TableRow>
+                                )})}
+                            </TableBody>
+                        </Table>
+                    </div>
                     <div className="grid justify-end gap-2 text-right mt-4 bg-muted/30 p-4 rounded-lg">
                         <div><span className="text-muted-foreground">Subtotal:</span> ${order.totalAmount.toFixed(2)}</div>
                         <div><span className="text-muted-foreground">Costo de envío:</span> ${order.shippingCost.toFixed(2)}</div>

@@ -101,38 +101,33 @@ export async function createManualSale(storeId: string, formData: FormData) {
         const invDocData = inventoryMap.get(item.inventoryId);
         if (!invDocData) throw new Error(`Producto ${item.productName} no encontrado en el inventario.`);
 
-        const invDocRef = doc(db, "Inventory", item.inventoryId);
-
-        if (item.variantId) {
-            const variantIndex = invDocData.variants.findIndex(v => v.id === item.variantId);
+        if (item.variantId && invDocData.variants) {
+            const variantIndex = invDocData.variants.findIndex((v: any) => v.id === item.variantId);
             if (variantIndex === -1) {
                 throw new Error(`Variante "${item.variantName}" para el producto "${item.productName}" no encontrada.`);
             }
 
-            const updatedVariants = [...invDocData.variants];
-            const variantToUpdate = { ...updatedVariants[variantIndex] };
-
-            if (variantToUpdate.stock < item.quantity) {
-                throw new Error(`Stock insuficiente para ${item.productName} (${variantToUpdate.name}). Disponible: ${variantToUpdate.stock}, Solicitado: ${item.quantity}`);
+            if (invDocData.variants[variantIndex].stock < item.quantity) {
+                throw new Error(`Stock insuficiente para ${item.productName} (${invDocData.variants[variantIndex].name}). Disponible: ${invDocData.variants[variantIndex].stock}, Solicitado: ${item.quantity}`);
             }
 
-            variantToUpdate.stock -= item.quantity;
-            updatedVariants[variantIndex] = variantToUpdate;
-
-            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
-
-            batch.update(invDocRef, {
-                variants: updatedVariants,
-                currentStock: newTotalStock
-            });
+            invDocData.variants[variantIndex].stock -= item.quantity;
+            invDocData.currentStock = invDocData.variants.reduce((acc: any, v: any) => acc + v.stock, 0);
 
         } else {
             if (invDocData.currentStock < item.quantity) {
               throw new Error(`Stock insuficiente para ${item.productName}. Disponible: ${invDocData.currentStock}, Solicitado: ${item.quantity}`);
             }
-            const newStock = invDocData.currentStock - item.quantity;
-            batch.update(invDocRef, { currentStock: newStock });
+            invDocData.currentStock -= item.quantity;
         }
+      }
+
+      // Aplicar las actualizaciones consolidadas al batch
+      for (const [invId, invDocData] of inventoryMap.entries()) {
+          batch.update(doc(db, "Inventory", invId), {
+              variants: invDocData.variants || [],
+              currentStock: invDocData.currentStock
+          });
       }
     }
 

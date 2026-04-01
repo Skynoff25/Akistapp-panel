@@ -9,10 +9,10 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { 
-    LayoutDashboard, 
-    Store, 
-    Package, 
+import {
+    LayoutDashboard,
+    Store,
+    Package,
     LogOut,
     ArrowLeft,
     ShoppingCart,
@@ -73,74 +73,74 @@ export default function StoreSidebar({ storeId }: StoreSidebarProps) {
 
     const handleLogout = async () => {
         try {
-        await signOut(auth);
-        toast({
-            title: "Sesión Cerrada",
-            description: "Has cerrado sesión exitosamente.",
-        });
+            await signOut(auth);
+            toast({
+                title: "Sesión Cerrada",
+                description: "Has cerrado sesión exitosamente.",
+            });
         } catch (error) {
-        console.error("Logout Error:", error);
-        toast({
-            variant: "destructive",
-            title: "Fallo al Cerrar Sesión",
-            description: "Ocurrió un error al cerrar la sesión.",
-        });
+            console.error("Logout Error:", error);
+            toast({
+                variant: "destructive",
+                title: "Fallo al Cerrar Sesión",
+                description: "Ocurrió un error al cerrar la sesión.",
+            });
         }
     };
 
-  return (
-    <aside className="w-64 flex-shrink-0 border-r bg-card p-4 hidden md:flex flex-col h-screen">
-      <div className="flex-shrink-0">
-        {appUser?.rol === 'admin' && (
-             <Link href="/dashboard" passHref className='mb-2'>
-                <Button variant="ghost" className="w-full justify-start">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Volver al Panel Admin
+    return (
+        <aside className="w-64 flex-shrink-0 border-r bg-card p-4 hidden md:flex flex-col h-screen">
+            <div className="flex-shrink-0">
+                {appUser?.rol === 'admin' && (
+                    <Link href="/dashboard" passHref className='mb-2'>
+                        <Button variant="ghost" className="w-full justify-start">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver al Panel Admin
+                        </Button>
+                    </Link>
+                )}
+                <div className="flex items-center gap-2 mb-8 px-2">
+                    <Image
+                        src="/ic_launcher-playstore_ficha.png"
+                        alt="AkistApp Logo"
+                        width={40}
+                        height={40}
+                    />
+                    <h1 className="text-lg font-bold">{loading ? "Cargando..." : store?.name}</h1>
+                </div>
+                <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Cerrar sesión
                 </Button>
-            </Link>
-        )}
-        <div className="flex items-center gap-2 mb-8 px-2">
-          <Image
-              src="/akistapp_logo.png"
-              alt="AkistApp Logo"
-              width={40}
-              height={40}
-          />
-          <h1 className="text-lg font-bold">{loading ? "Cargando..." : store?.name}</h1>
-        </div>
-        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Cerrar sesión
-        </Button>
-      </div>
+            </div>
 
-      <div className="my-4 border-t border-border"></div>
+            <div className="my-4 border-t border-border"></div>
 
-      <nav className="flex-grow space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-            if (!item.enabled) return null;
-            const isActive = pathname?.startsWith(item.href) && (item.href !== `/store/${storeId}` || pathname === `/store/${storeId}`);
-            return (
-                <Link key={item.href} href={item.href} passHref>
-                    <Button
-                        variant={isActive ? 'secondary' : 'ghost'}
-                        className={cn(
-                            "w-full justify-start relative",
-                            isActive && "text-primary font-semibold"
-                        )}
-                    >
-                        <item.icon className="mr-2 h-4 w-4" />
-                        {item.label}
-                        {item.badge !== undefined && item.badge > 0 && (
-                          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
-                            {item.badge > 9 ? '9+' : item.badge}
-                          </span>
-                        )}
-                    </Button>
-                </Link>
-            )
-        })}
-      </nav>
-    </aside>
-  );
+            <nav className="flex-grow space-y-1 overflow-y-auto">
+                {navItems.map((item) => {
+                    if (!item.enabled) return null;
+                    const isActive = pathname?.startsWith(item.href) && (item.href !== `/store/${storeId}` || pathname === `/store/${storeId}`);
+                    return (
+                        <Link key={item.href} href={item.href} passHref>
+                            <Button
+                                variant={isActive ? 'secondary' : 'ghost'}
+                                className={cn(
+                                    "w-full justify-start relative",
+                                    isActive && "text-primary font-semibold"
+                                )}
+                            >
+                                <item.icon className="mr-2 h-4 w-4" />
+                                {item.label}
+                                {item.badge !== undefined && item.badge > 0 && (
+                                    <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                                        {item.badge > 9 ? '9+' : item.badge}
+                                    </span>
+                                )}
+                            </Button>
+                        </Link>
+                    )
+                })}
+            </nav>
+        </aside>
+    );
 }

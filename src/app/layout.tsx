@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: 'Panel de Administración de Akistapp',
   description: 'Panel de administración para Akistapp',
   icons: {
-    icon: '/akistapp_logo.png',
+    icon: '/ic_launcher-playstore_ficha.png',
   },
 };
 

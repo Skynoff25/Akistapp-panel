@@ -28,143 +28,93 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
     const orderSnap = await getDoc(orderRef);
     if (!orderSnap.exists()) throw new Error("El pedido no existe.");
     const order = orderSnap.data() as Order;
-
     const batch = writeBatch(db);
+    const inventoryUpdates = new Map<string, { doc: StoreProduct; ref: any }>();
+
+    const getInventoryDoc = async (item: CartItemSnapshot) => {
+        let invId = item.inventoryId || (item as any).id;
+        if (!invId && !item.productId) return null;
+
+        if (invId) {
+            if (inventoryUpdates.has(invId)) return inventoryUpdates.get(invId);
+            const snap = await getDoc(doc(db, 'Inventory', invId));
+            if (snap.exists()) {
+                const data = snap.data() as StoreProduct;
+                const update = { doc: JSON.parse(JSON.stringify(data)), ref: snap.ref };
+                inventoryUpdates.set(invId, update);
+                return update;
+            }
+        }
+        
+        if (item.productId) {
+            const q = query(collection(db, 'Inventory'), where('storeId', '==', storeId), where('productId', '==', item.productId));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const invSnap = snap.docs[0];
+                if (inventoryUpdates.has(invSnap.id)) return inventoryUpdates.get(invSnap.id);
+                const data = invSnap.data() as StoreProduct;
+                const update = { doc: JSON.parse(JSON.stringify(data)), ref: invSnap.ref };
+                inventoryUpdates.set(invSnap.id, update);
+                return update;
+            }
+        }
+        return null;
+    };
 
     if (status === "DELIVERED") {
       if (!order.inventoryDeducted) {
         for (const item of order.items) {
-            let invDocSnap;
-            let invDocId = item.inventoryId || (item as any).id; // Fallback for app orders
-            
-            if (invDocId) {
-                invDocSnap = await getDoc(doc(db, 'Inventory', invDocId));
-            } 
-            if (!invDocSnap || !invDocSnap.exists()) {
-                if (item.productId) {
-                    const q = query(collection(db, 'Inventory'), where('storeId', '==', storeId), where('productId', '==', item.productId));
-                    const snap = await getDocs(q);
-                    if (!snap.empty) {
-                        invDocSnap = snap.docs[0];
-                        invDocId = invDocSnap.id;
-                    }
-                }
-            }
-
-            if (invDocSnap && invDocSnap.exists()) {
-                const invDoc = invDocSnap.data() as StoreProduct;
-                const inventoryRef = doc(db, 'Inventory', invDocId);
-                
+            const invUpdate = await getInventoryDoc(item);
+            if (invUpdate) {
+                const { doc: invDoc } = invUpdate;
                 if (item.variantId && invDoc.variants) {
-                    const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
+                    const variantIndex = invDoc.variants.findIndex((v: any) => v.id === item.variantId);
                     if (variantIndex !== -1) {
-                        const updatedVariants = [...invDoc.variants];
-                        updatedVariants[variantIndex].stock = Math.max(0, updatedVariants[variantIndex].stock - item.quantity);
-                        const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
-                        batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
+                        invDoc.variants[variantIndex].stock = Math.max(0, invDoc.variants[variantIndex].stock - item.quantity);
+                        invDoc.currentStock = invDoc.variants.reduce((acc: number, v: any) => acc + v.stock, 0);
                     }
                 } else {
-                    const newStock = (invDoc.currentStock || 0) - item.quantity;
-                    batch.update(inventoryRef, { currentStock: newStock < 0 ? 0 : newStock });
+                    invDoc.currentStock = Math.max(0, (invDoc.currentStock || 0) - item.quantity);
                 }
             }
         }
+        // Aplicar todas las actualizaciones acumuladas al batch
+        inventoryUpdates.forEach((update) => {
+            batch.update(update.ref, { variants: update.doc.variants || [], currentStock: update.doc.currentStock });
+        });
         batch.update(orderRef, { status: status, inventoryDeducted: true, inventoryRestored: false });
       } else {
         batch.update(orderRef, { status: status });
       }
       await batch.commit();
 
-    } else if (status === "RETURNED") {
-        // Solo reintegramos si el inventario fue descontado previamente y no ha sido ya restaurado
+    } else if (status === "RETURNED" || status === "CANCELLED") {
+        // Reintegramos si el inventario fue descontado y no restaurado
         if (order.inventoryDeducted && !order.inventoryRestored) {
             for (const item of order.items) {
-                let invDocSnap;
-                let invDocId = item.inventoryId || (item as any).id;
-                
-                if (invDocId) {
-                    invDocSnap = await getDoc(doc(db, 'Inventory', invDocId));
-                }
-                if (!invDocSnap || !invDocSnap.exists()) {
-                    if (item.productId) {
-                        const q = query(collection(db, 'Inventory'), where('storeId', '==', storeId), where('productId', '==', item.productId));
-                        const snap = await getDocs(q);
-                        if (!snap.empty) {
-                            invDocSnap = snap.docs[0];
-                            invDocId = invDocSnap.id;
-                        }
-                    }
-                }
-
-                if (invDocSnap && invDocSnap.exists()) {
-                    const invDoc = invDocSnap.data() as StoreProduct;
-                    const inventoryRef = doc(db, 'Inventory', invDocId);
-                    
+                const invUpdate = await getInventoryDoc(item);
+                if (invUpdate) {
+                    const { doc: invDoc } = invUpdate;
                     if (item.variantId && invDoc.variants) {
-                        const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
+                        const variantIndex = invDoc.variants.findIndex((v: any) => v.id === item.variantId);
                         if (variantIndex !== -1) {
-                            const updatedVariants = [...invDoc.variants];
-                            updatedVariants[variantIndex].stock += item.quantity;
-                            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
-                            batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
+                            invDoc.variants[variantIndex].stock += item.quantity;
+                            invDoc.currentStock = invDoc.variants.reduce((acc: number, v: any) => acc + v.stock, 0);
                         }
                     } else {
-                        const newStock = (invDoc.currentStock || 0) + item.quantity;
-                        batch.update(inventoryRef, { currentStock: newStock });
+                        invDoc.currentStock = (invDoc.currentStock || 0) + item.quantity;
                     }
                 }
             }
+            // Aplicar todas las actualizaciones acumuladas al batch
+            inventoryUpdates.forEach((update) => {
+                batch.update(update.ref, { variants: update.doc.variants || [], currentStock: update.doc.currentStock });
+            });
             batch.update(orderRef, { status: status, inventoryRestored: true });
         } else {
             batch.update(orderRef, { status: status });
         }
         await batch.commit();
-
-    } else if (status === "CANCELLED") {
-        // Reintegrar stock si fue descontado previamente (ej. ventas POS o app móvil)
-        if (order.inventoryDeducted && !order.inventoryRestored) {
-            for (const item of order.items) {
-                let invDocSnap;
-                let invDocId = item.inventoryId || (item as any).id;
-
-                if (invDocId) {
-                    invDocSnap = await getDoc(doc(db, 'Inventory', invDocId));
-                }
-                if (!invDocSnap || !invDocSnap.exists()) {
-                    if (item.productId) {
-                        const q = query(collection(db, 'Inventory'), where('storeId', '==', storeId), where('productId', '==', item.productId));
-                        const snap = await getDocs(q);
-                        if (!snap.empty) {
-                            invDocSnap = snap.docs[0];
-                            invDocId = invDocSnap.id;
-                        }
-                    }
-                }
-
-                if (invDocSnap && invDocSnap.exists()) {
-                    const invDoc = invDocSnap.data() as StoreProduct;
-                    const inventoryRef = doc(db, 'Inventory', invDocId);
-
-                    if (item.variantId && invDoc.variants) {
-                        const variantIndex = invDoc.variants.findIndex(v => v.id === item.variantId);
-                        if (variantIndex !== -1) {
-                            const updatedVariants = [...invDoc.variants];
-                            updatedVariants[variantIndex].stock += item.quantity;
-                            const newTotalStock = updatedVariants.reduce((acc, v) => acc + v.stock, 0);
-                            batch.update(inventoryRef, { variants: updatedVariants, currentStock: newTotalStock });
-                        }
-                    } else {
-                        const newStock = (invDoc.currentStock || 0) + item.quantity;
-                        batch.update(inventoryRef, { currentStock: newStock });
-                    }
-                }
-            }
-            batch.update(orderRef, { status, inventoryRestored: true });
-        } else {
-            batch.update(orderRef, { status });
-        }
-        await batch.commit();
-
     } else {
       await updateDoc(orderRef, { status });
     }

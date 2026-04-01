@@ -11,17 +11,17 @@ import { startOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { 
-    LayoutDashboard, 
-    Store, 
-    Package, 
-    Users, 
-    LogOut,
-    Megaphone,
-    ShieldAlert,
-    Bell,
-    ShoppingCart,
-    Settings
+import {
+  LayoutDashboard,
+  Store,
+  Package,
+  Users,
+  LogOut,
+  Megaphone,
+  ShieldAlert,
+  Bell,
+  ShoppingCart,
+  Settings
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -46,8 +46,8 @@ const NavItem = ({ href, label, icon: Icon, badgeCount }: typeof navItems[0] & {
       <Button
         variant={isActive ? 'secondary' : 'ghost'}
         className={cn(
-            "w-full justify-start relative",
-            isActive && "text-primary font-semibold"
+          "w-full justify-start relative",
+          isActive && "text-primary font-semibold"
         )}
       >
         <Icon className="mr-2 h-4 w-4" />
@@ -69,7 +69,7 @@ export default function Sidebar() {
   useEffect(() => {
     const startOfToday = startOfDay(new Date()).getTime();
     const q = query(
-      collection(db, 'Orders'), 
+      collection(db, 'Orders'),
       where('status', '==', 'PENDING'),
       where('createdAt', '>=', startOfToday)
     );
@@ -105,10 +105,10 @@ export default function Sidebar() {
       <div className="flex-shrink-0">
         <div className="flex items-center gap-2 mb-8 px-2">
           <Image
-              src="/akistapp_logo.png"
-              alt="AkistApp Logo"
-              width={40}
-              height={40}
+            src="/ic_launcher-playstore_ficha.png"
+            alt="AkistApp Logo"
+            width={40}
+            height={40}
           />
           <h1 className="text-xl font-bold">AkistApp</h1>
         </div>
@@ -117,14 +117,14 @@ export default function Sidebar() {
           Cerrar sesión
         </Button>
       </div>
-      
+
       <div className="my-4 border-t border-border"></div>
 
       <nav className="flex-grow space-y-1 overflow-y-auto">
         {navItems.map((item) => (
-          <NavItem 
-            key={item.href} 
-            {...item} 
+          <NavItem
+            key={item.href}
+            {...item}
             badgeCount={item.href === '/dashboard/orders' ? pendingOrdersCount : undefined}
           />
         ))}

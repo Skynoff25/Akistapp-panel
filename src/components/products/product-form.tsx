@@ -149,9 +149,18 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
     }
   };
 
+  const onError = (errors: any) => {
+    console.error("Errores de validación:", errors);
+    toast({
+        variant: 'destructive',
+        title: 'Error de validación',
+        description: 'Revisa los campos requeridos.'
+    });
+  };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+      <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
         
         {!product && allProducts.length > 0 && (
           <div className="bg-muted/50 p-3 rounded-lg border border-dashed border-primary/30 mb-4">

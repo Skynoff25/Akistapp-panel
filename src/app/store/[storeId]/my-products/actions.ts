@@ -104,7 +104,8 @@ const variantSchema = z.array(z.object({
   name: z.string().min(1, 'El nombre de la variante es obligatorio.'),
   price: z.coerce.number().min(0, 'El precio de la variante no puede ser negativo.'),
   stock: z.coerce.number().int('El stock de la variante debe ser un número entero.').min(0),
-  sku: z.string().optional(),
+  costPriceUsd: z.coerce.number().min(0).optional().default(0),
+  sku: z.string().optional().nullable(),
 }));
 
 const updateStoreProductSchema = z.object({
@@ -122,6 +123,7 @@ const updateStoreProductSchema = z.object({
   hasVariations: z.enum(['true', 'false']).transform(v => v === 'true'),
   variants: z.string().optional(),
   unit: z.enum(['KG', 'GR', 'LB', 'UNIT']).optional(),
+  isGenericBrand: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
 });
 
 

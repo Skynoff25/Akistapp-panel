@@ -82,7 +82,7 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-8">
           <div>
             <h3 className="text-[10px] font-bold uppercase text-slate-400 mb-2">Datos del Cliente</h3>
             <p className="text-sm font-semibold">{order.userName || 'Cliente General'}</p>
@@ -109,8 +109,8 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
           </div>
         </div>
 
-        <div className="mb-8">
-          <Table>
+        <div className="mb-8 border rounded-md overflow-x-auto border-slate-100">
+          <Table className="min-w-[400px]">
             <TableHeader className="bg-slate-50">
               <TableRow>
                 <TableHead className="text-slate-900 font-bold">Descripción</TableHead>
@@ -183,7 +183,7 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
             <div className="border-t pt-6 mb-6">
                 <h3 className="text-sm font-bold uppercase text-slate-900 mb-2">Información para el Pago</h3>
                 <p className="text-xs text-slate-600 mb-3 bg-slate-50 p-2 rounded border border-slate-100 italic">Antes de realizar el pago contactate con la empresa para corroborar los montos.</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {store.paymentMethods.filter(pm => pm.isActive).map(pm => (
                         <div key={pm.id} className="text-[10px] bg-slate-50 p-3 border border-slate-100 rounded-md">
                             <span className="font-bold text-slate-800 block text-xs mb-1">{pm.type}</span>

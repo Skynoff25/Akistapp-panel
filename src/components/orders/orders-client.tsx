@@ -147,6 +147,7 @@ function OrderDetailsDialog({
     if (!order) return null;
     const { appUser } = useAuth();
     const [isReportDialogOpen, setReportDialogOpen] = useState(false);
+    const [showProducts, setShowProducts] = useState(false);
     const activePaymentMethods = store?.paymentMethods?.filter(pm => pm.isActive) || [];
     
     return (
@@ -181,8 +182,16 @@ function OrderDetailsDialog({
                         </div>
                     )}
                     
-                    <h4 className="font-semibold mt-4">Artículos del Pedido</h4>
-                    <div className="border rounded-md overflow-x-auto">
+                    <div className="mt-4 border rounded-md border-slate-100">
+                      <button 
+                        type="button" 
+                        onClick={() => setShowProducts(!showProducts)}
+                        className="w-full flex justify-between items-center px-4 py-3 bg-slate-50 text-slate-900 font-bold text-sm rounded-t-md"
+                      >
+                        <span>Artículos del Pedido ({order.items.length})</span>
+                        <span className="text-slate-500">{showProducts ? '▲ Ocultar' : '▼ Ver lista'}</span>
+                      </button>
+                      <div className={`overflow-x-auto border-t ${showProducts ? 'block' : 'hidden'}`}>
                         <Table className="min-w-[500px]">
                             <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-center">Cant.</TableHead><TableHead className="text-right">Precio Unit.</TableHead><TableHead className="text-right">Subtotal</TableHead></TableRow></TableHeader>
                             <TableBody>
@@ -203,6 +212,7 @@ function OrderDetailsDialog({
                                 )})}
                             </TableBody>
                         </Table>
+                      </div>
                     </div>
                     <div className="grid justify-end gap-2 text-right mt-4 bg-muted/30 p-4 rounded-lg">
                         <div><span className="text-muted-foreground">Subtotal:</span> ${order.totalAmount.toFixed(2)}</div>

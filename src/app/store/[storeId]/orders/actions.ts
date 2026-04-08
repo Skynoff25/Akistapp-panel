@@ -160,14 +160,18 @@ const updateOrderItemsSchema = z.object({
         inventoryId: z.string(),
         productId: z.string(),
         productName: z.string(),
-        quantity: z.number().int().min(1),
+        quantity: z.number().min(0.001),
         price: z.number(),
-        image: z.string(),
-        costPriceUsd: z.number(),
-        variantId: z.string().optional(),
-        variantName: z.string().optional(),
+        image: z.string().optional().nullable().default(""),
+        costPriceUsd: z.number().optional().nullable().default(0),
+        variantId: z.string().optional().nullable(),
+        variantName: z.string().optional().nullable(),
+        unit: z.string().optional().nullable(),
+        isGenericBrand: z.boolean().optional().nullable(),
+        casheaEligible: z.boolean().optional().nullable(),
       })).parse(JSON.parse(str));
     } catch (e) {
+      console.error("Error validando artículos:", e);
       ctx.addIssue({ code: 'custom', message: 'Invalid JSON for items' });
       return z.NEVER;
     }

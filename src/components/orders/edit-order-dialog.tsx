@@ -121,9 +121,10 @@ export function EditOrderDialog({ order, storeId, open, onOpenChange, onSuccess 
                                 <Input 
                                     type="number" 
                                     value={item.quantity}
-                                    onChange={(e) => handleQuantityChange(uniqueId, parseInt(e.target.value))}
+                                    onChange={(e) => handleQuantityChange(uniqueId, parseFloat(e.target.value) || 0)}
                                     className="h-9 w-24 text-center"
                                     min="0"
+                                    step={item.unit && item.unit !== 'UNIT' ? "0.001" : "1"}
                                 />
                             </TableCell>
                             <TableCell className="text-right font-medium">

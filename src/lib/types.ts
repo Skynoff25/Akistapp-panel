@@ -33,6 +33,7 @@ export interface Store {
   sponsoredKeywords?: string[];
   hasPos?: boolean;
   hasFinanceModule?: boolean;
+  reservationExpirationHours?: 2 | 6 | 12 | 24; // Horas límite para reservas sin pago (default: 24)
 
   // Plan tracking
   planExpiresAt?: number;
@@ -172,7 +173,8 @@ export interface CartItemSnapshot {
     unit?: ProductUnit; // Unit of measure for weight-based products
 }
 
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'READY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED' | 'EXPIRED_WARNING';
+export type PaymentStatus = 'paid' | 'pending';
 export type OrderType = 'ONLINE' | 'IN_STORE';
 
 export interface Order {
@@ -207,6 +209,10 @@ export interface Order {
     // --- Metodos de Pago ---
     paymentMethod?: PaymentMethod;
     paymentMessage?: string;
+    payment_status?: PaymentStatus; // 'paid' | 'pending' — controla si el timer de expiración aplica
+
+    // --- Expiración Suave ---
+    expiresAt?: number; // timestamp epoch ms — calculado en creación: createdAt + reservationExpirationHours
 
     userName?: string;
     userEmail?: string;

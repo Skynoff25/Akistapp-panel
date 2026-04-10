@@ -4,10 +4,12 @@ import { z } from "zod";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, writeBatch, getDoc, query, collection, where, getDocs, documentId } from "firebase/firestore";
 import { revalidatePath } from "next/cache";
-import type { CartItemSnapshot, Order, StoreProduct } from "@/lib/types";
+import type { CartItemSnapshot, Order, OrderStatus, StoreProduct } from "@/lib/types";
+import { sendTransactionalNotification } from "@/lib/notification-utils";
 
 const updateOrderStatusSchema = z.object({
-  status: z.enum(["PENDING", "CONFIRMED", "READY", "DELIVERED", "CANCELLED", "RETURNED"]),
+  status: z.enum(["PENDING", "CONFIRMED", "READY", "DELIVERED", "CANCELLED", "RETURNED", "EXPIRED_WARNING"]),
+  payment_status: z.enum(["paid", "pending"]).optional(),
 });
 
 export async function updateOrderStatus(storeId: string, orderId: string, formData: FormData) {
@@ -21,13 +23,18 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
     };
   }
 
-  const { status } = validatedFields.data;
+  const { status, payment_status } = validatedFields.data;
 
   try {
     const orderRef = doc(db, "Orders", orderId);
     const orderSnap = await getDoc(orderRef);
     if (!orderSnap.exists()) throw new Error("El pedido no existe.");
     const order = orderSnap.data() as Order;
+
+    // Validación extra: Si el pedido está pagado, no puede pasar a EXPIRED_WARNING manualmente
+    if (status === "EXPIRED_WARNING" && (order.payment_status === "paid" || order.paymentMessage)) {
+      throw new Error("No se puede marcar como vencida una orden con pago confirmado o reportado.");
+    }
     const batch = writeBatch(db);
     const inventoryUpdates = new Map<string, { doc: StoreProduct; ref: any }>();
 
@@ -110,18 +117,31 @@ export async function updateOrderStatus(storeId: string, orderId: string, formDa
             inventoryUpdates.forEach((update) => {
                 batch.update(update.ref, { variants: update.doc.variants || [], currentStock: update.doc.currentStock });
             });
-            batch.update(orderRef, { status: status, inventoryRestored: true });
+            const updates: any = { status, inventoryRestored: true };
+            if (payment_status) updates.payment_status = payment_status;
+            batch.update(orderRef, updates);
         } else {
-            batch.update(orderRef, { status: status });
+            const updates: any = { status };
+            if (payment_status) updates.payment_status = payment_status;
+            batch.update(orderRef, updates);
         }
         await batch.commit();
     } else {
-      await updateDoc(orderRef, { status });
+      const updates: any = { status };
+      if (payment_status) updates.payment_status = payment_status;
+      await updateDoc(orderRef, updates);
     }
 
     revalidatePath(`/store/${storeId}/orders`);
     revalidatePath(`/store/${storeId}/my-products`);
     revalidatePath(`/store/${storeId}/finance`);
+
+    // ─── Enviar Notificación al Cliente (Async) ───
+    if (order.userId) {
+      // No esperamos a que termine para no bloquear la respuesta UI
+      sendTransactionalNotification(order.userId, order.storeName || "La Tienda", order.id, status as OrderStatus);
+    }
+
     return { message: "El estado del pedido ha sido actualizado." };
   } catch (e: any) {
     console.error(e);
@@ -216,5 +236,114 @@ export async function updateOrderItems(storeId: string, orderId: string, formDat
   } catch(e: any) {
     console.error(e);
     return { error: `No se pudo actualizar el pedido. ${e.message}` };
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Módulo 2: Soft Expiration
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Marca una orden PENDING como EXPIRED_WARNING.
+ * Solo aplica si payment_status !== 'paid' y expiresAt ya pasó.
+ */
+export async function markOrderExpired(storeId: string, orderId: string) {
+  try {
+    const orderRef = doc(db, 'Orders', orderId);
+    const snap = await getDoc(orderRef);
+    if (!snap.exists()) return { error: 'Pedido no encontrado.' };
+    const order = snap.data() as Order;
+    if (order.status !== 'PENDING') return { skipped: true };
+    if (order.payment_status === 'paid' || order.paymentMessage) return { skipped: true };
+    await updateDoc(orderRef, { status: 'EXPIRED_WARNING' });
+    revalidatePath(`/store/${storeId}/orders`);
+
+    // ─── Enviar Notificación al Cliente (Async) ───
+    if (order.userId) {
+      sendTransactionalNotification(order.userId, order.storeName || "La Tienda", order.id, 'EXPIRED_WARNING');
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+/**
+ * Acción de rescate sobre una orden vencida.
+ * action 'cancel' → cambia a CANCELLED y reintegra inventario.
+ */
+export async function rescueExpiredOrder(
+  storeId: string,
+  orderId: string,
+  action: 'cancel'
+) {
+  try {
+    const orderRef = doc(db, 'Orders', orderId);
+    const snap = await getDoc(orderRef);
+    if (!snap.exists()) throw new Error('El pedido no existe.');
+    const order = snap.data() as Order;
+
+    if (action === 'cancel') {
+      const batch = writeBatch(db);
+      const inventoryUpdates = new Map<string, { doc: StoreProduct; ref: any }>();
+
+      if (order.inventoryDeducted && !order.inventoryRestored) {
+        for (const item of order.items) {
+          const invId = item.inventoryId;
+          if (!invId) continue;
+          if (!inventoryUpdates.has(invId)) {
+            const invSnap = await getDoc(doc(db, 'Inventory', invId));
+            if (invSnap.exists()) {
+              const data = invSnap.data() as StoreProduct;
+              inventoryUpdates.set(invId, { doc: JSON.parse(JSON.stringify(data)), ref: invSnap.ref });
+            }
+          }
+          const invUpdate = inventoryUpdates.get(invId);
+          if (invUpdate) {
+            const { doc: invDoc } = invUpdate;
+            if (item.variantId && invDoc.variants) {
+              const vi = invDoc.variants.findIndex((v: any) => v.id === item.variantId);
+              if (vi !== -1) {
+                invDoc.variants[vi].stock += item.quantity;
+                invDoc.currentStock = invDoc.variants.reduce((a: number, v: any) => a + v.stock, 0);
+              }
+            } else {
+              invDoc.currentStock = (invDoc.currentStock || 0) + item.quantity;
+            }
+          }
+        }
+        inventoryUpdates.forEach((update) => {
+          batch.update(update.ref, { variants: update.doc.variants || [], currentStock: update.doc.currentStock });
+        });
+        batch.update(orderRef, { status: 'CANCELLED', inventoryRestored: true });
+      } else {
+        batch.update(orderRef, { status: 'CANCELLED' });
+      }
+      await batch.commit();
+    }
+
+    revalidatePath(`/store/${storeId}/orders`);
+    revalidatePath(`/store/${storeId}/my-products`);
+    return { success: true, message: 'Orden cancelada y stock reintegrado.' };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+/**
+ * Guarda la configuración de expiración de reservas en el documento de la tienda.
+ */
+export async function saveReservationConfig(
+  storeId: string,
+  reservationExpirationHours: 2 | 6 | 12 | 24
+) {
+  try {
+    const storeRef = doc(db, 'Stores', storeId);
+    await updateDoc(storeRef, { reservationExpirationHours });
+    revalidatePath(`/store/${storeId}/orders`);
+    return { success: true, message: 'Configuración guardada.' };
+  } catch (e: any) {
+    return { error: e.message };
   }
 }

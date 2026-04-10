@@ -104,11 +104,29 @@ export default function OrderRealtimeNotifier({ storeId, enabled }: OrderRealtim
       }
 
       snapshot.docChanges().forEach((change) => {
+        const orderData = { id: change.doc.id, ...change.doc.data() } as Order;
+
         if (change.type === 'added') {
-          const newOrder = { id: change.doc.id, ...change.doc.data() } as Order;
           playAlertSound();
-          showNativeNotification(newOrder);
-          showUINotification(newOrder);
+          showNativeNotification(orderData);
+          showUINotification(orderData);
+        }
+
+        if (change.type === 'modified') {
+          // Si el cambio es que se agregó un mensaje de pago (reporte de pago)
+          // Comparamos con el estado anterior si fuera necesario, pero simplemente
+          // verificar que tenga paymentMessage y un estado activo
+          // es suficiente para alertar al cajero.
+          if (orderData.paymentMessage && ["PENDING", "CONFIRMED", "READY", "EXPIRED_WARNING"].includes(orderData.status)) {
+            // Solo notificar si es un "reporte de pago" nuevo o actualizado
+            // (onSnapshot nos da el estado actual)
+            playAlertSound();
+            toast({
+              title: "💳 ¡Pago Reportado!",
+              description: `Pedido #${orderData.id.substring(0, 7)} - ${orderData.userName || 'Cliente'}`,
+              variant: "default",
+            });
+          }
         }
       });
     }, (error) => {

@@ -15,6 +15,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <Link href="/legal/privacy-policy" className="hover:text-foreground transition-colors">Privacidad</Link>
             <Link href="/legal/terms" className="hover:text-foreground transition-colors">Términos</Link>
             <Link href="/legal/help" className="hover:text-foreground transition-colors">Ayuda</Link>
+            <Link href="/legal/delete-account" className="hover:text-red-600 text-red-500 transition-colors">Eliminar cuenta</Link>
           </nav>
         </div>
       </header>
@@ -32,6 +33,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             <Link href="/legal/privacy-policy" className="hover:text-foreground transition-colors">Política de Privacidad</Link>
             <Link href="/legal/terms" className="hover:text-foreground transition-colors">Términos de Uso</Link>
             <Link href="/legal/help" className="hover:text-foreground transition-colors">Ayuda</Link>
+            <Link href="/legal/delete-account" className="hover:text-red-600 text-red-500 transition-colors">Eliminar cuenta</Link>
           </div>
         </div>
       </footer>

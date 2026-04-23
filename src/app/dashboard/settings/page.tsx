@@ -12,13 +12,17 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SystemConfig } from '@/lib/types';
-import { AlertCircle, Save, Loader2 } from 'lucide-react';
+import { AlertCircle, Save, Loader2, DollarSign } from 'lucide-react';
+import { getGlobalRates, updateGlobalRates } from '@/app/dashboard/rates-actions';
 
 export default function SystemSettingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingRates, setSavingRates] = useState(false);
+  
+  const [rates, setRates] = useState({ tasaOficial: 36.5, tasaParalela: 40.0 });
   
   const [config, setConfig] = useState<SystemConfig>({
     isAppBlocked: false,
@@ -36,6 +40,9 @@ export default function SystemSettingsPage() {
         if (snap.exists()) {
           setConfig(snap.data() as SystemConfig);
         }
+        
+        const globalRates = await getGlobalRates();
+        setRates({ tasaOficial: globalRates.tasaOficial, tasaParalela: globalRates.tasaParalela });
       } catch (err) {
         console.error("Error fetching config", err);
       } finally {
@@ -44,6 +51,17 @@ export default function SystemSettingsPage() {
     };
     fetchConfig();
   }, []);
+
+  const handleSaveRates = async () => {
+      setSavingRates(true);
+      const res = await updateGlobalRates(rates.tasaOficial, rates.tasaParalela);
+      setSavingRates(false);
+      if (res.error) {
+          toast({ variant: 'destructive', title: 'Error', description: res.error });
+      } else {
+          toast({ title: 'Tasas actualizadas', description: 'Las tasas globales se actualizaron manualmente.' });
+      }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -149,6 +167,43 @@ export default function SystemSettingsPage() {
               placeholder="Enlace a Google Play o App Store"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><DollarSign className="w-5 h-5"/> Tasas de Cambio Globales</CardTitle>
+          <CardDescription>
+            Configuración manual de la Tasa BCV Oficial y Paralela por defecto en caso de que falle la actualización automática.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="tasaOficial">Tasa Oficial (BCV)</Label>
+                <Input 
+                  id="tasaOficial"
+                  type="number"
+                  step="0.01"
+                  value={rates.tasaOficial}
+                  onChange={(e) => setRates({ ...rates, tasaOficial: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tasaParalela">Tasa Paralela Sugerida</Label>
+                <Input 
+                  id="tasaParalela"
+                  type="number"
+                  step="0.01"
+                  value={rates.tasaParalela}
+                  onChange={(e) => setRates({ ...rates, tasaParalela: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+          </div>
+          <Button onClick={handleSaveRates} disabled={savingRates} variant="secondary">
+            {savingRates ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Actualizar Tasas
+          </Button>
         </CardContent>
       </Card>
 

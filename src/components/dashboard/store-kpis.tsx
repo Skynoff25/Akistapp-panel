@@ -3,6 +3,7 @@
 
 import { useMemo } from 'react';
 import { useFirestoreQuery } from '@/hooks/use-firestore-query';
+import { useDocument } from '@/hooks/use-document';
 import { where } from 'firebase/firestore';
 import { subDays, startOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,7 +16,7 @@ import {
     PackageSearch,
     ShoppingBag
 } from 'lucide-react';
-import type { Order, StoreProduct } from '@/lib/types';
+import type { Order, StoreProduct, Store } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { limit, orderBy } from 'firebase/firestore';
 
@@ -32,10 +33,14 @@ export function StoreKpis({ storeId }: StoreKpisProps) {
     where('createdAt', '>=', lastWeekTimestamp)
   ]);
 
+  // 1.5. Obtener datos de la tienda para configuraciones
+  const { data: store, loading: storeLoading } = useDocument<Store>(`Stores/${storeId}`);
+  const threshold = store?.lowStockAlertThreshold ?? 5;
+
   // 2. Obtener inventario para Alertas Críticas (Optimizado a Max 5 lecturas)
   const { data: criticalInventory, loading: inventoryLoading } = useFirestoreQuery<StoreProduct>('Inventory', [
     where('storeId', '==', storeId),
-    where('currentStock', '<', 5),
+    where('currentStock', '<', threshold),
     orderBy('currentStock', 'asc'),
     limit(5)
   ]);
@@ -76,7 +81,7 @@ export function StoreKpis({ storeId }: StoreKpisProps) {
     };
   }, [recentOrders, criticalInventory]);
 
-  if (ordersLoading || inventoryLoading) {
+  if (ordersLoading || inventoryLoading || storeLoading) {
       return <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 animate-pulse">
           {[1,2,3,4].map(i => <div key={i} className="h-32 bg-muted rounded-xl"></div>)}
       </div>;
@@ -148,7 +153,7 @@ export function StoreKpis({ storeId }: StoreKpisProps) {
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
                 Inventario Crítico
             </CardTitle>
-            <CardDescription>Productos con stock menor a 5 unidades.</CardDescription>
+            <CardDescription>Productos con stock menor a {threshold} unidades.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

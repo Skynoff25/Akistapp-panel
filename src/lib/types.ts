@@ -52,6 +52,11 @@ export interface Store {
 
   // Formas de Pago
   paymentMethods?: PaymentMethod[];
+
+  // Store Config
+  lowStockAlertThreshold?: number;
+  showBsPrice?: boolean;
+  bsPriceMarkup?: number;
 }
 
 export type ProductUnit = 'KG' | 'GR' | 'LB' | 'UNIT';
@@ -218,6 +223,7 @@ export interface Order {
     userEmail?: string;
     userPhoneNumber?: string;
     userNationalId?: string;
+    sellerName?: string;
 }
 
 export interface Promotion {

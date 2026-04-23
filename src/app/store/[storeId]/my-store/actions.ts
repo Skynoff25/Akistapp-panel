@@ -16,6 +16,9 @@ const updateMyStoreSchema = z.object({
   deliveryFee: z.coerce.number().min(0, "La tarifa debe ser positiva.").optional(),
   phone: z.string().optional(),
   paymentMethods: z.string().optional(),
+  lowStockAlertThreshold: z.coerce.number().min(1).optional(),
+  showBsPrice: z.enum(['true', 'false']).transform(v => v === 'true').optional(),
+  bsPriceMarkup: z.coerce.number().min(0).max(10).optional(),
 });
 
 export async function updateMyStore(storeId: string, formData: FormData) {

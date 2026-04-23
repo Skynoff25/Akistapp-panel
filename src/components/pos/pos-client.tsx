@@ -431,6 +431,7 @@ export default function PosClient({ storeId }: { storeId: string }) {
     formData.append('userPhoneNumber', customerInfo.phone);
     formData.append('tasaOficial', String(localTasaOficial));
     formData.append('tasaParalela', String(localTasaParalela));
+    formData.append('sellerName', appUser?.name || appUser?.displayName || 'Vendedor Local');
 
 
     const result = await createManualSale(storeId, formData);

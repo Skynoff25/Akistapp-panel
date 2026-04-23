@@ -50,7 +50,12 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
   if (loading) return <Loader text="Generando comprobante..." />;
 
   const finalTotalUsd = order.finalTotal || (order.totalAmount + order.shippingCost);
-  const totalVes = finalTotalUsd * (order.tasaOficial || 1);
+  
+  // Calcular Tasa Efectiva (con recargo) si showBsPrice es true
+  const tasaOficial = order.tasaOficial || 1;
+  const markup = store?.bsPriceMarkup || 0;
+  const tasaEfectiva = store?.showBsPrice ? tasaOficial * (1 + markup / 100) : null;
+  const totalVes = tasaEfectiva ? finalTotalUsd * tasaEfectiva : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -100,6 +105,7 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
             <p className="text-sm font-semibold">
                 {order.type === 'IN_STORE' ? 'Venta en Tienda (POS)' : 'Pedido Online'}
             </p>
+            {order.sellerName && <p className="text-xs text-muted-foreground">Atendido por: {order.sellerName}</p>}
             {order.type !== 'IN_STORE' && (
                 <p className="text-xs">
                     {order.deliveryMethod === 'PICKUP' ? 'Retiro en Local' : 
@@ -164,11 +170,11 @@ export function OrderReceipt({ order }: OrderReceiptProps) {
               <span>${finalTotalUsd.toFixed(2)}</span>
             </div>
             
-            {order.tasaOficial && (
+            {store?.showBsPrice && tasaEfectiva && totalVes !== null && (
                 <div className="bg-slate-50 p-3 rounded-md border border-slate-100 mt-4 space-y-1">
                     <div className="flex justify-between text-[10px] text-slate-500 italic">
-                        <span>Tasa BCV Referencial:</span>
-                        <span>{order.tasaOficial.toFixed(2)} Bs/$</span>
+                        <span>Tasa Referencial:</span>
+                        <span>{tasaEfectiva.toFixed(2)} Bs/$</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold text-slate-700">
                         <span>Total Bs:</span>

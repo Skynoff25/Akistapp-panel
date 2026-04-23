@@ -42,6 +42,9 @@ const myStoreSchema = z.object({
   deliveryType: z.enum(['FIXED', 'AGREEMENT']).default('AGREEMENT'),
   deliveryFee: z.coerce.number().min(0).default(0),
   phone: z.string().min(1, 'El teléfono es obligatorio'),
+  lowStockAlertThreshold: z.coerce.number().min(1, 'Debe ser al menos 1').default(5),
+  showBsPrice: z.boolean().default(false),
+  bsPriceMarkup: z.coerce.number().min(0, 'Min 0').max(10, 'Max 10%').default(0),
 });
 
 type MyStoreFormValues = z.infer<typeof myStoreSchema>;
@@ -72,6 +75,9 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
       deliveryType: store?.deliveryType || 'AGREEMENT',
       deliveryFee: store?.deliveryFee || 0,
       phone: store?.phone || "",
+      lowStockAlertThreshold: store?.lowStockAlertThreshold ?? 5,
+      showBsPrice: store?.showBsPrice ?? false,
+      bsPriceMarkup: store?.bsPriceMarkup ?? 0,
     },
   });
 
@@ -90,6 +96,9 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
         deliveryType: store.deliveryType || 'AGREEMENT',
         deliveryFee: store.deliveryFee || 0,
         phone: store.phone || "",
+        lowStockAlertThreshold: store.lowStockAlertThreshold ?? 5,
+        showBsPrice: store.showBsPrice ?? false,
+        bsPriceMarkup: store.bsPriceMarkup ?? 0,
       });
       setPaymentMethods(store.paymentMethods || []);
     }
@@ -121,6 +130,9 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
     if (data.phone) {
         formData.append('phone', data.phone);
     }
+    formData.append('lowStockAlertThreshold', String(data.lowStockAlertThreshold));
+    formData.append('showBsPrice', String(data.showBsPrice));
+    formData.append('bsPriceMarkup', String(data.bsPriceMarkup));
     formData.append('paymentMethods', JSON.stringify(paymentMethods));
 
     const result = await updateMyStore(storeId, formData);
@@ -174,6 +186,22 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                                     <FormControl>
                                         <Input disabled={!canEdit} placeholder="+58 414 1234567" {...field} />
                                     </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="lowStockAlertThreshold"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Umbral de Alerta de Inventario Crítico</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" disabled={!canEdit} {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Te avisaremos cuando el stock de un producto baje de esta cantidad.
+                                    </FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -356,6 +384,49 @@ export default function MyStoreClient({ storeId }: MyStoreClientProps) {
                                     Al tener ambas opciones de retiro y despacho desactivadas, los clientes no podrán realizar pedidos en tu tienda.
                                 </AlertDescription>
                             </Alert>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader><CardTitle>Configuración de Precios</CardTitle></CardHeader>
+                    <CardContent className="space-y-6">
+                        <FormField
+                            control={form.control}
+                            name="showBsPrice"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Mostrar Precios en Bs</FormLabel>
+                                    <FormDescription>Mostrar el total en Bolívares en los recibos basado en la Tasa BCV.</FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    disabled={!canEdit}
+                                    />
+                                </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        {form.watch("showBsPrice") && (
+                             <FormField
+                                control={form.control}
+                                name="bsPriceMarkup"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>% Recargo sobre Tasa BCV (Opcional)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" step="0.1" max="10" min="0" disabled={!canEdit} {...field} />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Puedes aplicar hasta un 10% de recargo sobre la tasa oficial para el cálculo visual.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         )}
                     </CardContent>
                 </Card>

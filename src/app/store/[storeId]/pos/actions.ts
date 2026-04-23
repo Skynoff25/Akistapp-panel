@@ -31,6 +31,7 @@ const createManualSaleSchema = z.object({
   userPhoneNumber: z.string().optional(),
   tasaOficial: z.coerce.number().gt(0, "La tasa oficial debe ser mayor a cero."),
   tasaParalela: z.coerce.number().gt(0, "La tasa paralela debe ser mayor a cero."),
+  sellerName: z.string().optional(),
 });
 
 export async function createManualSale(storeId: string, formData: FormData) {
@@ -52,7 +53,8 @@ export async function createManualSale(storeId: string, formData: FormData) {
     userNationalId, 
     userPhoneNumber, 
     tasaOficial, 
-    tasaParalela 
+    tasaParalela,
+    sellerName
   } = validatedFields.data;
 
   let items: z.infer<typeof saleItemSchema>;
@@ -87,6 +89,7 @@ export async function createManualSale(storeId: string, formData: FormData) {
       userPhoneNumber: userPhoneNumber || "",
       tasaOficial,
       tasaParalela,
+      sellerName: sellerName || "Vendedor Local",
     });
     
     // --- 2. Descontar el inventario ---
